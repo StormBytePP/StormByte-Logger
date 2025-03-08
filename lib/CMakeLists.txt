@@ -1,10 +1,10 @@
 include(GNUInstallDirs)
 
 # Sources
-file(GLOB_RECURSE STORMBYTE_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
+file(GLOB_RECURSE STORMBYTE_LOGGER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
 
 # Library
-add_library(StormByte-Logger SHARED ${STORMBYTE_SOURCES})
+add_library(StormByte-Logger SHARED ${STORMBYTE_LOGGER_SOURCES})
 add_library(StormByte::Logger ALIAS StormByte-Logger)
 target_link_libraries(StormByte-Logger PUBLIC StormByte)
 set_target_properties(StormByte-Logger PROPERTIES
@@ -24,7 +24,7 @@ endif()
 
 # Include directories
 target_include_directories(StormByte-Logger
-	SYSTEM BEFORE PUBLIC "${CMAKE_CURRENT_LIST_DIR}"
+	SYSTEM BEFORE PUBLIC "${CMAKE_CURRENT_LIST_DIR}/public" "${CMAKE_CURRENT_LIST_DIR}/private"
 )
 
 # Install
@@ -34,7 +34,7 @@ if (NOT STORMBYTE_AS_DEPENDENCY)
 		LIBRARY 		DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 		RUNTIME 		DESTINATION ${CMAKE_INSTALL_BINDIR}
 	)
-	install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/"
+	install(DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/public/"
 		DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/StormByte"
 		FILES_MATCHING
 		PATTERN "*.h"
