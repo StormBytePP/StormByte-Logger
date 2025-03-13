@@ -1,8 +1,8 @@
-#include <logger/logger.hxx>
+#include <StormByte/logger/logger.hxx>
+
 #include "test_handlers.h"
 
 #include <sstream>
-#include <iostream>
 
 using namespace StormByte::Log;
 

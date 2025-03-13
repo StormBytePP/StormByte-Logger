@@ -1,6 +1,6 @@
 #pragma once
 
-#include <logger/visibility.h>
+#include <StormByte/logger/visibility.h>
 
 /**
  * @namespace Log
