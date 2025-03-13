@@ -1,6 +1,5 @@
 #include <StormByte/logger/logger.hxx>
-
-#include "test_handlers.h"
+#include <StormByte/test_handlers.h>
 
 #include <sstream>
 
