@@ -15,8 +15,10 @@ set_target_properties(StormByte-Logger PROPERTIES
 
 # Compile options
 if(MSVC)
-	target_compile_options(StormByte-Logger PRIVATE /wd4251 /EHsc /O2 /Gs)
-	target_link_options(StormByte-Logger PRIVATE /LTCG /GL)
+	target_compile_options(StormByte-Logger PRIVATE /EHsc)
+	target_compile_options(StormByte-Logger PRIVATE $<$<CONFIG:Release>:/O2>)
+	target_compile_options(StormByte-Logger PRIVATE $<$<CONFIG:Debug>:/Od>)
+	target_link_options(StormByte-Logger PRIVATE $<$<CONFIG:Release>:/LTCG /GL>)
 else()
 	set(CMAKE_CXX_FLAGS_DEBUG "-pipe -g -ggdb -Wall -Wextra -Wnon-virtual-dtor -pedantic -pedantic-errors -O0")
 	target_compile_options(StormByte-Logger PRIVATE -fvisibility=hidden $<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
