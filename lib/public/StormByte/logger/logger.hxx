@@ -2,6 +2,7 @@
 
 #include <StormByte/logger/level.hxx>
 
+#include <memory>
 #include <ostream>
 
 /**
@@ -126,4 +127,11 @@ namespace StormByte::Log {
 			 */
 			const std::string m_format;	///< Custom user format %L for Level and %T for Time
 	};
+
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const Level& level) noexcept;
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const std::string& str) noexcept;
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const char* str) noexcept;
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const int& value) noexcept;
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const double& value) noexcept;
+	STORMBYTE_LOGGER_PUBLIC std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const bool& value) noexcept;
 }

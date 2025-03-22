@@ -87,3 +87,53 @@ void Logger::print_message(const std::string& message) noexcept {
 		m_out << message;
 	}
 }
+
+namespace StormByte::Log {
+	// Forward operator<< for Level
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const Level& level) noexcept {
+		if (logger) {
+			*logger << level; // Forward the call to Logger
+		}
+		return logger;
+	}
+
+	// Forward operator<< for std::string
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const std::string& str) noexcept {
+		if (logger) {
+			*logger << str; // Forward the call to Logger
+		}
+		return logger;
+	}
+
+	// Forward operator<< for const char*
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const char* str) noexcept {
+		if (logger) {
+			*logger << str; // Forward the call to Logger
+		}
+		return logger;
+	}
+
+	// Forward operator<< for int
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const int& value) noexcept {
+		if (logger) {
+			*logger << value; // Forward the call to Logger
+		}
+		return logger;
+	}
+
+	// Forward operator<< for double
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const double& value) noexcept {
+		if (logger) {
+			*logger << value; // Forward the call to Logger
+		}
+		return logger;
+	}
+
+	// Forward operator<< for bool
+	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const bool& value) noexcept {
+		if (logger) {
+			*logger << value; // Forward the call to Logger
+		}
+		return logger;
+	}
+}

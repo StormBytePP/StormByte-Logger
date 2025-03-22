@@ -59,6 +59,19 @@ int log_to_stdout() {
 	RETURN_TEST("log_to_stdout", 0);
 }
 
+int log_as_shared_ptr() {
+	std::ostringstream output;
+	std::shared_ptr<Logger> logger = std::make_shared<Logger>(output, Level::Debug, "%L: ");
+
+	logger << Level::Info << "Info message";
+	logger << Level::Debug << "Debug message";
+	logger << Level::Error << "Error message";
+
+	std::string expected = "Info: Info message\nDebug: Debug message\nError: Error message";
+	ASSERT_EQUAL("log_as_shared_ptr", expected, output.str());
+	RETURN_TEST("log_as_shared_ptr", 0);
+}
+
 int main() {
     int result = 0;
     try {
@@ -66,6 +79,7 @@ int main() {
 		result += test_log_level_filtering();
 		result += test_log_data();
 		result += log_to_stdout();
+		result += log_as_shared_ptr();
         std::cout << "All tests passed successfully.\n";
     } catch (...) {
         result++;
