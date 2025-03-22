@@ -58,7 +58,7 @@ The `Logger` module provides a comprehensive logging framework with support for 
 #### Example: Log
 
 ```cpp
-#include <logger/logger.hxx>
+#include <StormByte/logger/log.hxx>
 #include <iostream>
 
 using namespace StormByte::Logger;
@@ -66,7 +66,26 @@ using namespace StormByte::Logger;
 // Example usage
 int main() {
 	// Simple logger outputing only errors to stdout
-	Logger logger(std::cout, Level::Error);
+	Log logger(std::cout, Level::Error);
+	logger << Level::Info << "This is an info message"; // Will not be displayed
+	logger << Level::Error << "This is an error message"; // Will be displayed
+	return 0;
+}
+```
+
+Or, for convenience, it can also be used when inside a std::shared_ptr but it will not 
+check for the validity of the pointer:
+
+```cpp
+#include <StormByte/logger/log.hxx>
+#include <iostream>
+
+using namespace StormByte::Logger;
+
+// Example usage
+int main() {
+	// Simple logger outputing only errors to stdout
+	std::shared_ptr<Log> logger = std::make_shared<Log>(std::cout, Level::Error);
 	logger << Level::Info << "This is an info message"; // Will not be displayed
 	logger << Level::Error << "This is an error message"; // Will be displayed
 	return 0;
