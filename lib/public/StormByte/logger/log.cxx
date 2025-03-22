@@ -1,15 +1,15 @@
-#include <StormByte/logger/logger.hxx>
+#include <StormByte/logger/log.hxx>
 
 #include <ostream>
 #include <chrono>
 #include <iomanip>
 
-using namespace StormByte::Log;
+using namespace StormByte::Logger;
 
-Logger::Logger(std::ostream& out, const Level& level, const std::string& format) noexcept:m_out(out),
+Log::Log(std::ostream& out, const Level& level, const std::string& format) noexcept:m_out(out),
 m_print_level(level), m_current_level(level), m_line_started(false), m_format(format) {}
 
-Logger& Logger::operator<<(const Level& level) noexcept {
+Log& Log::operator<<(const Level& level) noexcept {
 	if (m_current_level >= m_print_level && m_line_started)
 		m_out << std::endl;
 
@@ -18,32 +18,32 @@ Logger& Logger::operator<<(const Level& level) noexcept {
 	return *this;
 }
 
-Logger& Logger::operator<<(const std::string& str) noexcept {
+Log& Log::operator<<(const std::string& str) noexcept {
 	print_message(str);
 	return *this;
 }
 
-Logger& Logger::operator<<(const char* str) noexcept {
+Log& Log::operator<<(const char* str) noexcept {
 	print_message(str);
 	return *this;
 }
 
-Logger& Logger::operator<<(const int& value) noexcept {
+Log& Log::operator<<(const int& value) noexcept {
 	print_message(std::to_string(value));
 	return *this;
 }
 
-Logger& Logger::operator<<(const double& value) noexcept {
+Log& Log::operator<<(const double& value) noexcept {
 	print_message(std::to_string(value));
 	return *this;
 }
 
-Logger& Logger::operator<<(const bool& value) noexcept {
+Log& Log::operator<<(const bool& value) noexcept {
 	print_message(value ? "true" : "false");
 	return *this;
 }
 
-void Logger::print_time() const noexcept {
+void Log::print_time() const noexcept {
 	auto now = std::chrono::system_clock::now();
     std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
     struct tm timeinfo;
@@ -55,11 +55,11 @@ void Logger::print_time() const noexcept {
     m_out << std::put_time(&timeinfo, "%d/%m/%Y %H:%M:%S");
 }
 
-void Logger::print_level() const noexcept {
-	m_out << GetLevelAsString(m_current_level);
+void Log::print_level() const noexcept {
+	m_out << LevelToString(m_current_level);
 }
 
-void Logger::print_header() const noexcept {
+void Log::print_header() const noexcept {
 	for (char c : m_format) {
         if (c == '%') {
             continue;
@@ -78,7 +78,7 @@ void Logger::print_header() const noexcept {
     }
 }
 
-void Logger::print_message(const std::string& message) noexcept {
+void Log::print_message(const std::string& message) noexcept {
 	if (m_current_level >= m_print_level) {
 		if (!m_line_started) {
 			print_header();
@@ -88,51 +88,51 @@ void Logger::print_message(const std::string& message) noexcept {
 	}
 }
 
-namespace StormByte::Log {
+namespace StormByte::Logger {
 	// Forward operator<< for Level
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const Level& level) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const Level& level) noexcept {
 		if (logger) {
-			*logger << level; // Forward the call to Logger
+			*logger << level; // Forward the call to Log
 		}
 		return logger;
 	}
 
 	// Forward operator<< for std::string
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const std::string& str) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const std::string& str) noexcept {
 		if (logger) {
-			*logger << str; // Forward the call to Logger
+			*logger << str; // Forward the call to Log
 		}
 		return logger;
 	}
 
 	// Forward operator<< for const char*
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const char* str) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const char* str) noexcept {
 		if (logger) {
-			*logger << str; // Forward the call to Logger
+			*logger << str; // Forward the call to Log
 		}
 		return logger;
 	}
 
 	// Forward operator<< for int
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const int& value) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const int& value) noexcept {
 		if (logger) {
-			*logger << value; // Forward the call to Logger
+			*logger << value; // Forward the call to Log
 		}
 		return logger;
 	}
 
 	// Forward operator<< for double
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const double& value) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const double& value) noexcept {
 		if (logger) {
-			*logger << value; // Forward the call to Logger
+			*logger << value; // Forward the call to Log
 		}
 		return logger;
 	}
 
 	// Forward operator<< for bool
-	std::shared_ptr<Logger>& operator<<(std::shared_ptr<Logger>& logger, const bool& value) noexcept {
+	std::shared_ptr<Log>& operator<<(std::shared_ptr<Log>& logger, const bool& value) noexcept {
 		if (logger) {
-			*logger << value; // Forward the call to Logger
+			*logger << value; // Forward the call to Log
 		}
 		return logger;
 	}

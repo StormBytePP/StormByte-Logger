@@ -2,11 +2,13 @@
 
 #include <StormByte/logger/visibility.h>
 
+#include <string>
+
 /**
- * @namespace Log
+ * @namespace Logger
  * @brief All the classes for handling logging
  */
-namespace StormByte::Log {
+namespace StormByte::Logger {
 	/**
 	 * @enum Level
 	 * @brief Log level
@@ -24,7 +26,7 @@ namespace StormByte::Log {
 	 * Gets Level string
 	 * @return string
 	 */
-	constexpr STORMBYTE_LOGGER_PUBLIC const char* GetLevelAsString(const Level& l) noexcept {
+	constexpr STORMBYTE_LOGGER_PUBLIC std::string LevelToString(const Level& l) noexcept {
 		switch(l) {
 			case Level::Debug:		return "Debug";
 			case Level::Warning:	return "Warning";
