@@ -45,16 +45,6 @@ namespace StormByte::Logger {
 		friend STORMBYTE_LOGGER_PUBLIC Log& atomic_end(Log& log) noexcept;
 
 		public:
-			using AtomicGuardHandle = std::unique_ptr<void, void(*)(void*)>;
-
-			/**
-			 * @brief Create an RAII guard that pairs `atomic_start`/`atomic_end`.
-			 *
-			 * The returned handle is opaque (private type erased) and will call
-			 * `atomic_end` when destroyed. Use this to ensure atomic log sequences
-			 * without explicitly calling the manipulators.
-			 */
-			AtomicGuardHandle make_atomic_guard() noexcept;
 			/**
 			 * @brief Construct a `Log` writing to `out`.
 			 *
@@ -65,6 +55,7 @@ namespace StormByte::Logger {
 			 * @param format Format string used for log headers. Supported placeholders:
 			 *        - `%L` : level name (e.g. "Info", "Error").
 			 *        - `%T` : timestamp (formatted as `dd/mm/YYYY HH:MM:SS`).
+			 * 	      - `%i` : thread ID.
 			 *        All other characters are copied verbatim into the header.
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");

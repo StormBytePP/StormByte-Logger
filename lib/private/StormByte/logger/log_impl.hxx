@@ -108,6 +108,7 @@ private:
     // Internal helpers
     void print_time() const noexcept;
     void print_level() const noexcept;
+	void print_thread_id() const noexcept;
     void print_header() const noexcept;
 
     // (No synchronization helpers — logging is not responsible for cross-thread locking)

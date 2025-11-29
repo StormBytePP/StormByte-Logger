@@ -1,6 +1,7 @@
 #include <chrono>
 #include <iomanip>
 #include <ostream>
+#include <thread>
 
 #include <StormByte/logger/log_impl.hxx>
 
@@ -60,21 +61,28 @@ void LogImpl::print_level() const noexcept {
 	m_out << level_str << std::string(fixed_width - level_str.size(), ' ');
 }
 
+void LogImpl::print_thread_id() const noexcept {
+	m_out << std::this_thread::get_id();
+}
+
 void LogImpl::print_header() const noexcept {
 	for (char c : m_format) {
 		if (c == '%') {
 			continue;
 		}
 		switch (c) {
-		case 'L':
-			print_level();
-			break;
-		case 'T':
-			print_time();
-			break;
-		default:
-			m_out << c;
-			break;
+			case 'L':
+				print_level();
+				break;
+			case 'T':
+				print_time();
+				break;
+			case 'i':
+				print_thread_id();
+				break;
+			default:
+				m_out << c;
+				break;
 		}
 	}
 	m_out << " ";
