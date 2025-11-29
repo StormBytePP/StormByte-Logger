@@ -21,34 +21,26 @@ namespace StormByte::Logger {
 	class LogImpl; ///< Forward declaration of internal LogImpl class
 	/**
 	 * @class Log
-	 * @brief Public logging facade.
+	 * @brief Public streaming facade for the StormByte logger.
 	 *
-	 * `Log` is a small, stable public wrapper that owns a shared pointer to the
-	 * internal logger implementation. Use this class for application code — it
-	 * forwards streaming operations and manipulators to the internal
-	 * implementation (`LogImpl`).
+	 * `Log` is the stable public API used by application code. It owns a
+	 * `std::shared_ptr` to the internal implementation (`LogImpl`) and exposes a
+	 * set of `operator<<` overloads that mimic `std::ostream` for convenient
+	 * formatted logging. The facade performs formatting and forwards the result
+	 * to the implementation which performs the actual emission.
 	 *
-	 * @note Thread-safety: `Log` provides line-atomic output. The internal
-	 * implementation acquires a lock when a logical log entry begins and holds it
-	 * while the entry is composed. The lock is released when a line-terminating
-	 * manipulator (for example `std::endl`) is applied. To avoid interleaving of
-	 * partial log lines from multiple threads, terminate log lines with a stream
-	 * manipulator such as `std::endl` when using `Log` concurrently from multiple
-	 * threads.
 	 */
-	class STORMBYTE_LOGGER_PUBLIC Log final {
+	class STORMBYTE_LOGGER_PUBLIC Log {
 		// Allow free manipulators to access `m_impl`
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
-		friend STORMBYTE_LOGGER_PUBLIC Log& atomic_start(Log& log) noexcept;
-		friend STORMBYTE_LOGGER_PUBLIC Log& atomic_end(Log& log) noexcept;
 
 		public:
 			/**
 			 * @brief Construct a `Log` writing to `out`.
 			 *
-			 * @param out Output stream to write log messages to (for example `std::cout`).
+			 * @param out Output stream to Write log messages to (for example `std::cout`).
 			 * @param level Minimum `Level` that will be emitted. Messages below this
 			 *        level are suppressed.
 			 * @see StormByte::Logger::Level
@@ -91,166 +83,70 @@ namespace StormByte::Logger {
 			 */
 			Log& operator=(Log&&) noexcept = default;
 
-			// Declarations for `operator<<` overloads (definitions live in the .cxx)
 			/**
-			 * @brief Insert a boolean value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
+			 * @name Streaming Operators
+			 * These overloads mirror `std::ostream::operator<<` for common types and
+			 * manipulators.
 			 */
-			Log& operator<<(bool v);
+			//@{
+			inline Log& operator<<(bool v) { return Write(v); }
+			inline Log& operator<<(char v) { return Write(v); }
+			inline Log& operator<<(signed char v) { return Write(v); }
+			inline Log& operator<<(unsigned char v) { return Write(v); }
+			inline Log& operator<<(short v) { return Write(v); }
+			inline Log& operator<<(unsigned short v) { return Write(v); }
+			inline Log& operator<<(int v) { return Write(v); }
+			inline Log& operator<<(unsigned int v) { return Write(v); }
+			inline Log& operator<<(long v) { return Write(v); }
+			inline Log& operator<<(unsigned long v) { return Write(v); }
+			inline Log& operator<<(long long v) { return Write(v); }
+			inline Log& operator<<(unsigned long long v) { return Write(v); }
+			inline Log& operator<<(float v) { return Write(v); }
+			inline Log& operator<<(double v) { return Write(v); }
+			inline Log& operator<<(long double v) { return Write(v); }
+			inline Log& operator<<(const std::string& v) { return Write(v); }
+			inline Log& operator<<(const char* v) { return Write(v); }
+			inline Log& operator<<(const std::wstring& v) { return Write(v); }
+			inline Log& operator<<(const wchar_t* v) { return Write(v); }
+			inline Log& operator<<(const Level& level) { return Write(level); }
+			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) { return Write(manip); }
+			inline Log& operator<<(Log& (*manip)(Log&) noexcept) { return Write(manip); }
+			//@}
 
-			/**
-			 * @brief Insert a `char` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(char v);
-
-			/**
-			 * @brief Insert a `signed char` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(signed char v);
-
-			/**
-			 * @brief Insert an `unsigned char` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(unsigned char v);
-
-			/**
-			 * @brief Insert a `short` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(short v);
-
-			/**
-			 * @brief Insert an `unsigned short` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(unsigned short v);
-
-			/**
-			 * @brief Insert an `int` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(int v);
-
-			/**
-			 * @brief Insert an `unsigned int` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(unsigned int v);
-
-			/**
-			 * @brief Insert a `long` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(long v);
-
-			/**
-			 * @brief Insert an `unsigned long` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(unsigned long v);
-
-			/**
-			 * @brief Insert a `long long` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(long long v);
-
-			/**
-			 * @brief Insert an `unsigned long long` integer value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(unsigned long long v);
-
-			/**
-			 * @brief Insert a `float` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(float v);
-
-			/**
-			 * @brief Insert a `double` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(double v);
-
-			/**
-			 * @brief Insert a `long double` value into the log stream.
-			 * @param v Value to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(long double v);
-
-			/**
-			 * @brief Insert an `std::string` into the log stream.
-			 * @param v String to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(const std::string& v);
-
-			/**
-			 * @brief Insert a C-string into the log stream.
-			 * @param v C-string to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(const char* v);
-
-			/**
-			 * @brief Insert an `std::wstring` into the log stream (will be UTF-8 encoded).
-			 * @param v Wide string to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(const std::wstring& v);
-
-			/**
-			 * @brief Insert a wide C-string into the log stream (will be UTF-8 encoded).
-			 * @param v Wide C-string to insert.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(const wchar_t* v);
-
-			// Level
-			/**
-			 * @brief Change the current logging level for subsequent messages.
-			 * @param level Level to set for following messages. See
-			 *        `StormByte::Logger::Level` for available values and ordering.
-			 * @see StormByte::Logger::Level
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(const Level& level);
-
-			// Stream manipulators (e.g., std::endl)
-			/**
-			 * @brief Apply a standard `std::ostream` manipulator (e.g., `std::endl`).
-			 * @param manip Manipulator function to apply.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(std::ostream& (*manip)(std::ostream&));
-
-			/**
-			 * @brief Apply a `Log` manipulator that receives/returns `Log&`.
-			 * @param manip Manipulator function to apply.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator<<(Log& (*manip)(Log&) noexcept);
+		protected:
+			std::shared_ptr<LogImpl> m_impl;
 
 		private:
-			std::shared_ptr<LogImpl> m_impl;
+			/**
+			 * @name Virtual write entry points
+			 * These methods are the out-of-line implementations invoked by the
+			 * inline `operator<<` wrappers above. They are intentionally private so
+			 * that subclasses (if enabled) may override behaviour while keeping the
+			 * public streaming API unchanged.
+			 */
+			//@{
+			virtual Log& Write(bool v);
+			virtual Log& Write(char v);
+			virtual Log& Write(signed char v);
+			virtual Log& Write(unsigned char v);		
+			virtual Log& Write(short v);
+			virtual Log& Write(unsigned short v);
+			virtual Log& Write(int v);
+			virtual Log& Write(unsigned int v);
+			virtual Log& Write(long v);
+			virtual Log& Write(unsigned long v);
+			virtual Log& Write(long long v);
+			virtual Log& Write(unsigned long long v);
+			virtual Log& Write(float v);
+			virtual Log& Write(double v);
+			virtual Log& Write(long double v);
+			virtual Log& Write(const std::string& v);
+			virtual Log& Write(const char* v);
+			virtual Log& Write(const std::wstring& v);
+			virtual Log& Write(const wchar_t* v);
+			virtual Log& Write(const Level& level);
+			virtual Log& Write(std::ostream& (*manip)(std::ostream&));
+			virtual Log& Write(Log& (*manip)(Log&) noexcept);
+			//@}
 	};
 }
