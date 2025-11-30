@@ -1,5 +1,5 @@
 #include <StormByte/logger/log.hxx>
-#include <StormByte/logger/log_impl.hxx>
+#include <StormByte/logger/implementation.hxx>
 
 #include <chrono>
 #include <iostream>
@@ -8,7 +8,7 @@
 using namespace StormByte::Logger;
 
 Log::Log(std::ostream& out, const Level& level, const std::string& format) {
-	m_impl = std::make_shared<LogImpl>(out, level, format);
+	m_impl = std::make_shared<Implementation>(out, level, format);
 }
 
 // Basic types — implemented as virtual Write methods

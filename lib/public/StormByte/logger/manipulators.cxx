@@ -1,7 +1,7 @@
 #include <StormByte/logger/log.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/string.hxx>
-#include <StormByte/logger/log_impl.hxx>
+#include <StormByte/logger/implementation.hxx>
 
 #include <thread>
 

@@ -14,13 +14,13 @@
  * This namespace contains the logging types and utilities used throughout the StormByte project.
  */
 namespace StormByte::Logger {
-	class LogImpl; ///< Forward declaration of internal LogImpl class
+	class Implementation; ///< Forward declaration of internal Implementation class
 	/**
 	 * @class Log
 	 * @brief Public streaming facade for the StormByte logger.
 	 *
 	 * `Log` is the stable public API used by application code. It owns a
-	 * `std::shared_ptr` to the internal implementation (`LogImpl`) and exposes a
+	 * `std::shared_ptr` to the internal implementation (`Implementation`) and exposes a
 	 * set of `operator<<` overloads that mimic `std::ostream` for convenient
 	 * formatted logging. The facade performs formatting and forwards the result
 	 * to the implementation which performs the actual emission.
@@ -110,7 +110,7 @@ namespace StormByte::Logger {
 			//@}
 
 		protected:
-			std::shared_ptr<LogImpl> m_impl;
+			std::shared_ptr<Implementation> m_impl;
 
 			/**
 			 * @brief Determine if the logger will write messages at the current level.

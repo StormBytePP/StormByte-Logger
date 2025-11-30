@@ -12,24 +12,24 @@
  * @brief Logging utilities for StormByte.
  *
  * Core logging types and helpers used across StormByte. Prefer public facades for a stable
- * API; implementation types (for example `LogImpl`) are documented for maintainers and
+ * API; implementation types (for example `Implementation`) are documented for maintainers and
  * for easier re-export, but may change across releases.
  */
 namespace StormByte::Logger {
 
 /**
- * @class LogImpl
+ * @class Implementation
  * @brief Internal logger implementation (private).
  *
  * Implements the core logging behaviour used by higher-level facades. Provides support for
  * multiple levels, formatting and human-readable numeric/byte output. This is an
  * implementation type; prefer public facades for stable APIs.
  */
-class STORMBYTE_LOGGER_PRIVATE LogImpl final {
+class STORMBYTE_LOGGER_PRIVATE Implementation final {
     // Friend declarations for manipulators
-    friend STORMBYTE_LOGGER_PRIVATE LogImpl& humanreadable_number(LogImpl& logger) noexcept;
-    friend STORMBYTE_LOGGER_PRIVATE LogImpl& humanreadable_bytes(LogImpl& logger) noexcept;
-    friend STORMBYTE_LOGGER_PRIVATE LogImpl& nohumanreadable(LogImpl& logger) noexcept;
+    friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
+    friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept;
+    friend STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept;
 
 	public:
 		// Constructor
@@ -42,14 +42,14 @@ class STORMBYTE_LOGGER_PRIVATE LogImpl final {
 			 * @param format Header format string (see public `Log` for format placeholders).
 			 * @see StormByte::Logger::Level
 			 */
-			LogImpl(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
 		// Non-copyable, movable
-		LogImpl(const LogImpl&) = delete;
-		LogImpl(LogImpl&&) noexcept = default;
-		LogImpl& operator=(const LogImpl&) = delete;
-		LogImpl& operator=(LogImpl&&) noexcept = default;
-		~LogImpl() noexcept = default;
+		Implementation(const Implementation&) = delete;
+		Implementation(Implementation&&) noexcept = default;
+		Implementation& operator=(const Implementation&) = delete;
+		Implementation& operator=(Implementation&&) noexcept = default;
+		~Implementation() noexcept = default;
 
 		const Level& PrintLevel() const noexcept {
 			return m_print_level;
@@ -65,20 +65,20 @@ class STORMBYTE_LOGGER_PRIVATE LogImpl final {
 		 * @param level Level to set for following messages.
 		 * @see StormByte::Logger::Level
 		 */
-		LogImpl& operator<<(const Level& level) noexcept;
+		Implementation& operator<<(const Level& level) noexcept;
 
 		// Stream manipulators like std::endl
-		LogImpl& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
+		Implementation& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
 
-		// Custom manipulators that accept LogImpl& and return it
-		inline LogImpl& operator<<(LogImpl& (*manip)(LogImpl&) noexcept) {
+		// Custom manipulators that accept Implementation& and return it
+		inline Implementation& operator<<(Implementation& (*manip)(Implementation&) noexcept) {
 			return manip(*this);
 		}
 
 		// Generic streaming operator for supported types
 		template <typename T>
-		LogImpl& operator<<(const T& value) noexcept
-			requires (!std::is_same_v<std::decay_t<T>, LogImpl& (*)(LogImpl&) noexcept>) {
+		Implementation& operator<<(const T& value) noexcept
+			requires (!std::is_same_v<std::decay_t<T>, Implementation& (*)(Implementation&) noexcept>) {
 			using DecayedT = std::decay_t<T>;
 
 			if constexpr (std::is_same_v<DecayedT, bool>) {
@@ -97,7 +97,7 @@ class STORMBYTE_LOGGER_PRIVATE LogImpl final {
 				print_message(std::string(value));
 			}
 			else {
-				static_assert(!std::is_same_v<T, T>, "Unsupported type for LogImpl::operator<<");
+				static_assert(!std::is_same_v<T, T>, "Unsupported type for Implementation::operator<<");
 			}
 			return *this;
 		}
@@ -138,17 +138,17 @@ class STORMBYTE_LOGGER_PRIVATE LogImpl final {
 };
 
 // Manipulators
-inline STORMBYTE_LOGGER_PRIVATE LogImpl& humanreadable_number(LogImpl& logger) noexcept {
+inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept {
     logger.m_human_readable_format = String::Format::HumanReadableNumber;
     return logger;
 }
 
-inline STORMBYTE_LOGGER_PRIVATE LogImpl& humanreadable_bytes(LogImpl& logger) noexcept {
+inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept {
     logger.m_human_readable_format = String::Format::HumanReadableBytes;
     return logger;
 }
 
-inline STORMBYTE_LOGGER_PRIVATE LogImpl& nohumanreadable(LogImpl& logger) noexcept {
+inline STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept {
     logger.m_human_readable_format = String::Format::Raw;
     return logger;
 }
@@ -156,7 +156,7 @@ inline STORMBYTE_LOGGER_PRIVATE LogImpl& nohumanreadable(LogImpl& logger) noexce
 // Helper overloads for pointer-wrapped loggers
 template <typename Ptr, typename T>
 Ptr& operator<<(Ptr& logger, const T& value) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<LogImpl>> || std::is_same_v<Ptr, std::unique_ptr<LogImpl>> {
+    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
     if (logger) {
         *logger << value;
     }
@@ -165,7 +165,7 @@ Ptr& operator<<(Ptr& logger, const T& value) noexcept
 
 template <typename Ptr>
 Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<LogImpl>> || std::is_same_v<Ptr, std::unique_ptr<LogImpl>> {
+    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
     if (logger) {
         *logger << level;
     }
@@ -174,7 +174,7 @@ Ptr& operator<<(Ptr& logger, const Level& level) noexcept
 
 template <typename Ptr>
 Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<LogImpl>> || std::is_same_v<Ptr, std::unique_ptr<LogImpl>> {
+    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
     if (logger) {
         *logger << manip;
     }
