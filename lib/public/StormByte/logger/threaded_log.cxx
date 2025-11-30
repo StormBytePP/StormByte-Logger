@@ -2,6 +2,8 @@
 
 using namespace StormByte::Logger;
 
+#include <sstream>
+
 ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
 	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
 
@@ -33,8 +35,19 @@ void ThreadedLog::Write(const Level& level) { m_lock->Lock(); Log::Write(level);
 void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 	m_lock->Lock();
 	Log::Write(manip);
-	if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::endl)) {
-		m_lock->Unlock();
+	// Avoid comparing function pointer addresses (which can differ across
+	// translation units / DLL boundaries on Windows). Detect whether the
+	// manipulator writes a newline by applying it to a temporary stream.
+	try {
+		std::ostringstream probe;
+		manip(probe);
+		auto s = probe.str();
+		if (!s.empty() && s.find('\n') != std::string::npos) {
+			m_lock->Unlock();
+		}
+	} catch (...) {
+		// If the manipulator throws for some reason (rare), be conservative
+		// and do not unlock here to avoid releasing the lock prematurely.
 	}
 }
 
