@@ -89,8 +89,7 @@ void LogImpl::print_header() const noexcept {
 }
 
 void LogImpl::print_message(const std::string& message) noexcept {
-	if (!m_current_level) m_current_level = m_print_level;
-	if (m_current_level >= m_print_level) {
+	if (m_current_level.value_or(m_print_level) >= m_print_level) {
 		if (!m_header_displayed) {
 			print_header();
 			m_header_displayed = true;

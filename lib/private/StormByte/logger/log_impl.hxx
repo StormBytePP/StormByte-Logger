@@ -31,102 +31,110 @@ class STORMBYTE_LOGGER_PRIVATE LogImpl final {
     friend STORMBYTE_LOGGER_PRIVATE LogImpl& humanreadable_bytes(LogImpl& logger) noexcept;
     friend STORMBYTE_LOGGER_PRIVATE LogImpl& nohumanreadable(LogImpl& logger) noexcept;
 
-public:
-    // Constructor
-        /**
-         * @brief Construct the internal logger implementation.
-         *
-         * @param out Output stream to write log messages to.
-         * @param level Initial minimum `Level` that will be emitted by this logger.
-         *        Messages below this level are suppressed.
-         * @param format Header format string (see public `Log` for format placeholders).
-         * @see StormByte::Logger::Level
-         */
-        LogImpl(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+	public:
+		// Constructor
+			/**
+			 * @brief Construct the internal logger implementation.
+			 *
+			 * @param out Output stream to write log messages to.
+			 * @param level Initial minimum `Level` that will be emitted by this logger.
+			 *        Messages below this level are suppressed.
+			 * @param format Header format string (see public `Log` for format placeholders).
+			 * @see StormByte::Logger::Level
+			 */
+			LogImpl(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-    // Non-copyable, movable
-    LogImpl(const LogImpl&) = delete;
-    LogImpl(LogImpl&&) noexcept = default;
-    LogImpl& operator=(const LogImpl&) = delete;
-    LogImpl& operator=(LogImpl&&) noexcept = default;
-    ~LogImpl() noexcept = default;
+		// Non-copyable, movable
+		LogImpl(const LogImpl&) = delete;
+		LogImpl(LogImpl&&) noexcept = default;
+		LogImpl& operator=(const LogImpl&) = delete;
+		LogImpl& operator=(LogImpl&&) noexcept = default;
+		~LogImpl() noexcept = default;
 
-    // Level selector
-        /**
-         * @brief Change the current logging level for subsequent messages.
-         * @param level Level to set for following messages.
-         * @see StormByte::Logger::Level
-         */
-        LogImpl& operator<<(const Level& level) noexcept;
+		const Level& PrintLevel() const noexcept {
+			return m_print_level;
+		}
+		
+		const Level& CurrentLevel() const noexcept {
+			return m_current_level.value_or(m_print_level);
+		}
 
-    // Stream manipulators like std::endl
-    LogImpl& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
+		// Level selector
+		/**
+		 * @brief Change the current logging level for subsequent messages.
+		 * @param level Level to set for following messages.
+		 * @see StormByte::Logger::Level
+		 */
+		LogImpl& operator<<(const Level& level) noexcept;
 
-    // Custom manipulators that accept LogImpl& and return it
-    inline LogImpl& operator<<(LogImpl& (*manip)(LogImpl&) noexcept) {
-        return manip(*this);
-    }
+		// Stream manipulators like std::endl
+		LogImpl& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
 
-    // Generic streaming operator for supported types
-    template <typename T>
-    LogImpl& operator<<(const T& value) noexcept
-        requires (!std::is_same_v<std::decay_t<T>, LogImpl& (*)(LogImpl&) noexcept>) {
-        using DecayedT = std::decay_t<T>;
+		// Custom manipulators that accept LogImpl& and return it
+		inline LogImpl& operator<<(LogImpl& (*manip)(LogImpl&) noexcept) {
+			return manip(*this);
+		}
 
-        if constexpr (std::is_same_v<DecayedT, bool>) {
-            print_message(value ? "true" : "false");
-        }
-        else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
-            print_message(value);
-        }
-        else if constexpr (std::is_same_v<DecayedT, std::string> || std::is_same_v<DecayedT, const char*>) {
-            print_message(std::string(value));
-        }
-        else if constexpr (std::is_same_v<DecayedT, std::wstring> || std::is_same_v<DecayedT, const wchar_t*>) {
-            print_message(String::UTF8Encode(value));
-        }
-        else if constexpr (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>) {
-            print_message(std::string(value));
-        }
-        else {
-            static_assert(!std::is_same_v<T, T>, "Unsupported type for LogImpl::operator<<");
-        }
-        return *this;
-    }
+		// Generic streaming operator for supported types
+		template <typename T>
+		LogImpl& operator<<(const T& value) noexcept
+			requires (!std::is_same_v<std::decay_t<T>, LogImpl& (*)(LogImpl&) noexcept>) {
+			using DecayedT = std::decay_t<T>;
 
-private:
-    std::ostream& m_out;
-        /** @brief Print level. See `StormByte::Logger::Level` for values. */
-        Level m_print_level;
-        /** @brief Current level for the in-progress message (if any). */
-        std::optional<Level> m_current_level;
-    bool m_header_displayed;                        ///< Line started
-    const std::string m_format;                     ///< Custom user format %L for Level and %T for Time
-    String::Format m_human_readable_format;         ///< Human readable size
-    // Line state
+			if constexpr (std::is_same_v<DecayedT, bool>) {
+				print_message(value ? "true" : "false");
+			}
+			else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
+				print_message(value);
+			}
+			else if constexpr (std::is_same_v<DecayedT, std::string> || std::is_same_v<DecayedT, const char*>) {
+				print_message(std::string(value));
+			}
+			else if constexpr (std::is_same_v<DecayedT, std::wstring> || std::is_same_v<DecayedT, const wchar_t*>) {
+				print_message(String::UTF8Encode(value));
+			}
+			else if constexpr (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>) {
+				print_message(std::string(value));
+			}
+			else {
+				static_assert(!std::is_same_v<T, T>, "Unsupported type for LogImpl::operator<<");
+			}
+			return *this;
+		}
 
-    // Internal helpers
-    void print_time() const noexcept;
-    void print_level() const noexcept;
-	void print_thread_id() const noexcept;
-    void print_header() const noexcept;
+	private:
+		std::ostream& m_out;
+			/** @brief Print level. See `StormByte::Logger::Level` for values. */
+			Level m_print_level;
+			/** @brief Current level for the in-progress message (if any). */
+			std::optional<Level> m_current_level;
+		bool m_header_displayed;                        ///< Line started
+		const std::string m_format;                     ///< Custom user format %L for Level and %T for Time
+		String::Format m_human_readable_format;         ///< Human readable size
+		// Line state
 
-    // (No synchronization helpers — logging is not responsible for cross-thread locking)
+		// Internal helpers
+		void print_time() const noexcept;
+		void print_level() const noexcept;
+		void print_thread_id() const noexcept;
+		void print_header() const noexcept;
 
-    template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> && !std::is_same_v<T, wchar_t>>>
-    void print_message(const T& value) noexcept {
-        std::string message;
-        if (m_human_readable_format == String::Format::Raw) {
-            message = std::to_string(value);
-        }
-        else {
-            message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
-        }
-        print_message(message);
-    }
+		// (No synchronization helpers — logging is not responsible for cross-thread locking)
 
-    void print_message(const std::string& message) noexcept;
-    void print_message(const wchar_t& value) noexcept;
+		template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> && !std::is_same_v<T, wchar_t>>>
+		void print_message(const T& value) noexcept {
+			std::string message;
+			if (m_human_readable_format == String::Format::Raw) {
+				message = std::to_string(value);
+			}
+			else {
+				message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
+			}
+			print_message(message);
+		}
+
+		void print_message(const std::string& message) noexcept;
+		void print_message(const wchar_t& value) noexcept;
 };
 
 // Manipulators

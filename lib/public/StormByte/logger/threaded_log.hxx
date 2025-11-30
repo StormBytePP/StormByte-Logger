@@ -1,11 +1,9 @@
 #pragma once
 
-#include <StormByte/logger/manipulators.hxx>
-#include <StormByte/logger/typedefs.hxx>
+#include <StormByte/logger/log.hxx>
+#include <StormByte/thread_lock.hxx>
 
 #include <memory>
-#include <string>
-#include <ostream>
 
 /**
  * @namespace StormByte::Logger
@@ -14,27 +12,20 @@
  * This namespace contains the logging types and utilities used throughout the StormByte project.
  */
 namespace StormByte::Logger {
-	class LogImpl; ///< Forward declaration of internal LogImpl class
 	/**
-	 * @class Log
-	 * @brief Public streaming facade for the StormByte logger.
+	 * @class ThreadedLog
+	 * @brief Thread-safe logging facade.
 	 *
-	 * `Log` is the stable public API used by application code. It owns a
-	 * `std::shared_ptr` to the internal implementation (`LogImpl`) and exposes a
-	 * set of `operator<<` overloads that mimic `std::ostream` for convenient
-	 * formatted logging. The facade performs formatting and forwards the result
-	 * to the implementation which performs the actual emission.
-	 *
+	 * `ThreadedLog` extends the basic `Log` facade to provide thread-safe
+	 * logging from multiple threads. It ensures that log messages from different
+	 * threads do not interleave, preserving message integrity.
+	 * The first thread writing to the log acquires a lock, blocking other threads
+	 * until the logical write sequence is complete (indicated by `std::endl` manipulator).
 	 */
-	class STORMBYTE_LOGGER_PUBLIC Log {
-		// Allow free manipulators to access `m_impl`
-		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
-		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
-		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
-
+	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
 			/**
-			 * @brief Construct a `Log` writing to `out`.
+			 * @brief Construct a `ThreadedLog` writing to `out`.
 			 *
 			 * @param out Output stream to Write log messages to (for example `std::cout`).
 			 * @param level Minimum `Level` that will be emitted. Messages below this
@@ -46,38 +37,12 @@ namespace StormByte::Logger {
 			 * 	      - `%i` : thread ID.
 			 *        All other characters are copied verbatim into the header.
 			 */
-			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
-
-			/**
-			 * @brief Copy constructor.
-			 *
-			 * Creates a new `Log` that shares the same underlying implementation.
-			 */
-			Log(const Log&) = default;
-
-			/**
-			 * @brief Move constructor.
-			 *
-			 * Move a `Log` preserving ownership of the internal implementation.
-			 */
-			Log(Log&&) noexcept = default;
-
-			/**
-			 * @brief Destructor.
-			 */
-			~Log() noexcept = default;
-
-			/**
-			 * @brief Copy assignment.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator=(const Log&) = default;
-
-			/**
-			 * @brief Move assignment.
-			 * @return Reference to this `Log`.
-			 */
-			Log& operator=(Log&&) noexcept = default;
+			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+			ThreadedLog(const ThreadedLog&) = default;
+			ThreadedLog(ThreadedLog&&) noexcept = default;
+			~ThreadedLog() noexcept = default;
+			ThreadedLog& operator=(const ThreadedLog&) = default;
+			ThreadedLog& operator=(ThreadedLog&&) noexcept = default;
 
 			/**
 			 * @name Streaming Operators
@@ -109,14 +74,8 @@ namespace StormByte::Logger {
 			inline Log& operator<<(Log& (*manip)(Log&) noexcept) { Write(manip); return *this; }
 			//@}
 
-		protected:
-			std::shared_ptr<LogImpl> m_impl;
-
-			/**
-			 * @brief Determine if the logger will write messages at the current level.
-			 * @return `true` if messages will be written, `false` otherwise.
-			 */
-			bool WillWrite() const noexcept;
+		private:
+			std::shared_ptr<ThreadLock> m_lock;
 
 			/**
 			 * @name Virtual write entry points
@@ -126,28 +85,28 @@ namespace StormByte::Logger {
 			 * public streaming API unchanged.
 			 */
 			//@{
-			virtual void Write(bool v);
-			virtual void Write(char v);
-			virtual void Write(signed char v);
-			virtual void Write(unsigned char v);		
-			virtual void Write(short v);
-			virtual void Write(unsigned short v);
-			virtual void Write(int v);
-			virtual void Write(unsigned int v);
-			virtual void Write(long v);
-			virtual void Write(unsigned long v);
-			virtual void Write(long long v);
-			virtual void Write(unsigned long long v);
-			virtual void Write(float v);
-			virtual void Write(double v);
-			virtual void Write(long double v);
-			virtual void Write(const std::string& v);
-			virtual void Write(const char* v);
-			virtual void Write(const std::wstring& v);
-			virtual void Write(const wchar_t* v);
-			virtual void Write(const Level& level);
-			virtual void Write(std::ostream& (*manip)(std::ostream&));
-			virtual void Write(Log& (*manip)(Log&) noexcept);
+			void Write(bool v) override;
+			void Write(char v) override;
+			void Write(signed char v) override;
+			void Write(unsigned char v) override;		
+			void Write(short v) override;
+			void Write(unsigned short v) override;
+			void Write(int v) override;
+			void Write(unsigned int v) override;
+			void Write(long v) override;
+			void Write(unsigned long v) override;
+			void Write(long long v) override;
+			void Write(unsigned long long v) override;
+			void Write(float v) override;
+			void Write(double v) override;
+			void Write(long double v) override;
+			void Write(const std::string& v) override;
+			void Write(const char* v) override;
+			void Write(const std::wstring& v) override;
+			void Write(const wchar_t* v) override;
+			void Write(const Level& level) override;
+			void Write(std::ostream& (*manip)(std::ostream&)) override;
+			void Write(Log& (*manip)(Log&) noexcept) override;
 			//@}
 	};
 }
