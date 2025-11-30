@@ -8,4 +8,9 @@ if(ENABLE_TEST AND NOT STORMBYTE_AS_DEPENDENCY)
 	add_executable(ThreadedLogTests threaded_log_test.cxx)
 	target_link_libraries(ThreadedLogTests StormByte::Logger)
 	add_test(NAME ThreadedLogTests COMMAND ThreadedLogTests)
+
+	# Manipulators tests
+	add_executable(ManipulatorsTests manipulators_test.cxx)
+	target_link_libraries(ManipulatorsTests StormByte::Logger)
+	add_test(NAME ManipulatorsTests COMMAND ManipulatorsTests)
 endif()

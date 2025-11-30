@@ -81,20 +81,59 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 			requires (!std::is_same_v<std::decay_t<T>, Implementation& (*)(Implementation&) noexcept>) {
 			using DecayedT = std::decay_t<T>;
 
-			if constexpr (std::is_same_v<DecayedT, bool>) {
-				print_message(value ? "true" : "false");
+			// Fast paths: avoid allocating temporary std::string when possible.
+			const Level effective = m_current_level.value_or(m_print_level);
+			if (effective < m_print_level) {
+				// Message suppressed; keep state unchanged and return.
+				return *this;
 			}
-			else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
+
+			if constexpr (std::is_same_v<DecayedT, bool>) {
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << (value ? "true" : "false");
+			}
+			else if constexpr (std::is_same_v<DecayedT, wchar_t>) {
+				// Single wide character: convert and print as UTF-8
 				print_message(value);
 			}
-			else if constexpr (std::is_same_v<DecayedT, std::string> || std::is_same_v<DecayedT, const char*>) {
-				print_message(std::string(value));
+			else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
+				// Human-readable formatting is relatively expensive; only use it when enabled.
+				if (m_human_readable_format == String::Format::Raw) {
+					if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+					if constexpr (std::is_integral_v<DecayedT>) {
+						m_out << value;
+					} else {
+						// Preserve previous textual formatting for floating-point numbers
+						// which used std::to_string(value).
+						m_out << std::to_string(value);
+					}
+				} else {
+					std::string message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
+					if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+					m_out << message;
+				}
 			}
-			else if constexpr (std::is_same_v<DecayedT, std::wstring> || std::is_same_v<DecayedT, const wchar_t*>) {
-				print_message(String::UTF8Encode(value));
+			else if constexpr (std::is_same_v<DecayedT, std::string>) {
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << value;
+			}
+			else if constexpr (std::is_same_v<DecayedT, const char*>) {
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << value;
+			}
+			else if constexpr (std::is_same_v<DecayedT, std::wstring>) {
+				std::string utf8 = String::UTF8Encode(value);
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << utf8;
+			}
+			else if constexpr (std::is_same_v<DecayedT, const wchar_t*>) {
+				std::string utf8 = String::UTF8Encode(std::wstring(value));
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << utf8;
 			}
 			else if constexpr (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>) {
-				print_message(std::string(value));
+				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				m_out << value;
 			}
 			else {
 				static_assert(!std::is_same_v<T, T>, "Unsupported type for Implementation::operator<<");

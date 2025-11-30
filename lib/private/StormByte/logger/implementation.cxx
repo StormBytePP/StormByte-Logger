@@ -58,7 +58,11 @@ void Implementation::print_time() const noexcept {
 void Implementation::print_level() const noexcept {
 	constexpr std::size_t fixed_width = 8; // Set a fixed width for all level strings
 	const std::string level_str = LevelToString(*m_current_level);
-	m_out << level_str << std::string(fixed_width - level_str.size(), ' ');
+	// Avoid allocating a temporary padding string: write the level and then put spaces.
+	m_out << level_str;
+	for (std::size_t i = level_str.size(); i < fixed_width; ++i) {
+		m_out.put(' ');
+	}
 }
 
 void Implementation::print_thread_id() const noexcept {
