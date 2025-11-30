@@ -56,7 +56,12 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		}
 		
 		const Level& CurrentLevel() const noexcept {
-			return m_current_level.value_or(m_print_level);
+			// Return a reference to the currently set message level if present,
+			// otherwise return the configured print level. Avoid using
+			// `value_or` because it returns a temporary, which would make the
+			// function return a reference to a transient object (warning C4172
+			// on MSVC).
+			return m_current_level ? *m_current_level : m_print_level;
 		}
 
 		// Level selector
