@@ -13,4 +13,9 @@ if(ENABLE_TEST AND NOT STORMBYTE_AS_DEPENDENCY)
 	add_executable(ManipulatorsTests manipulators_test.cxx)
 	target_link_libraries(ManipulatorsTests StormByte::Logger)
 	add_test(NAME ManipulatorsTests COMMAND ManipulatorsTests)
+
+	# Format mask tests
+	add_executable(FormatMaskTests format_mask_test.cxx)
+	target_link_libraries(FormatMaskTests StormByte::Logger)
+	add_test(NAME FormatMaskTests COMMAND FormatMaskTests)
 endif()

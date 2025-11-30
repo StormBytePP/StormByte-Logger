@@ -159,6 +159,9 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 
 		// Internal helpers
 		void print_time() const noexcept;
+
+		// Return a formatted current time string (dd/mm/YYYY HH:MM:SS).
+		std::string CurrentTime() const noexcept;
 		void print_level() const noexcept;
 		void print_thread_id() const noexcept;
 		void print_header() const noexcept;

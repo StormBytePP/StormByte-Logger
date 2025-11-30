@@ -2,10 +2,32 @@
 #include <iomanip>
 #include <ostream>
 #include <thread>
+#include <sstream>
 
 #include <StormByte/logger/implementation.hxx>
 
 using namespace StormByte::Logger;
+
+// Helper: return current time formatted as "dd/mm/YYYY HH:MM:SS".
+std::string Implementation::CurrentTime() const noexcept {
+	try {
+		auto now = std::chrono::system_clock::now();
+		std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
+		struct tm timeinfo;
+
+#ifdef LINUX
+		timeinfo = *std::localtime(&rawtime);
+#else
+		localtime_s(&timeinfo, &rawtime);
+#endif
+
+		char timebuf[64];
+		std::size_t tn = std::strftime(timebuf, sizeof(timebuf), "%d/%m/%Y %H:%M:%S", &timeinfo);
+		return std::string(timebuf, tn);
+	} catch (...) {
+		return std::string();
+	}
+}
 
 Implementation::Implementation(std::ostream& out, const Level& level, const std::string& format):
 	m_out(out),
@@ -42,17 +64,7 @@ Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)
 }
 
 void Implementation::print_time() const noexcept {
-	auto now = std::chrono::system_clock::now();
-	std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
-	struct tm timeinfo;
-
-#ifdef LINUX
-	timeinfo = *std::localtime(&rawtime);
-#else
-	localtime_s(&timeinfo, &rawtime);
-#endif
-
-	m_out << std::put_time(&timeinfo, "%d/%m/%Y %H:%M:%S");
+	m_out << CurrentTime();
 }
 
 void Implementation::print_level() const noexcept {
@@ -70,26 +82,64 @@ void Implementation::print_thread_id() const noexcept {
 }
 
 void Implementation::print_header() const noexcept {
-	for (char c : m_format) {
-		if (c == '%') {
-			continue;
-		}
-		switch (c) {
-			case 'L':
-				print_level();
-				break;
-			case 'T':
-				print_time();
-				break;
-			case 'i':
-				print_thread_id();
-				break;
-			default:
-				m_out << c;
-				break;
-		}
+	// Build the header into a single string using std::format for
+	// efficient composition and then write it once to the output stream.
+	const std::string& fmt = m_format;
+	std::string buf;
+	buf.reserve(fmt.size() + 64);
+
+	constexpr std::size_t fixed_width = 8;
+
+	// Simple sequential replacements: handle escaped "%%" first, then
+	// replace the small set of tokens we support. This is clearer and
+	// avoids regex overhead for only a few replaces.
+	std::string working = fmt;
+
+	// Use a temporary placeholder for literal '%%' so replacements don't
+	// accidentally touch them. Choose an unlikely character (unit separator).
+	constexpr char ESC = '\x1F';
+	// replace all "%%" -> ESC
+	for (std::size_t p = 0; (p = working.find("%%", p)) != std::string::npos; p += 1) {
+		working.replace(p, 2, 1, ESC);
 	}
-	m_out << " ";
+
+	// Helper to replace all occurrences of 'from' with 'to'
+	auto replace_all = [](std::string& s, const std::string& from, const std::string& to) {
+		if (from.empty()) return;
+		for (std::size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos;) {
+			s.replace(pos, from.size(), to);
+			pos += to.size();
+		}
+	};
+
+	// %L -> padded level
+	{
+		const Level& lvl = CurrentLevel();
+		std::string level_str = LevelToString(lvl);
+		if (level_str.size() < fixed_width) level_str.append(fixed_width - level_str.size(), ' ');
+		replace_all(working, "%L", level_str);
+	}
+
+	// %T -> current time
+	replace_all(working, "%T", CurrentTime());
+
+	// %i -> thread id
+	{
+		std::ostringstream oss;
+		oss << std::this_thread::get_id();
+		replace_all(working, "%i", oss.str());
+	}
+
+	// restore escaped percent signs
+	for (std::size_t p = 0; (p = working.find(ESC, p)) != std::string::npos; p += 1) {
+		working.replace(p, 1, "%");
+	}
+
+	// done: assign to buffer and write
+	buf = std::move(working);
+
+	buf.push_back(' ');
+	m_out.write(buf.data(), buf.size());
 }
 
 void Implementation::print_message(const std::string& message) noexcept {
