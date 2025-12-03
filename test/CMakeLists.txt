@@ -1,5 +1,7 @@
 option(ENABLE_TEST "Enable Unit Tests" OFF)
 if(ENABLE_TEST AND NOT STORMBYTE_AS_DEPENDENCY)
+	enable_testing()
+	
 	add_executable(LogTests logger_test.cxx)
 	target_link_libraries(LogTests StormByte::Logger)
 	add_test(NAME LogTests COMMAND LogTests)
