@@ -155,6 +155,17 @@ int test_threadedlog_deterministic_ordering() {
     RETURN_TEST("test_threadedlog_deterministic_ordering", 0);
 }
 
+int test_smart_pointer_usage() {
+	std::ostringstream output;
+	std::shared_ptr<StormByte::Logger::Log> log = std::make_shared<StormByte::Logger::ThreadedLog>(output, Level::Info, "%L:");
+
+	log << Level::Info << "Smart pointer log message" << std::endl;
+
+	std::string expected = "Info    : Smart pointer log message\n";
+	ASSERT_EQUAL("test_smart_pointer_usage", expected, output.str());
+	RETURN_TEST("test_smart_pointer_usage", 0);
+}
+
 int main() {
     int result = 0;
     result += test_threadedlog_basic();

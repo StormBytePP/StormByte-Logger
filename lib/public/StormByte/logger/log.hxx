@@ -150,4 +150,32 @@ namespace StormByte::Logger {
 			virtual void Write(Log& (*manip)(Log&) noexcept);
 			//@}
 	};
+
+	// Helper overloads for pointer-wrapped Log (std::shared_ptr/std::unique_ptr)
+	template <typename Ptr, typename T>
+	Ptr& operator<<(Ptr& logger, const T& value) noexcept
+		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		if (logger) {
+			*logger << value;
+		}
+		return logger;
+	}
+
+	template <typename Ptr>
+	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
+		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		if (logger) {
+			*logger << level;
+		}
+		return logger;
+	}
+
+	template <typename Ptr>
+	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
+		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		if (logger) {
+			*logger << manip;
+		}
+		return logger;
+	}
 }

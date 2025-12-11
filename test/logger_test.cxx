@@ -130,6 +130,17 @@ int test_humanreadable_enable_and_disable() {
 	RETURN_TEST("test_humanreadable_enable_and_disable", 0);
 }
 
+int test_smart_pointer_usage() {
+	std::ostringstream output;
+	auto log = std::make_shared<StormByte::Logger::Log>(output, Level::Info, "%L:");
+
+	log << Level::Info << "Smart pointer log message" << std::endl;
+
+	std::string expected = "Info    : Smart pointer log message\n";
+	ASSERT_EQUAL("test_smart_pointer_usage", expected, output.str());
+	RETURN_TEST("test_smart_pointer_usage", 0);
+}
+
 int main() {
 	int result = 0;
 
