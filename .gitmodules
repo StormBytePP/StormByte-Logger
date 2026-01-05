@@ -1,5 +1,5 @@
 [submodule "StormByte Base"]
-	path = thirdparty/StormByte/base
+	path = thirdparty/StormByte/base/src
 	url = https://github.com/StormBytePP/StormByte.git
 [submodule "StormByte BuildMaster"]
 	path = thirdparty/buildmaster
