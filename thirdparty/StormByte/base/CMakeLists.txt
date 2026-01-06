@@ -16,5 +16,4 @@ create_cmake_component(
 include("${STORMBYTE_BASE_LIBRARY_CREATE_FILE}")
 add_dependencies(StormByte-Logger StormByte_install)
 
-cmake_policy(SET CMP0079 NEW)
 target_link_libraries(StormByte-Logger PUBLIC StormByte)
