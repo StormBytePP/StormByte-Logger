@@ -33,6 +33,7 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_out(out),
 	m_print_level(level),
 	m_current_level(std::nullopt),
+	m_enabled(true),
 	m_header_displayed(false),
 	m_format(format),
 	m_human_readable_format(String::Format::Raw) {
@@ -40,23 +41,22 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (m_current_level) {
-		if (level != m_current_level && m_current_level >= m_print_level && m_header_displayed) {
+		if (level != *m_current_level && *m_current_level >= m_print_level && m_header_displayed) {
 			m_out << std::endl;
 			m_header_displayed = false;
 		}
 	}
 
 	m_current_level = level;
+	m_enabled = (level >= m_print_level);
 	return *this;
 }
 
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
-	// Always apply the manipulator; release the current line lock afterwards
-	if (m_current_level) {
-		if (m_current_level >= m_print_level) {
-			m_out << manip;
-			m_header_displayed = false;
-		}
+	// Only apply the manipulator when the current message level is enabled.
+	if (m_enabled) {
+		m_out << manip;
+		m_header_displayed = false;
 	}
 	// end of logical write sequence; no per-thread lock handling here
 
@@ -82,74 +82,55 @@ void Implementation::print_thread_id() const noexcept {
 }
 
 void Implementation::print_header() const noexcept {
-	// Build the header into a single string using std::format for
-	// efficient composition and then write it once to the output stream.
+	// Single-pass format expansion directly to the output stream.
+	// Supports %% (literal %), %L (padded level), %T (timestamp), %i (thread id).
 	const std::string& fmt = m_format;
-	std::string buf;
-	buf.reserve(fmt.size() + 64);
-
 	constexpr std::size_t fixed_width = 8;
 
-	// Simple sequential replacements: handle escaped "%%" first, then
-	// replace the small set of tokens we support. This is clearer and
-	// avoids regex overhead for only a few replaces.
-	std::string working = fmt;
-
-	// Use a temporary placeholder for literal '%%' so replacements don't
-	// accidentally touch them. Choose an unlikely character (unit separator).
-	constexpr char ESC = '\x1F';
-	// replace all "%%" -> ESC
-	for (std::size_t p = 0; (p = working.find("%%", p)) != std::string::npos; p += 1) {
-		working.replace(p, 2, 1, ESC);
-	}
-
-	// Helper to replace all occurrences of 'from' with 'to'
-	auto replace_all = [](std::string& s, const std::string& from, const std::string& to) {
-		if (from.empty()) return;
-		for (std::size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos;) {
-			s.replace(pos, from.size(), to);
-			pos += to.size();
+	for (std::size_t i = 0; i < fmt.size(); ++i) {
+		if (fmt[i] == '%' && (i + 1) < fmt.size()) {
+			const char spec = fmt[i + 1];
+			switch (spec) {
+				case '%':
+					m_out.put('%');
+					++i;
+					break;
+				case 'L': {
+					const Level lvl = m_current_level ? *m_current_level : m_print_level;
+					std::string level_str = LevelToString(lvl);
+					m_out << level_str;
+					for (std::size_t p = level_str.size(); p < fixed_width; ++p) {
+						m_out.put(' ');
+					}
+					++i;
+					break;
+				}
+				case 'T':
+					print_time();
+					++i;
+					break;
+				case 'i':
+					print_thread_id();
+					++i;
+					break;
+				default:
+					// Unknown specifier: emit the '%' and continue (next char handled normally).
+					m_out.put('%');
+					break;
+			}
+		} else {
+			m_out.put(fmt[i]);
 		}
-	};
-
-	// %L -> padded level
-	{
-		const Level& lvl = CurrentLevel();
-		std::string level_str = LevelToString(lvl);
-		if (level_str.size() < fixed_width) level_str.append(fixed_width - level_str.size(), ' ');
-		replace_all(working, "%L", level_str);
 	}
-
-	// %T -> current time
-	replace_all(working, "%T", CurrentTime());
-
-	// %i -> thread id
-	{
-		std::ostringstream oss;
-		oss << std::this_thread::get_id();
-		replace_all(working, "%i", oss.str());
-	}
-
-	// restore escaped percent signs
-	for (std::size_t p = 0; (p = working.find(ESC, p)) != std::string::npos; p += 1) {
-		working.replace(p, 1, "%");
-	}
-
-	// done: assign to buffer and write
-	buf = std::move(working);
-
-	buf.push_back(' ');
-	m_out.write(buf.data(), buf.size());
+	m_out.put(' ');
 }
 
 void Implementation::print_message(const std::string& message) noexcept {
-	if (m_current_level.value_or(m_print_level) >= m_print_level) {
-		if (!m_header_displayed) {
-			print_header();
-			m_header_displayed = true;
-		}
-		m_out << message;
+	if (!m_enabled) {
+		return;
 	}
+	ensure_header();
+	m_out << message;
 }
 
 void Implementation::print_message(const wchar_t& value) noexcept {

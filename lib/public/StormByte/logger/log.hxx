@@ -83,27 +83,110 @@ namespace StormByte::Logger {
 			 * @name Streaming Operators
 			 * These overloads mirror `std::ostream::operator<<` for common types and
 			 * manipulators.
+			 *
+			 * Data overloads early-out when the current message level is filtered
+			 * (WillWrite() == false), avoiding virtual Write calls on the hot path.
+			 * Level and manipulators are always forwarded so state stays consistent.
+			 *
+			 * When PrintLevel filters messages out, the expected production path is
+			 * the early-out (marked likely): no formatting, no I/O, no virtual Write.
 			 */
 			//@{
-			inline Log& operator<<(bool v) { Write(v); return *this; }
-			inline Log& operator<<(char v) { Write(v); return *this; }
-			inline Log& operator<<(signed char v) { Write(v); return *this; }
-			inline Log& operator<<(unsigned char v) { Write(v); return *this; }
-			inline Log& operator<<(short v) { Write(v); return *this; }
-			inline Log& operator<<(unsigned short v) { Write(v); return *this; }
-			inline Log& operator<<(int v) { Write(v); return *this; }
-			inline Log& operator<<(unsigned int v) { Write(v); return *this; }
-			inline Log& operator<<(long v) { Write(v); return *this; }
-			inline Log& operator<<(unsigned long v) { Write(v); return *this; }
-			inline Log& operator<<(long long v) { Write(v); return *this; }
-			inline Log& operator<<(unsigned long long v) { Write(v); return *this; }
-			inline Log& operator<<(float v) { Write(v); return *this; }
-			inline Log& operator<<(double v) { Write(v); return *this; }
-			inline Log& operator<<(long double v) { Write(v); return *this; }
-			inline Log& operator<<(const std::string& v) { Write(v); return *this; }
-			inline Log& operator<<(const char* v) { Write(v); return *this; }
-			inline Log& operator<<(const std::wstring& v) { Write(v); return *this; }
-			inline Log& operator<<(const wchar_t* v) { Write(v); return *this; }
+			inline Log& operator<<(bool v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(char v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(signed char v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(unsigned char v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(short v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(unsigned short v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(int v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(unsigned int v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(long v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(unsigned long v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(long long v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(unsigned long long v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(float v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(double v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(long double v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(const std::string& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(const char* v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(const std::wstring& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
+			inline Log& operator<<(const wchar_t* v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
 			inline Log& operator<<(const Level& level) { Write(level); return *this; }
 			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) { Write(manip); return *this; }
 			inline Log& operator<<(Log& (*manip)(Log&) noexcept) { Write(manip); return *this; }
@@ -129,7 +212,7 @@ namespace StormByte::Logger {
 			virtual void Write(bool v);
 			virtual void Write(char v);
 			virtual void Write(signed char v);
-			virtual void Write(unsigned char v);		
+			virtual void Write(unsigned char v);
 			virtual void Write(short v);
 			virtual void Write(unsigned short v);
 			virtual void Write(int v);

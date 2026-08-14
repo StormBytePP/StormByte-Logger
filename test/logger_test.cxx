@@ -8,7 +8,6 @@
 
 using namespace StormByte::Logger;
 
-// Function to test basic logging at different levels
 int test_basic_logging() {
 	std::ostringstream output;
 	Log log(output, Level::Debug, "%L:");
@@ -22,7 +21,6 @@ int test_basic_logging() {
 	RETURN_TEST("test_basic_logging", 0);
 }
 
-// Function to test log level filtering
 int test_log_level_filtering() {
 	std::ostringstream output;
 	Log log(output, Level::Error, "%L:");
@@ -36,7 +34,6 @@ int test_log_level_filtering() {
 	RETURN_TEST("test_log_level_filtering", 0);
 }
 
-// Test several data logging
 int test_log_data() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -52,7 +49,6 @@ int test_log_data() {
 	RETURN_TEST("test_log_data", 0);
 }
 
-// Test log to stdout
 int log_to_stdout() {
 	Log log(std::cout, Level::Info, "%L:");
 	log << Level::Info << "Info message" << std::endl;
@@ -80,31 +76,29 @@ int test_humanreadable_number() {
 
 	log << Level::Info << humanreadable_number << 1000 << std::endl;
 
-	std::string expected = "Info    : 1,000\n"; // Assuming the locale uses commas for thousands
+	std::string expected = "Info    : 1,000\n";
 	ASSERT_EQUAL("test_humanreadable_number", expected, output.str());
 	RETURN_TEST("test_humanreadable_number", 0);
 }
 
-// Test enabling human-readable bytes formatting
 int test_humanreadable_bytes() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
 	log << Level::Info << humanreadable_bytes << 10240 << std::endl;
 
-	std::string expected = "Info    : 10 KiB\n"; // Example: 10240 bytes = 10 KiB
+	std::string expected = "Info    : 10 KiB\n";
 	ASSERT_EQUAL("test_humanreadable_bytes", expected, output.str());
 	RETURN_TEST("test_humanreadable_bytes", 0);
 }
 
-// Test disabling human-readable formatting
 int test_nohumanreadable() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
 	log << Level::Info << humanreadable_number << 1000 << " " << nohumanreadable << 1000 << std::endl;
 
-	std::string expected = "Info    : 1,000 1000\n"; // First is formatted, second is raw
+	std::string expected = "Info    : 1,000 1000\n";
 	ASSERT_EQUAL("test_nohumanreadable", expected, output.str());
 	RETURN_TEST("test_nohumanreadable", 0);
 }
@@ -113,18 +107,15 @@ int test_humanreadable_enable_and_disable() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
-	// Enable human-readable number formatting
 	log << Level::Info << humanreadable_number << 1000 << std::endl;
-	std::string expected_enable = "Info    : 1,000\n"; // Human-readable with thousand separator
+	std::string expected_enable = "Info    : 1,000\n";
 	ASSERT_EQUAL("test_humanreadable_enable_and_disable (enable)", expected_enable, output.str());
 
-	// Clear the stream for the next test
 	output.str("");
 	output.clear();
 
-	// Disable human-readable formatting (Raw output)
 	log << Level::Info << nohumanreadable << 1000 << std::endl;
-	std::string expected_disable = "Info    : 1000\n"; // Raw format, no thousand separator
+	std::string expected_disable = "Info    : 1000\n";
 	ASSERT_EQUAL("test_humanreadable_enable_and_disable (disable)", expected_disable, output.str());
 
 	RETURN_TEST("test_humanreadable_enable_and_disable", 0);
@@ -141,6 +132,67 @@ int test_smart_pointer_usage() {
 	RETURN_TEST("test_smart_pointer_usage", 0);
 }
 
+// --- New: filtered fast-path ---
+
+int test_filtered_produces_empty_output() {
+	std::ostringstream output;
+	Log log(output, Level::Error, "%L:");
+
+	for (int i = 0; i < 100; ++i) {
+		log << Level::Debug << "debug " << i << " " << true << " " << 3.14 << std::endl;
+		log << Level::Info << "info " << i << std::endl;
+		log << Level::Warning << "warn " << i << std::endl;
+	}
+
+	ASSERT_EQUAL("test_filtered_produces_empty_output", std::string(""), output.str());
+	RETURN_TEST("test_filtered_produces_empty_output", 0);
+}
+
+int test_filtered_then_enabled_message() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+
+	log << Level::Debug << "should not appear " << 123 << std::endl;
+	log << Level::Info << "visible" << std::endl;
+	log << Level::Debug << "still hidden" << std::endl;
+	log << Level::Error << "error visible" << std::endl;
+
+	std::string expected = "Info    : visible\nError   : error visible\n";
+	ASSERT_EQUAL("test_filtered_then_enabled_message", expected, output.str());
+	RETURN_TEST("test_filtered_then_enabled_message", 0);
+}
+
+int test_escaped_percent_in_format() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "[%%] [%L]:");
+
+	log << Level::Info << "ok" << std::endl;
+
+	std::string out = output.str();
+	if (out.find("%L") != std::string::npos) {
+		ASSERT_EQUAL("test_escaped_percent_in_format (leftover %L)", std::string("none"), std::string("%L"));
+		RETURN_TEST("test_escaped_percent_in_format", 1);
+	}
+	if (out.find("[%]") == std::string::npos && out.find("[% ]") == std::string::npos) {
+		// Expect literal % then space-padded level region; at least "[%]" or "[% Info..."
+		if (out.find("[%") == std::string::npos) {
+			ASSERT_EQUAL("test_escaped_percent_in_format (missing literal %)", std::string("found"), out);
+			RETURN_TEST("test_escaped_percent_in_format", 1);
+		}
+	}
+	if (out.find("ok") == std::string::npos) {
+		ASSERT_EQUAL("test_escaped_percent_in_format (missing message)", std::string("ok"), out);
+		RETURN_TEST("test_escaped_percent_in_format", 1);
+	}
+	// Must contain a literal percent sign from %%
+	if (out.find('%') == std::string::npos) {
+		ASSERT_EQUAL("test_escaped_percent_in_format (no percent char)", std::string("has %"), out);
+		RETURN_TEST("test_escaped_percent_in_format", 1);
+	}
+
+	RETURN_TEST("test_escaped_percent_in_format", 0);
+}
+
 int main() {
 	int result = 0;
 
@@ -153,6 +205,10 @@ int main() {
 	result += test_humanreadable_bytes();
 	result += test_nohumanreadable();
 	result += test_humanreadable_enable_and_disable();
+	result += test_smart_pointer_usage();
+	result += test_filtered_produces_empty_output();
+	result += test_filtered_then_enabled_message();
+	result += test_escaped_percent_in_format();
 
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

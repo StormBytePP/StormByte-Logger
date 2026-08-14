@@ -4,56 +4,164 @@ using namespace StormByte::Logger;
 
 #include <sstream>
 
-ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
-	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
+namespace {
+	// Per-thread line ownership for this process. Safe with a shared ThreadedLog
+	// because only the thread that claimed the lock touches its own flag.
+	thread_local bool t_line_held = false;
 
-// Basic values: acquire thread lock before forwarding to base implementation.
-void ThreadedLog::Write(bool v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(char v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(signed char v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(unsigned char v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(short v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(unsigned short v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(int v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(unsigned int v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(long v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(unsigned long v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(long long v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(unsigned long long v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(float v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(double v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(long double v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(const std::string& v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(const char* v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(const std::wstring& v) { m_lock->Lock(); Log::Write(v); }
-void ThreadedLog::Write(const wchar_t* v) { m_lock->Lock(); Log::Write(v); }
-
-// Level change doesn't end a logical line — just forward while holding lock.
-void ThreadedLog::Write(const Level& level) { m_lock->Lock(); Log::Write(level); }
-
-// Stream manipulators: apply manipulator and release lock if it is std::endl.
-void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
-	m_lock->Lock();
-	Log::Write(manip);
-	// Avoid comparing function pointer addresses (which can differ across
-	// translation units / DLL boundaries on Windows). Detect whether the
-	// manipulator writes a newline by applying it to a temporary stream.
-	try {
-		std::ostringstream probe;
-		manip(probe);
-		auto s = probe.str();
-		if (!s.empty() && s.find('\n') != std::string::npos) {
-			m_lock->Unlock();
+	void claim_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
+		if (!t_line_held) {
+			lock->Lock();
+			t_line_held = true;
 		}
-	} catch (...) {
-		// If the manipulator throws for some reason (rare), be conservative
-		// and do not unlock here to avoid releasing the lock prematurely.
+	}
+
+	void release_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
+		if (t_line_held) {
+			lock->Unlock();
+			t_line_held = false;
+		}
+	}
+
+	bool manipulator_writes_newline(std::ostream& (*manip)(std::ostream&)) {
+		try {
+			std::ostringstream probe;
+			manip(probe);
+			const auto& s = probe.str();
+			return !s.empty() && s.find('\n') != std::string::npos;
+		} catch (...) {
+			return false;
+		}
 	}
 }
 
-// Log manipulators (forwarders that accept Log&). These do not implicitly end
-// the logical line — the caller should use std::endl to finalize.
+ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
+	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
+
+// Data: pure early-out when filtered — no lock.
+void ThreadedLog::Write(bool v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(char v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(signed char v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(unsigned char v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(short v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(unsigned short v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(int v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(unsigned int v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(long v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(unsigned long v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(long long v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(unsigned long long v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(float v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(double v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(long double v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(const std::string& v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(const char* v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(const std::wstring& v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+void ThreadedLog::Write(const wchar_t* v) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(v);
+}
+
+void ThreadedLog::Write(const Level& level) {
+	// Must serialize access to Implementation (Enabled / possible flush).
+	// If after the update the line is filtered, release immediately so a
+	// disabled hot path does not hold the lock until endl.
+	claim_line(m_lock);
+	Log::Write(level);
+	if (!WillWrite()) {
+		release_line(m_lock);
+	}
+}
+
+void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
+	if (WillWrite()) {
+		claim_line(m_lock);
+		Log::Write(manip);
+		if (manipulator_writes_newline(manip)) {
+			release_line(m_lock);
+		}
+	} else {
+		Log::Write(manip);
+		// Filtered: lock already released in Write(Level); no newline probe.
+	}
+}
+
 void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
-	m_lock->Lock();
+	if (WillWrite()) {
+		claim_line(m_lock);
+	}
 	Log::Write(manip);
 }

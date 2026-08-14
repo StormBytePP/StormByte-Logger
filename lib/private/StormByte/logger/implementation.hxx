@@ -6,6 +6,7 @@
 #include <optional>
 #include <ostream>
 #include <string>
+#include <type_traits>
 
 /**
  * @namespace StormByte::Logger
@@ -26,10 +27,10 @@ namespace StormByte::Logger {
  * implementation type; prefer public facades for stable APIs.
  */
 class STORMBYTE_LOGGER_PRIVATE Implementation final {
-    // Friend declarations for manipulators
-    friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
-    friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept;
-    friend STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept;
+	// Friend declarations for manipulators
+	friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
+	friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept;
+	friend STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept;
 
 	public:
 		// Constructor
@@ -54,7 +55,7 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		const Level& PrintLevel() const noexcept {
 			return m_print_level;
 		}
-		
+
 		const Level& CurrentLevel() const noexcept {
 			// Return a reference to the currently set message level if present,
 			// otherwise return the configured print level. Avoid using
@@ -62,6 +63,18 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 			// function return a reference to a transient object (warning C4172
 			// on MSVC).
 			return m_current_level ? *m_current_level : m_print_level;
+		}
+
+		/**
+		 * @brief Whether the current message level will be emitted.
+		 *
+		 * Cached as (CurrentLevel >= PrintLevel) and updated whenever the
+		 * message level changes via operator<<(Level).
+		 *
+		 * @return true if messages at the current level are written.
+		 */
+		bool Enabled() const noexcept {
+			return m_enabled;
 		}
 
 		// Level selector
@@ -86,15 +99,15 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 			requires (!std::is_same_v<std::decay_t<T>, Implementation& (*)(Implementation&) noexcept>) {
 			using DecayedT = std::decay_t<T>;
 
-			// Fast paths: avoid allocating temporary std::string when possible.
-			const Level effective = m_current_level.value_or(m_print_level);
-			if (effective < m_print_level) {
-				// Message suppressed; keep state unchanged and return.
+			// Fast-path: suppressed messages do no formatting / I/O.
+			// Production deployments typically run with a high PrintLevel, so
+			// the filtered path is the expected common case.
+			if (!m_enabled) [[likely]] {
 				return *this;
 			}
 
 			if constexpr (std::is_same_v<DecayedT, bool>) {
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << (value ? "true" : "false");
 			}
 			else if constexpr (std::is_same_v<DecayedT, wchar_t>) {
@@ -104,7 +117,7 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 			else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
 				// Human-readable formatting is relatively expensive; only use it when enabled.
 				if (m_human_readable_format == String::Format::Raw) {
-					if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+					ensure_header();
 					if constexpr (std::is_integral_v<DecayedT>) {
 						m_out << value;
 					} else {
@@ -114,30 +127,30 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 					}
 				} else {
 					std::string message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
-					if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+					ensure_header();
 					m_out << message;
 				}
 			}
 			else if constexpr (std::is_same_v<DecayedT, std::string>) {
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << value;
 			}
 			else if constexpr (std::is_same_v<DecayedT, const char*>) {
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << value;
 			}
 			else if constexpr (std::is_same_v<DecayedT, std::wstring>) {
 				std::string utf8 = String::UTF8Encode(value);
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << utf8;
 			}
 			else if constexpr (std::is_same_v<DecayedT, const wchar_t*>) {
 				std::string utf8 = String::UTF8Encode(std::wstring(value));
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << utf8;
 			}
 			else if constexpr (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>) {
-				if (!m_header_displayed) { print_header(); m_header_displayed = true; }
+				ensure_header();
 				m_out << value;
 			}
 			else {
@@ -148,14 +161,24 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 
 	private:
 		std::ostream& m_out;
-			/** @brief Print level. See `StormByte::Logger::Level` for values. */
-			Level m_print_level;
-			/** @brief Current level for the in-progress message (if any). */
-			std::optional<Level> m_current_level;
+		/** @brief Print level. See `StormByte::Logger::Level` for values. */
+		Level m_print_level;
+		/** @brief Current level for the in-progress message (if any). */
+		std::optional<Level> m_current_level;
+		/** @brief Cached (CurrentLevel >= PrintLevel) for the hot path. */
+		bool m_enabled;
 		bool m_header_displayed;                        ///< Line started
 		const std::string m_format;                     ///< Custom user format %L for Level and %T for Time
 		String::Format m_human_readable_format;         ///< Human readable size
 		// Line state
+
+		/** @brief Emit the header once per logical line when enabled. */
+		void ensure_header() noexcept {
+			if (!m_header_displayed) {
+				print_header();
+				m_header_displayed = true;
+			}
+		}
 
 		// Internal helpers
 		void print_time() const noexcept;
@@ -186,46 +209,46 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 
 // Manipulators
 inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept {
-    logger.m_human_readable_format = String::Format::HumanReadableNumber;
-    return logger;
+	logger.m_human_readable_format = String::Format::HumanReadableNumber;
+	return logger;
 }
 
 inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept {
-    logger.m_human_readable_format = String::Format::HumanReadableBytes;
-    return logger;
+	logger.m_human_readable_format = String::Format::HumanReadableBytes;
+	return logger;
 }
 
 inline STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept {
-    logger.m_human_readable_format = String::Format::Raw;
-    return logger;
+	logger.m_human_readable_format = String::Format::Raw;
+	return logger;
 }
 
 // Helper overloads for pointer-wrapped loggers
 template <typename Ptr, typename T>
 Ptr& operator<<(Ptr& logger, const T& value) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
-    if (logger) {
-        *logger << value;
-    }
-    return logger;
+	requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+	if (logger) {
+		*logger << value;
+	}
+	return logger;
 }
 
 template <typename Ptr>
 Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
-    if (logger) {
-        *logger << level;
-    }
-    return logger;
+	requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+	if (logger) {
+		*logger << level;
+	}
+	return logger;
 }
 
 template <typename Ptr>
 Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-    requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
-    if (logger) {
-        *logger << manip;
-    }
-    return logger;
+	requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+	if (logger) {
+		*logger << manip;
+	}
+	return logger;
 }
 
 }

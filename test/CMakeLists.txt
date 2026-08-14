@@ -20,4 +20,9 @@ if(ENABLE_TEST)
 	add_executable(FormatMaskTests format_mask_test.cxx)
 	target_link_libraries(FormatMaskTests StormByte::Logger)
 	add_test(NAME FormatMaskTests COMMAND FormatMaskTests)
+
+	# Format mask tests
+	add_executable(PerfTests perf_test.cxx)
+	target_link_libraries(PerfTests StormByte::Logger)
+	add_test(NAME PerfTests COMMAND PerfTests)
 endif()

@@ -42,5 +42,5 @@ void Log::Write(std::ostream& (*manip)(std::ostream&)) { m_impl << manip; }
 void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
 
 bool Log::WillWrite() const noexcept {
-	return m_impl->CurrentLevel() >= m_impl->PrintLevel();
+	return m_impl->Enabled();
 }
