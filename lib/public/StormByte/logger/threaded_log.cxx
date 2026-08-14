@@ -160,8 +160,11 @@ void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 }
 
 void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
-	if (WillWrite()) {
-		claim_line(m_lock);
-	}
-	Log::Write(manip);
+    // Manipulators (humanreadable_*, etc.) mutate Implementation.
+    // Always serialize; release immediately if the line is still filtered.
+    claim_line(m_lock);
+    Log::Write(manip);
+    if (!WillWrite()) {
+        release_line(m_lock);
+    }
 }

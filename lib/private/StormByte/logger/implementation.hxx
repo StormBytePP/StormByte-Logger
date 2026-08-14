@@ -3,6 +3,7 @@
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/string.hxx>
 
+#include <atomic>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -25,6 +26,10 @@ namespace StormByte::Logger {
  * Implements the core logging behaviour used by higher-level facades. Provides support for
  * multiple levels, formatting and human-readable numeric/byte output. This is an
  * implementation type; prefer public facades for stable APIs.
+ *
+ * Thread-safety note: `m_enabled` is atomic so `Enabled()` / filtered fast-paths may be
+ * observed concurrently with `operator<<(Level)` (as happens with `ThreadedLog`). Full
+ * multi-threaded emission still requires `ThreadedLog` (line lock around actual writes).
  */
 class STORMBYTE_LOGGER_PRIVATE Implementation final {
 	// Friend declarations for manipulators
@@ -33,23 +38,22 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 	friend STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept;
 
 	public:
-		// Constructor
-			/**
-			 * @brief Construct the internal logger implementation.
-			 *
-			 * @param out Output stream to write log messages to.
-			 * @param level Initial minimum `Level` that will be emitted by this logger.
-			 *        Messages below this level are suppressed.
-			 * @param format Header format string (see public `Log` for format placeholders).
-			 * @see StormByte::Logger::Level
-			 */
-			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+		/**
+		 * @brief Construct the internal logger implementation.
+		 *
+		 * @param out Output stream to write log messages to.
+		 * @param level Initial minimum `Level` that will be emitted by this logger.
+		 *        Messages below this level are suppressed.
+		 * @param format Header format string (see public `Log` for format placeholders).
+		 * @see StormByte::Logger::Level
+		 */
+		Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-		// Non-copyable, movable
+		// Non-copyable; non-movable (holds reference to ostream + atomic state)
 		Implementation(const Implementation&) = delete;
-		Implementation(Implementation&&) noexcept = default;
+		Implementation(Implementation&&) noexcept = delete;
 		Implementation& operator=(const Implementation&) = delete;
-		Implementation& operator=(Implementation&&) noexcept = default;
+		Implementation& operator=(Implementation&&) noexcept = delete;
 		~Implementation() noexcept = default;
 
 		const Level& PrintLevel() const noexcept {
@@ -69,15 +73,15 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		 * @brief Whether the current message level will be emitted.
 		 *
 		 * Cached as (CurrentLevel >= PrintLevel) and updated whenever the
-		 * message level changes via operator<<(Level).
+		 * message level changes via operator<<(Level). Safe to call from any
+		 * thread; uses an atomic load (filtered path stays near-noop).
 		 *
 		 * @return true if messages at the current level are written.
 		 */
 		bool Enabled() const noexcept {
-			return m_enabled;
+			return m_enabled.load(std::memory_order_acquire);
 		}
 
-		// Level selector
 		/**
 		 * @brief Change the current logging level for subsequent messages.
 		 * @param level Level to set for following messages.
@@ -102,7 +106,7 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 			// Fast-path: suppressed messages do no formatting / I/O.
 			// Production deployments typically run with a high PrintLevel, so
 			// the filtered path is the expected common case.
-			if (!m_enabled) [[likely]] {
+			if (!m_enabled.load(std::memory_order_acquire)) [[likely]] {
 				return *this;
 			}
 
@@ -165,12 +169,16 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		Level m_print_level;
 		/** @brief Current level for the in-progress message (if any). */
 		std::optional<Level> m_current_level;
-		/** @brief Cached (CurrentLevel >= PrintLevel) for the hot path. */
-		bool m_enabled;
+		/**
+		 * @brief Cached (CurrentLevel >= PrintLevel) for the hot path.
+		 *
+		 * Atomic so concurrent `Enabled()` / filtered early-outs observe updates
+		 * from `operator<<(Level)` without a mutex (keeps disabled logging near-noop).
+		 */
+		std::atomic<bool> m_enabled;
 		bool m_header_displayed;                        ///< Line started
 		const std::string m_format;                     ///< Custom user format %L for Level and %T for Time
 		String::Format m_human_readable_format;         ///< Human readable size
-		// Line state
 
 		/** @brief Emit the header once per logical line when enabled. */
 		void ensure_header() noexcept {
@@ -188,8 +196,6 @@ class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		void print_level() const noexcept;
 		void print_thread_id() const noexcept;
 		void print_header() const noexcept;
-
-		// (No synchronization helpers — logging is not responsible for cross-thread locking)
 
 		template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> && !std::is_same_v<T, wchar_t>>>
 		void print_message(const T& value) noexcept {

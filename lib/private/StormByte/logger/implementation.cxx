@@ -48,13 +48,14 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 	}
 
 	m_current_level = level;
-	m_enabled = (level >= m_print_level);
+	// Release so concurrent Enabled() / filtered early-outs observe the update.
+	m_enabled.store(level >= m_print_level, std::memory_order_release);
 	return *this;
 }
 
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	// Only apply the manipulator when the current message level is enabled.
-	if (m_enabled) {
+	if (m_enabled.load(std::memory_order_acquire)) {
 		m_out << manip;
 		m_header_displayed = false;
 	}
@@ -126,7 +127,7 @@ void Implementation::print_header() const noexcept {
 }
 
 void Implementation::print_message(const std::string& message) noexcept {
-	if (!m_enabled) {
+	if (!m_enabled.load(std::memory_order_acquire)) {
 		return;
 	}
 	ensure_header();
@@ -167,5 +168,3 @@ namespace StormByte::Logger {
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value) noexcept;
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value) noexcept;
 }
-
-// No synchronization helpers — logging is not responsible for cross-thread locking
