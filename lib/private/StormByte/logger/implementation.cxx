@@ -13,12 +13,14 @@ std::string Implementation::CurrentTime() const noexcept {
 	try {
 		auto now = std::chrono::system_clock::now();
 		std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
-		struct tm timeinfo;
+		struct tm timeinfo{};
 
-#ifdef LINUX
-		timeinfo = *std::localtime(&rawtime);
-#else
+#ifdef WINDOWS
 		localtime_s(&timeinfo, &rawtime);
+#elifdef UNIX
+		localtime_r(&rawtime, &timeinfo);
+#else
+		#error "Unsupported platform for CurrentTime()"
 #endif
 
 		char timebuf[64];
