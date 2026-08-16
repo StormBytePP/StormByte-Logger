@@ -14,7 +14,6 @@ on:
 env:
   BUILD_TYPE: Debug
 
-
 jobs:
   build-linux:
     runs-on: ubuntu-latest
@@ -23,7 +22,6 @@ jobs:
         compiler: [gcc, clang, clang-libc++]
     name: linux-${{ matrix.compiler }}
     env:
-      # Bundled StormByte (and other BM deps) live under buildmaster install
       LD_LIBRARY_PATH: ${{ github.workspace }}/build/thirdparty/buildmaster/install/lib:${{ github.workspace }}/build/lib
 
     steps:
@@ -51,10 +49,9 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        compiler: [clang, clang-libc++, gcc]
-    name: macos-${{ matrix.compiler }}
+        compiler: [gcc, clang]
+    name: macos-${{ matrix.compiler == 'clang' && 'clang-libc++' || matrix.compiler }}
     env:
-      # Same layout as Linux; dyld uses DYLD_LIBRARY_PATH
       DYLD_LIBRARY_PATH: ${{ github.workspace }}/build/thirdparty/buildmaster/install/lib:${{ github.workspace }}/build/lib
 
     steps:
@@ -74,7 +71,6 @@ jobs:
             -DENABLE_ASAN=ON
             -DENABLE_TEST=ON
             -DWITH_STORMBYTE=BUNDLED
-            ${{ matrix.compiler == 'clang-libc++' && '-DCMAKE_CXX_FLAGS=-stdlib=libc++' || '' }}
           run-tests: true
           ctest-options: --output-on-failure --test-dir ${{ github.workspace }}/build/test
 
@@ -103,7 +99,6 @@ jobs:
       - name: Add DLL directories to PATH
         shell: pwsh
         run: |
-          # Project output + BuildMaster install (DLLs usually under bin on Windows)
           echo "${{ github.workspace }}\build\lib" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "${{ github.workspace }}\build\thirdparty\buildmaster\install\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           echo "${{ github.workspace }}\build\thirdparty\buildmaster\install\lib" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
