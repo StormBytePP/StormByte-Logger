@@ -8,3 +8,5 @@ if(WITH_STORMBYTE STREQUAL "SYSTEM")
 else()
 	add_subdirectory(base)
 endif()
+
+target_link_libraries(StormByte-Logger PUBLIC StormByte)
