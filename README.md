@@ -32,7 +32,7 @@ StormByte is a comprehensive, cross-platform C++ library aimed at easing system 
 
 ## Repository
 
-You can visit the code repository at [GitHub](https://github.com/StormBytePP/StormByte-Buffer)
+You can visit the code repository at [GitHub](https://github.com/StormBytePP/StormByte-Logger)
 
 ## Installation
 
@@ -60,7 +60,55 @@ make
 
 ### Logger
 
+Streaming logger with level filtering, customizable headers, human-readable numeric formatting, optional redaction of sensitive text, and a thread-safe variant.
 
+#### Basics
+
+```cpp
+#include <StormByte/logger/log.hxx>
+#include <StormByte/logger/threaded_log.hxx>
+#include <StormByte/logger/manipulators.hxx>
+
+using namespace StormByte::Logger;
+
+Log log(std::cout, Level::Info, "[%L] %T");
+log << Level::Info << "hello" << std::endl;
+
+// Header placeholders: %L level, %T timestamp, %i thread id, %% literal %
+ThreadedLog tlog(std::cout, Level::Debug, "[%L %i] %T");
+```
+
+#### Human-readable numbers
+
+```cpp
+log << Level::Info << humanreadable_number << 1000 << std::endl;   // e.g. 1,000
+log << Level::Info << humanreadable_bytes << 10240 << std::endl;  // e.g. 10 KiB
+log << Level::Info << nohumanreadable << 1000 << std::endl;       // raw again
+```
+
+State persists until another human-readable manipulator (or `nohumanreadable`) is applied.
+
+#### Redaction
+
+Mask string-like values (`std::string`, `const char*`, wide strings) while logging. Numbers and booleans are not redacted. Policy stays active until `no_redact`.
+
+| Manipulator | Effect |
+|-------------|--------|
+| `redact` / `redact(0)` | Replace every character with `*` (same length) |
+| `redact(N)` | Keep the **first N** characters; mask the rest with `*` |
+| `no_redact` | Disable redaction |
+
+```cpp
+log << Level::Info << redact << "super-secret" << std::endl;
+// ... ************
+
+log << Level::Info << redact(4) << "super-secret" << std::endl;
+// ... supe********
+
+log << Level::Info << no_redact << "visible again" << std::endl;
+```
+
+Works the same on `ThreadedLog`. Safe for tokens, passwords, and other sensitive text in log lines without changing call sites beyond the manipulator.
 
 ## Contributing
 

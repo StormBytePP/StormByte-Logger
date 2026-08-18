@@ -4,92 +4,49 @@
 #include <StormByte/logger/typedefs.hxx>
 
 #include <memory>
-#include <string>
 #include <ostream>
+#include <string>
 
 /**
  * @namespace StormByte::Logger
- * @brief Logging module for StormByte library
- *
- * This namespace contains the logging types and utilities used throughout the StormByte project.
+ * @brief Logging module for StormByte library.
  */
 namespace StormByte::Logger {
-	class Implementation; ///< Forward declaration of internal Implementation class
+	class Implementation;
+
 	/**
 	 * @class Log
 	 * @brief Public streaming facade for the StormByte logger.
 	 *
-	 * `Log` is the stable public API used by application code. It owns a
-	 * `std::shared_ptr` to the internal implementation (`Implementation`) and exposes a
-	 * set of `operator<<` overloads that mimic `std::ostream` for convenient
-	 * formatted logging. The facade performs formatting and forwards the result
-	 * to the implementation which performs the actual emission.
-	 *
+	 * Owns a shared_ptr to the internal Implementation and exposes operator<<
+	 * overloads similar to std::ostream. Filtered levels early-out without I/O.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Log {
-		// Allow free manipulators to access `m_impl`
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
+		friend STORMBYTE_LOGGER_PUBLIC Log& no_redact(Log& log) noexcept;
 
 		public:
 			/**
-			 * @brief Construct a `Log` writing to `out`.
-			 *
-			 * @param out Output stream to Write log messages to (for example `std::cout`).
-			 * @param level Minimum `Level` that will be emitted. Messages below this
-			 *        level are suppressed.
-			 * @see StormByte::Logger::Level
-			 * @param format Format string used for log headers. Supported placeholders:
-			 *        - `%L` : level name (e.g. "Info", "Error").
-			 *        - `%T` : timestamp (formatted as `dd/mm/YYYY HH:MM:SS`).
-			 * 	      - `%i` : thread ID.
-			 *        All other characters are copied verbatim into the header.
+			 * @brief Construct a Log writing to @p out.
+			 * @param out Output stream (e.g. std::cout).
+			 * @param level Minimum Level that will be emitted.
+			 * @param format Header format: %L level, %T timestamp, %i thread id, %% literal %.
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			/**
-			 * @brief Copy constructor.
-			 *
-			 * Creates a new `Log` that shares the same underlying implementation.
-			 */
 			Log(const Log&) = default;
-
-			/**
-			 * @brief Move constructor.
-			 *
-			 * Move a `Log` preserving ownership of the internal implementation.
-			 */
 			Log(Log&&) noexcept = default;
-
-			/**
-			 * @brief Destructor.
-			 */
 			~Log() noexcept = default;
-
-			/**
-			 * @brief Copy assignment.
-			 * @return Reference to this `Log`.
-			 */
 			Log& operator=(const Log&) = default;
-
-			/**
-			 * @brief Move assignment.
-			 * @return Reference to this `Log`.
-			 */
 			Log& operator=(Log&&) noexcept = default;
 
 			/**
 			 * @name Streaming Operators
-			 * These overloads mirror `std::ostream::operator<<` for common types and
-			 * manipulators.
-			 *
-			 * Data overloads early-out when the current message level is filtered
-			 * (WillWrite() == false), avoiding virtual Write calls on the hot path.
-			 * Level and manipulators are always forwarded so state stays consistent.
-			 *
-			 * When PrintLevel filters messages out, the expected production path is
-			 * the early-out (marked likely): no formatting, no I/O, no virtual Write.
+			 * Data overloads early-out when the current message level is filtered.
+			 * Level, stream manipulators, Log manipulators and RedactManip are always
+			 * forwarded so logger state stays consistent.
 			 */
 			//@{
 			inline Log& operator<<(bool v) {
@@ -187,28 +144,35 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const Level& level) { Write(level); return *this; }
-			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) { Write(manip); return *this; }
-			inline Log& operator<<(Log& (*manip)(Log&) noexcept) { Write(manip); return *this; }
+			inline Log& operator<<(const Level& level) {
+				Write(level);
+				return *this;
+			}
+			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) {
+				Write(manip);
+				return *this;
+			}
+			inline Log& operator<<(Log& (*manip)(Log&) noexcept) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Apply redaction policy (full or keep-last-N). State remains until no_redact.
+			 */
+			inline Log& operator<<(RedactManip m) {
+				Write(m);
+				return *this;
+			}
 			//@}
 
 		protected:
 			std::shared_ptr<Implementation> m_impl;
 
 			/**
-			 * @brief Determine if the logger will write messages at the current level.
-			 * @return `true` if messages will be written, `false` otherwise.
+			 * @brief Whether messages at the current level will be written.
 			 */
 			bool WillWrite() const noexcept;
 
-			/**
-			 * @name Virtual write entry points
-			 * These methods are the out-of-line implementations invoked by the
-			 * inline `operator<<` wrappers above. They are intentionally private so
-			 * that subclasses (if enabled) may override behaviour while keeping the
-			 * public streaming API unchanged.
-			 */
-			//@{
 			virtual void Write(bool v);
 			virtual void Write(char v);
 			virtual void Write(signed char v);
@@ -231,34 +195,33 @@ namespace StormByte::Logger {
 			virtual void Write(const Level& level);
 			virtual void Write(std::ostream& (*manip)(std::ostream&));
 			virtual void Write(Log& (*manip)(Log&) noexcept);
-			//@}
+			/**
+			 * @brief Forward redaction state to the implementation.
+			 */
+			virtual void Write(RedactManip m);
 	};
 
-	// Helper overloads for pointer-wrapped Log (std::shared_ptr/std::unique_ptr)
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
-		if (logger) {
+		if (logger)
 			*logger << value;
-		}
 		return logger;
 	}
 
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
-		if (logger) {
+		if (logger)
 			*logger << level;
-		}
 		return logger;
 	}
 
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
-		if (logger) {
+		if (logger)
 			*logger << manip;
-		}
 		return logger;
 	}
 }

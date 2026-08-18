@@ -7,42 +7,26 @@
 
 /**
  * @namespace StormByte::Logger
- * @brief Logging module for StormByte library
- *
- * This namespace contains the logging types and utilities used throughout the StormByte project.
+ * @brief Logging module for StormByte library.
  */
 namespace StormByte::Logger {
 	/**
 	 * @class ThreadedLog
 	 * @brief Thread-safe logging facade.
 	 *
-	 * `ThreadedLog` extends the basic `Log` facade to provide thread-safe
-	 * logging from multiple threads. It ensures that log messages from different
-	 * threads do not interleave, preserving message integrity.
-	 * The first thread writing to the log acquires a lock, blocking other threads
-	 * until the logical write sequence is complete (indicated by `std::endl` manipulator).
-	 *
-	 * Performance: filtered messages (WillWrite() == false) neither hold the
-	 * line lock nor block other threads. The lock is claimed only when a level
-	 * change enables output (or continues an active visible line) and is released
-	 * on newline, or immediately if the new level is still filtered.
+	 * Serializes logical lines (until a newline manipulator) so concurrent writers
+	 * do not interleave. Filtered messages do not hold the line lock.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
 			/**
-			 * @brief Construct a `ThreadedLog` writing to `out`.
-			 *
-			 * @param out Output stream to Write log messages to (for example `std::cout`).
-			 * @param level Minimum `Level` that will be emitted. Messages below this
-			 *        level are suppressed.
-			 * @see StormByte::Logger::Level
-			 * @param format Format string used for log headers. Supported placeholders:
-			 *        - `%L` : level name (e.g. "Info", "Error").
-			 *        - `%T` : timestamp (formatted as `dd/mm/YYYY HH:MM:SS`).
-			 * 	      - `%i` : thread ID.
-			 *        All other characters are copied verbatim into the header.
+			 * @brief Construct a ThreadedLog writing to @p out.
+			 * @param out Output stream.
+			 * @param level Minimum Level that will be emitted.
+			 * @param format Header format string (%L, %T, %i).
 			 */
 			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+
 			ThreadedLog(const ThreadedLog&) = default;
 			ThreadedLog(ThreadedLog&&) noexcept = default;
 			~ThreadedLog() noexcept = default;
@@ -51,10 +35,7 @@ namespace StormByte::Logger {
 
 			/**
 			 * @name Streaming Operators
-			 * These overloads mirror `std::ostream::operator<<` for common types and
-			 * manipulators.
-			 *
-			 * Data overloads early-out when the current message level is filtered.
+			 * Same contract as Log; data overloads early-out when filtered.
 			 */
 			//@{
 			inline Log& operator<<(bool v) {
@@ -152,22 +133,27 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const Level& level) { Write(level); return *this; }
-			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) { Write(manip); return *this; }
-			inline Log& operator<<(Log& (*manip)(Log&) noexcept) { Write(manip); return *this; }
+			inline Log& operator<<(const Level& level) {
+				Write(level);
+				return *this;
+			}
+			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) {
+				Write(manip);
+				return *this;
+			}
+			inline Log& operator<<(Log& (*manip)(Log&) noexcept) {
+				Write(manip);
+				return *this;
+			}
+			inline Log& operator<<(RedactManip m) {
+				Write(m);
+				return *this;
+			}
 			//@}
 
 		private:
 			std::shared_ptr<ThreadLock> m_lock;
 
-			/**
-			 * @name Virtual write entry points
-			 * These methods are the out-of-line implementations invoked by the
-			 * inline `operator<<` wrappers above. They are intentionally private so
-			 * that subclasses (if enabled) may override behaviour while keeping the
-			 * public streaming API unchanged.
-			 */
-			//@{
 			void Write(bool v) override;
 			void Write(char v) override;
 			void Write(signed char v) override;
@@ -190,6 +176,6 @@ namespace StormByte::Logger {
 			void Write(const Level& level) override;
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;
-			//@}
+			void Write(RedactManip m) override;
 	};
 }
