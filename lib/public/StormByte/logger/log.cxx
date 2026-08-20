@@ -31,7 +31,7 @@ void Log::Write(std::ostream& (*manip)(std::ostream&)) { m_impl << manip; }
 void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
 
 void Log::Write(RedactManip m) {
-	m_impl->SetRedact(true, m.keep_last);
+    m_impl->SetRedact(true, m.count, m.keep_first);
 }
 
 bool Log::WillWrite() const noexcept {

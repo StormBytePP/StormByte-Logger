@@ -19,7 +19,7 @@ namespace StormByte::Logger {
 	}
 
 	STORMBYTE_LOGGER_PUBLIC Log& no_redact(Log& log) noexcept {
-		log.m_impl->SetRedact(false, 0);
+		log.m_impl->SetRedact(false, 0, false);
 		return log;
 	}
 }

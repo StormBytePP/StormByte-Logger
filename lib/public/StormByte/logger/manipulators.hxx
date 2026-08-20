@@ -14,37 +14,49 @@ namespace StormByte::Logger {
 	/**
 	 * @brief Stateful redaction manipulator.
 	 *
-	 * - keep_last == 0: every character becomes '*'.
-	 * - keep_last == N: last N characters stay readable; the rest become '*'.
+	 * - count == 0: every character becomes '*'.
+	 * - keep_first == false (default): last `count` characters stay readable.
+	 * - keep_first == true: first `count` characters stay readable.
 	 *
 	 * Applies to both text and numbers (numbers are converted to string first).
 	 * Remains active until @ref no_redact.
 	 *
 	 * Usage:
 	 * @code
-	 * log << redact << secret << std::endl;     // full mask
-	 * log << redact(4) << token << std::endl;   // keep last 4
+	 * log << redact << secret << std::endl;              // full mask
+	 * log << redact(4) << token << std::endl;            // keep last 4
+	 * log << redact_first(4) << token << std::endl;      // keep first 4
 	 * log << no_redact << plain << std::endl;
 	 * @endcode
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC RedactManip {
-		std::size_t keep_last = 0;	///< 0 = mask all; N = keep last N chars
+		std::size_t count = 0;		///< 0 = mask all; N = keep N characters
+		bool keep_first = false;	///< true = keep first N, false = keep last N
 
 		/**
 		 * @brief Build a manipulator that keeps the last @p n characters visible.
 		 * @param n Number of trailing characters to keep unmasked.
-		 * @return A new RedactManip with the requested keep_last value.
+		 * @return A new RedactManip configured for keep-last.
 		 */
 		constexpr RedactManip operator()(std::size_t n) const noexcept {
-			return RedactManip{ n };
+			return RedactManip{ n, false };
 		}
 	};
 
 	/**
-	 * @brief Full redaction manipulator (`keep_last == 0`).
+	 * @brief Full redaction manipulator (mask everything).
 	 * @see RedactManip
 	 */
 	inline constexpr RedactManip redact{};
+
+	/**
+	 * @brief Build a manipulator that keeps the first @p n characters visible.
+	 * @param n Number of leading characters to keep unmasked.
+	 * @return A RedactManip configured for keep-first.
+	 */
+	constexpr RedactManip redact_first(std::size_t n) noexcept {
+		return RedactManip{ n, true };
+	}
 
 	/**
 	 * @brief Enable human-readable formatting for numeric values.
@@ -68,7 +80,7 @@ namespace StormByte::Logger {
 	STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
 
 	/**
-	 * @brief Disable redaction until the next redact / redact(n).
+	 * @brief Disable redaction until the next redact / redact(n) / redact_first(n).
 	 * @param log The Log instance to modify.
 	 * @return Reference to the same Log.
 	 */

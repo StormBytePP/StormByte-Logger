@@ -218,6 +218,65 @@ int test_manip_redact_wstring() {
 	RETURN_TEST("test_manip_redact_wstring", 0);
 }
 
+int test_manip_redact_first() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+
+	log << Level::Info << redact_first(4) << "super-secret" << std::endl;
+
+	// "super-secret" (12) → supe********
+	std::string expected = "Info    : supe********\n";
+	ASSERT_EQUAL("test_manip_redact_first", expected, output.str());
+	RETURN_TEST("test_manip_redact_first", 0);
+}
+
+int test_manip_redact_first_zero_same_as_full() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+
+	log << Level::Info << redact_first(0) << "abc" << std::endl;
+
+	std::string expected = "Info    : ***\n";
+	ASSERT_EQUAL("test_manip_redact_first_zero_same_as_full", expected, output.str());
+	RETURN_TEST("test_manip_redact_first_zero_same_as_full", 0);
+}
+
+int test_manip_redact_first_ge_length() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+
+	log << Level::Info << redact_first(10) << "abc" << std::endl;
+
+	std::string expected = "Info    : abc\n";
+	ASSERT_EQUAL("test_manip_redact_first_ge_length", expected, output.str());
+	RETURN_TEST("test_manip_redact_first_ge_length", 0);
+}
+
+int test_manip_redact_first_const_char_ptr() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+
+	const char* token = "password123";
+	log << Level::Info << redact_first(3) << token << std::endl;
+
+	// "password123" → pas********
+	std::string expected = "Info    : pas********\n";
+	ASSERT_EQUAL("test_manip_redact_first_const_char_ptr", expected, output.str());
+	RETURN_TEST("test_manip_redact_first_const_char_ptr", 0);
+}
+
+int test_manip_redact_first_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%L:");
+
+	tlog << Level::Info << redact_first(4) << "super-secret" << std::endl;
+	tlog << Level::Info << no_redact << "ok" << std::endl;
+
+	std::string expected = "Info    : supe********\nInfo    : ok\n";
+	ASSERT_EQUAL("test_manip_redact_first_threadedlog", expected, output.str());
+	RETURN_TEST("test_manip_redact_first_threadedlog", 0);
+}
+
 int main() {
 	int result = 0;
 
@@ -239,6 +298,12 @@ int main() {
 	result += test_manip_redact_threadedlog();
 	result += test_manip_redact_with_humanreadable_independent();
 	result += test_manip_redact_wstring();
+
+	result += test_manip_redact_first();
+	result += test_manip_redact_first_zero_same_as_full();
+	result += test_manip_redact_first_ge_length();
+	result += test_manip_redact_first_const_char_ptr();
+	result += test_manip_redact_first_threadedlog();
 
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

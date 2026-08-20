@@ -36,7 +36,8 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_format(format),
 	m_human_readable_format(String::Format::Raw),
 	m_redact_active(false),
-	m_redact_keep_last(0) {
+	m_redact_count(0),
+	m_redact_keep_first(false) {
 }
 
 Implementation& Implementation::operator<<(const Level& level) noexcept {

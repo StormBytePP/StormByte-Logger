@@ -91,11 +91,13 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Enable or disable redaction for subsequent values.
 			 * @param active true to redact text and numbers.
-			 * @param keep_last 0 = mask all characters; N = keep last N characters visible.
+			 * @param count 0 = mask all characters; N = keep N characters.
+			 * @param keep_first true = keep first N characters, false = keep last N characters.
 			 */
-			void SetRedact(bool active, std::size_t keep_last) noexcept {
+			void SetRedact(bool active, std::size_t count, bool keep_first) noexcept {
 				m_redact_active = active;
-				m_redact_keep_last = keep_last;
+				m_redact_count = count;
+				m_redact_keep_first = keep_first;
 			}
 
 			/**
@@ -181,7 +183,8 @@ namespace StormByte::Logger {
 			const std::string m_format;					///< Header format string
 			String::Format m_human_readable_format;		///< Current human-readable format
 			bool m_redact_active;						///< When true, text and numbers are redacted
-			std::size_t m_redact_keep_last;				///< 0 = all '*'; N = keep last N chars
+			std::size_t m_redact_count;					///< 0 = all '*'; N = keep N chars
+			bool m_redact_keep_first;					///< true = keep first N, false = keep last N
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.
@@ -194,21 +197,27 @@ namespace StormByte::Logger {
 			}
 
 			/**
-			 * @brief Apply redaction policy (keep last N characters).
+			 * @brief Apply redaction policy.
 			 * @param in Input text.
-			 * @param keep_last 0 = all '*'; N = last N characters preserved.
+			 * @param count 0 = all '*'; N = keep N characters.
+			 * @param keep_first true = keep first N, false = keep last N.
 			 * @return Redacted string of the same length.
 			 */
-			static std::string ApplyRedact(std::string_view in, std::size_t keep_last) {
+			static std::string ApplyRedact(std::string_view in, std::size_t count, bool keep_first) {
 				if (in.empty())
 					return {};
-				if (keep_last >= in.size())
+				if (count >= in.size())
 					return std::string{in};
 
 				std::string out(in.size(), '*');
-				const std::size_t start = in.size() - keep_last;
-				for (std::size_t i = 0; i < keep_last; ++i)
-					out[start + i] = in[start + i];
+				if (keep_first) {
+					for (std::size_t i = 0; i < count; ++i)
+						out[i] = in[i];
+				} else {
+					const std::size_t start = in.size() - count;
+					for (std::size_t i = 0; i < count; ++i)
+						out[start + i] = in[start + i];
+				}
 				return out;
 			}
 
@@ -219,7 +228,7 @@ namespace StormByte::Logger {
 			void write_text(std::string_view text) noexcept {
 				ensure_header();
 				if (m_redact_active)
-					m_out << ApplyRedact(text, m_redact_keep_last);
+					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
 				else
 					m_out << text;
 			}
