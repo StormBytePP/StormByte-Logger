@@ -54,8 +54,9 @@ int test_manip_chainable_threadedlog() {
 }
 
 // ---------------------------------------------------------------------------
-// Redact: keep first N characters visible; rest become '*'.
+// Redact: keep last N characters visible; rest become '*'.
 // redact / redact(0) → mask all.
+// Numbers are also redacted.
 // ---------------------------------------------------------------------------
 
 int test_manip_redact_full_string() {
@@ -69,30 +70,30 @@ int test_manip_redact_full_string() {
 	RETURN_TEST("test_manip_redact_full_string", 0);
 }
 
-int test_manip_redact_keep_first() {
+int test_manip_redact_keep_last() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
 	log << Level::Info << redact(4) << "super-secret" << std::endl;
 
-	// "super-secret" (12) → supe********
-	std::string expected = "Info    : supe********\n";
-	ASSERT_EQUAL("test_manip_redact_keep_first", expected, output.str());
-	RETURN_TEST("test_manip_redact_keep_first", 0);
+	// "super-secret" (12) → ********cret
+	std::string expected = "Info    : ********cret\n";
+	ASSERT_EQUAL("test_manip_redact_keep_last", expected, output.str());
+	RETURN_TEST("test_manip_redact_keep_last", 0);
 }
 
-int test_manip_redact_keep_first_zero_same_as_full() {
+int test_manip_redact_keep_last_zero_same_as_full() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
 	log << Level::Info << redact(0) << "abc" << std::endl;
 
 	std::string expected = "Info    : ***\n";
-	ASSERT_EQUAL("test_manip_redact_keep_first_zero_same_as_full", expected, output.str());
-	RETURN_TEST("test_manip_redact_keep_first_zero_same_as_full", 0);
+	ASSERT_EQUAL("test_manip_redact_keep_last_zero_same_as_full", expected, output.str());
+	RETURN_TEST("test_manip_redact_keep_last_zero_same_as_full", 0);
 }
 
-int test_manip_redact_keep_first_ge_length() {
+int test_manip_redact_keep_last_ge_length() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
@@ -100,8 +101,8 @@ int test_manip_redact_keep_first_ge_length() {
 	log << Level::Info << redact(10) << "abc" << std::endl;
 
 	std::string expected = "Info    : abc\n";
-	ASSERT_EQUAL("test_manip_redact_keep_first_ge_length", expected, output.str());
-	RETURN_TEST("test_manip_redact_keep_first_ge_length", 0);
+	ASSERT_EQUAL("test_manip_redact_keep_last_ge_length", expected, output.str());
+	RETURN_TEST("test_manip_redact_keep_last_ge_length", 0);
 }
 
 int test_manip_redact_empty_string() {
@@ -122,8 +123,8 @@ int test_manip_redact_const_char_ptr() {
 	const char* token = "password123";
 	log << Level::Info << redact(3) << token << std::endl;
 
-	// "password123" (11) → pas********
-	std::string expected = "Info    : pas********\n";
+	// "password123" (11) → ********123
+	std::string expected = "Info    : ********123\n";
 	ASSERT_EQUAL("test_manip_redact_const_char_ptr", expected, output.str());
 	RETURN_TEST("test_manip_redact_const_char_ptr", 0);
 }
@@ -148,22 +149,22 @@ int test_manip_redact_stays_active() {
 	log << Level::Info << "three" << std::endl;
 	log << Level::Info << no_redact << "four" << std::endl;
 
-	// "one" → on*, " " → *, "two" → tw*, "three" → th***
-	std::string expected = "Info    : on* tw*\nInfo    : th***\nInfo    : four\n";
+	// "one" → *ne , " " → * , "two" → *wo , "three" → ***ee
+	std::string expected = "Info    : *ne *wo\nInfo    : ***ee\nInfo    : four\n";
 	ASSERT_EQUAL("test_manip_redact_stays_active", expected, output.str());
 	RETURN_TEST("test_manip_redact_stays_active", 0);
 }
 
-int test_manip_redact_does_not_affect_numbers() {
+int test_manip_redact_affects_numbers() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 
-	// Whole " secret" (leading space included) is redacted
 	log << Level::Info << redact << 42 << " secret" << std::endl;
 
-	std::string expected = "Info    : 42*******\n";
-	ASSERT_EQUAL("test_manip_redact_does_not_affect_numbers", expected, output.str());
-	RETURN_TEST("test_manip_redact_does_not_affect_numbers", 0);
+	// "42" → ** , " secret" → *******  → total 9 asterisks
+	std::string expected = "Info    : *********\n";
+	ASSERT_EQUAL("test_manip_redact_affects_numbers", expected, output.str());
+	RETURN_TEST("test_manip_redact_affects_numbers", 0);
 }
 
 int test_manip_redact_then_change_keep() {
@@ -174,7 +175,8 @@ int test_manip_redact_then_change_keep() {
 	log << Level::Info << redact(2) << "abcdef" << std::endl;
 	log << Level::Info << redact << "abcdef" << std::endl;
 
-	std::string expected = "Info    : ******\nInfo    : ab****\nInfo    : ******\n";
+	// full → ****** , keep 2 → ****ef , full → ******
+	std::string expected = "Info    : ******\nInfo    : ****ef\nInfo    : ******\n";
 	ASSERT_EQUAL("test_manip_redact_then_change_keep", expected, output.str());
 	RETURN_TEST("test_manip_redact_then_change_keep", 0);
 }
@@ -186,7 +188,7 @@ int test_manip_redact_threadedlog() {
 	tlog << Level::Info << redact(4) << "super-secret" << std::endl;
 	tlog << Level::Info << no_redact << "ok" << std::endl;
 
-	std::string expected = "Info    : supe********\nInfo    : ok\n";
+	std::string expected = "Info    : ********cret\nInfo    : ok\n";
 	ASSERT_EQUAL("test_manip_redact_threadedlog", expected, output.str());
 	RETURN_TEST("test_manip_redact_threadedlog", 0);
 }
@@ -198,8 +200,8 @@ int test_manip_redact_with_humanreadable_independent() {
 	log << Level::Info << humanreadable_number << redact << 1000 << " token" << std::endl;
 	log << Level::Info << no_redact << nohumanreadable << 1000 << std::endl;
 
-	// " token" (6 chars) → ******
-	std::string expected = "Info    : 1,000******\nInfo    : 1000\n";
+	// "1,000" (5) → ***** , " token" (6) → ******  → total 11 asterisks
+	std::string expected = "Info    : ***********\nInfo    : 1000\n";
 	ASSERT_EQUAL("test_manip_redact_with_humanreadable_independent", expected, output.str());
 	RETURN_TEST("test_manip_redact_with_humanreadable_independent", 0);
 }
@@ -225,14 +227,14 @@ int main() {
 	result += test_manip_chainable_threadedlog();
 
 	result += test_manip_redact_full_string();
-	result += test_manip_redact_keep_first();
-	result += test_manip_redact_keep_first_zero_same_as_full();
-	result += test_manip_redact_keep_first_ge_length();
+	result += test_manip_redact_keep_last();
+	result += test_manip_redact_keep_last_zero_same_as_full();
+	result += test_manip_redact_keep_last_ge_length();
 	result += test_manip_redact_empty_string();
 	result += test_manip_redact_const_char_ptr();
 	result += test_manip_no_redact_restores_plain();
 	result += test_manip_redact_stays_active();
-	result += test_manip_redact_does_not_affect_numbers();
+	result += test_manip_redact_affects_numbers();
 	result += test_manip_redact_then_change_keep();
 	result += test_manip_redact_threadedlog();
 	result += test_manip_redact_with_humanreadable_independent();

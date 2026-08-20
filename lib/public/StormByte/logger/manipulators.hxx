@@ -12,17 +12,18 @@ namespace StormByte::Logger {
 	class Log;
 
 	/**
-	 * @brief Stateful redaction manipulator (same idea as human-readable flags).
+	 * @brief Stateful redaction manipulator.
 	 *
 	 * - keep_last == 0: every character becomes '*'.
 	 * - keep_last == N: last N characters stay readable; the rest become '*'.
 	 *
+	 * Applies to both text and numbers (numbers are converted to string first).
 	 * Remains active until @ref no_redact.
 	 *
 	 * Usage:
 	 * @code
 	 * log << redact << secret << std::endl;     // full mask
-	 * log << redact(4) << token << std::endl; // keep last 4
+	 * log << redact(4) << token << std::endl;   // keep last 4
 	 * log << no_redact << plain << std::endl;
 	 * @endcode
 	 */
@@ -31,6 +32,8 @@ namespace StormByte::Logger {
 
 		/**
 		 * @brief Build a manipulator that keeps the last @p n characters visible.
+		 * @param n Number of trailing characters to keep unmasked.
+		 * @return A new RedactManip with the requested keep_last value.
 		 */
 		constexpr RedactManip operator()(std::size_t n) const noexcept {
 			return RedactManip{ n };
