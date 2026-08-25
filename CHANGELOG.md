@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0] - 2026-08-20
 
-Initial public release of **StormByte-Logger**: a modern, stream-style C++23 logging library with level filtering, custom headers, human-readable formatting, redaction and optional thread safety.
+Initial public release of **StormByte-Logger**: a modern, stream-style C++26 logging library with level filtering, custom headers, human-readable formatting, redaction and optional thread safety.
 
 ### Added
 
@@ -29,6 +29,6 @@ Initial public release of **StormByte-Logger**: a modern, stream-style C++23 log
 
 - `Log` instances are not thread-safe. Use `ThreadedLog` when multiple threads write to the same logger.
 - Filtered messages (below the configured level) early-out with near-zero overhead.
-- Requires a C++23 compliant compiler and StormByte Base ≥ 1.0.0.
+- Requires a C++26 compliant compiler and StormByte Base ≥ 1.0.0.
 
 [1.0.0]: https://github.com/StormBytePP/StormByte-Logger/releases/tag/1.0.0
