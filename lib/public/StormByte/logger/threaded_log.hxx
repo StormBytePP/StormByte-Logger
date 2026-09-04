@@ -178,28 +178,34 @@ namespace StormByte::Logger {
 		private:
 			std::shared_ptr<ThreadLock> m_lock;	///< Shared line lock (copy shares it)
 
-			void Write(bool v) override;								///< @brief Locked emit.
-			void Write(char v) override;								///< @brief Locked emit.
-			void Write(signed char v) override;							///< @brief Locked emit.
-			void Write(unsigned char v) override;						///< @brief Locked emit.
-			void Write(short v) override;								///< @brief Locked emit.
-			void Write(unsigned short v) override;						///< @brief Locked emit.
-			void Write(int v) override;									///< @brief Locked emit.
-			void Write(unsigned int v) override;						///< @brief Locked emit.
-			void Write(long v) override;								///< @brief Locked emit.
-			void Write(unsigned long v) override;						///< @brief Locked emit.
-			void Write(long long v) override;							///< @brief Locked emit.
-			void Write(unsigned long long v) override;					///< @brief Locked emit.
-			void Write(float v) override;								///< @brief Locked emit.
-			void Write(double v) override;								///< @brief Locked emit.
-			void Write(long double v) override;							///< @brief Locked emit.
-			void Write(const std::string& v) override;					///< @brief Locked emit.
-			void Write(const char* v) override;							///< @brief Locked emit.
-			void Write(const std::wstring& v) override;					///< @brief Locked emit.
-			void Write(const wchar_t* v) override;						///< @brief Locked emit.
-			void Write(const Level& level) override;					///< @brief Set level (lock as needed).
-			void Write(std::ostream& (*manip)(std::ostream&)) override;	///< @brief Stream manipulator; newline drops the lock.
-			void Write(Log& (*manip)(Log&) noexcept) override;			///< @brief Logger manipulator.
-			void Write(RedactManip m) override;							///< @brief Enable redaction policy.
+			/**
+			 * @name Write
+			 * Locked emit. Newline stream manipulators drop the line lock.
+			 */
+			//@{
+			void Write(bool v) override;
+			void Write(char v) override;
+			void Write(signed char v) override;
+			void Write(unsigned char v) override;
+			void Write(short v) override;
+			void Write(unsigned short v) override;
+			void Write(int v) override;
+			void Write(unsigned int v) override;
+			void Write(long v) override;
+			void Write(unsigned long v) override;
+			void Write(long long v) override;
+			void Write(unsigned long long v) override;
+			void Write(float v) override;
+			void Write(double v) override;
+			void Write(long double v) override;
+			void Write(const std::string& v) override;
+			void Write(const char* v) override;
+			void Write(const std::wstring& v) override;
+			void Write(const wchar_t* v) override;
+			void Write(const Level& level) override;
+			void Write(std::ostream& (*manip)(std::ostream&)) override;
+			void Write(Log& (*manip)(Log&) noexcept) override;
+			void Write(RedactManip m) override;
+			//@}
 	};
 }
