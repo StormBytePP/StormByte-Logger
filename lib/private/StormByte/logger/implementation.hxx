@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte-Logger.
- *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
- *
- * StormByte-Logger is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
- * <https://www.gnu.org/licenses/lgpl-3.0.html>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte-Logger.
+*
+* StormByte-Logger is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License version 3
+* or later, as published by the Free Software Foundation.
+*
+* StormByte-Logger is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte-Logger. If not, see
+* <https://www.gnu.org/licenses/lgpl-3.0.html>.
+*/
 
 #pragma once
 
@@ -194,16 +194,16 @@ namespace StormByte::Logger {
 			}
 
 		private:
-			std::ostream& m_out;						///< Output stream
-			Level m_print_level;						///< Minimum level that will be printed
-			std::optional<Level> m_current_level;		///< Level of the current message
-			std::atomic<bool> m_enabled;				///< Whether the current level is enabled
-			bool m_header_displayed;					///< Whether the header has already been written
-			const std::string m_format;					///< Header format string
-			String::Format m_human_readable_format;		///< Current human-readable format
-			bool m_redact_active;						///< When true, text and numbers are redacted
-			std::size_t m_redact_count;					///< 0 = all '*'; N = keep N chars
-			bool m_redact_keep_first;					///< true = keep first N, false = keep last N
+			std::ostream& m_out;					///< Output stream
+			Level m_print_level; 					///< Minimum level that will be printed
+			std::optional<Level> m_current_level; 	///< Level of the current message
+			std::atomic<bool> m_enabled; 			///< Whether the current level is enabled
+			bool m_header_displayed; 				///< Whether the header has already been written
+			const std::string m_format; 			///< Header format string
+			String::Format m_human_readable_format; ///< Current human-readable format
+			bool m_redact_active; 					///< When true, text and numbers are redacted
+			std::size_t m_redact_count; 			///< 0 = all '*'; N = keep N chars
+			bool m_redact_keep_first; 				///< true = keep first N, false = keep last N
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.
