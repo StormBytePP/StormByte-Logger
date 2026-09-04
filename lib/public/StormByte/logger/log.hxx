@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte-Logger.
- *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
- *
- * StormByte-Logger is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
- * <https://www.gnu.org/licenses/lgpl-3.0.html>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte-Logger.
+*
+* StormByte-Logger is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License version 3
+* or later, as published by the Free Software Foundation.
+*
+* StormByte-Logger is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte-Logger. If not, see
+* <https://www.gnu.org/licenses/lgpl-3.0.html>.
+*/
 
 #pragma once
 
@@ -55,10 +55,15 @@ namespace StormByte::Logger {
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
+			/** @brief Copy constructor. Shares the Implementation. */
 			Log(const Log&) = default;
+			/** @brief Move constructor. */
 			Log(Log&&) noexcept = default;
+			/** @brief Destructor. */
 			~Log() noexcept = default;
+			/** @brief Copy assignment. Shares the Implementation. */
 			Log& operator=(const Log&) = default;
+			/** @brief Move assignment. */
 			Log& operator=(Log&&) noexcept = default;
 
 			/**
@@ -185,13 +190,19 @@ namespace StormByte::Logger {
 			//@}
 
 		protected:
-			std::shared_ptr<Implementation> m_impl;
+			std::shared_ptr<Implementation> m_impl; ///< Shared backend (copies of Log share it)
 
 			/**
 			 * @brief Whether messages at the current level will be written.
+			 * @return true if the current level is at or above the print floor.
 			 */
 			bool WillWrite() const noexcept;
 
+			/**
+			 * @name Write
+			 * Forward a value or state change to Implementation.
+			 */
+			//@{
 			virtual void Write(bool v);
 			virtual void Write(char v);
 			virtual void Write(signed char v);
@@ -218,8 +229,17 @@ namespace StormByte::Logger {
 			 * @brief Forward redaction state to the implementation.
 			 */
 			virtual void Write(RedactManip m);
+			//@}
 	};
 
+	/**
+	 * @brief Stream a value into a smart pointer to Log.
+	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
+	 * @tparam T Value type.
+	 * @param logger Smart pointer to Log.
+	 * @param value Value to stream.
+	 * @return Reference to the smart pointer.
+	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
@@ -228,6 +248,13 @@ namespace StormByte::Logger {
 		return logger;
 	}
 
+	/**
+	 * @brief Stream a Level into a smart pointer to Log.
+	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
+	 * @param logger Smart pointer to Log.
+	 * @param level Level to set.
+	 * @return Reference to the smart pointer.
+	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
@@ -236,6 +263,13 @@ namespace StormByte::Logger {
 		return logger;
 	}
 
+	/**
+	 * @brief Stream a stream manipulator into a smart pointer to Log.
+	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
+	 * @param logger Smart pointer to Log.
+	 * @param manip Stream manipulator (e.g. std::endl).
+	 * @return Reference to the smart pointer.
+	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
 		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
