@@ -5,34 +5,37 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Summary]
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.1...HEAD
+StormByte-Logger is the logging module of the StormByte C++ suite.
 
-## [1.0.0] - 2026-08-20
+It is a stream logger (`operator<<`) with level filtering, a custom header format, human-readable numbers and bytes, redaction of text and numbers, and `ThreadedLog` for concurrent writers.
 
-Initial public release of **StormByte-Logger**: a modern, stream-style C++26 logging library with level filtering, custom headers, human-readable formatting, redaction and optional thread safety.
+If you landed here from a release link and have not read the tree:
+
+- How to use it, manipulators, and redaction contract: [README.md](https://github.com/StormBytePP/StormByte-Logger/blob/master/README.md)
+
+## [1.0.0] - 2026-09-04
+
+Initial public release of **StormByte-Logger**.
 
 ### Added
 
-- `Log` streaming facade with familiar `operator<<` syntax
-- Level-based filtering (`LowLevel`, `Debug`, `Warning`, `Notice`, `Info`, `Error`, `Fatal`)
-- Customizable header format (`%L` level, `%T` timestamp, `%i` thread id, `%%` literal percent)
-- Human-readable number and byte-size formatting manipulators (`humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`)
-- Redaction support:
-  - `redact` / `redact(n)` → keep last N characters
-  - `redact_first(n)` → keep first N characters
-  - Applies to both text and numbers
-  - `no_redact` to disable
-- `ThreadedLog` – thread-safe variant that serializes logical lines (until newline)
-- Smart-pointer overloads (`std::shared_ptr` / `std::unique_ptr`)
-- Integration with StormByte Base (String utilities, ThreadLock, platform detection)
-- Comprehensive unit tests (including high-volume filtered logging, multi-threaded scenarios and redaction)
+- `Log` streaming facade with `operator<<`
+- Level filter: `LowLevel`, `Debug`, `Warning`, `Notice`, `Info`, `Error`, `Fatal`
+- Header format: `%L`, `%T`, `%i`, `%%`
+- Manipulators: `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`
+- Redaction: `redact` / `redact(N)` keep last N; `redact_first(N)` keep first N; `no_redact`; applies to text and numbers
+- `ThreadedLog`: one lock per logical line; filtered messages do not take the lock
+- Uses StormByte Base (`String`, `ThreadLock`, platform)
+- Unit tests (filter load, threads, redaction)
+- Project version read from the `VERSION` file
+- CMake 3.28 floor
 
 ### Notes
 
-- `Log` instances are not thread-safe. Use `ThreadedLog` when multiple threads write to the same logger.
-- Filtered messages (below the configured level) early-out with near-zero overhead.
-- Requires a C++26 compliant compiler and StormByte Base ≥ 1.0.0.
+- `Log` is not thread-safe. Use `ThreadedLog` when several threads share one logger.
+- Messages below the print level return early.
+- Needs a C++26 compiler and StormByte Base ≥ 1.0.0.
 
 [1.0.0]: https://github.com/StormBytePP/StormByte-Logger/releases/tag/1.0.0
