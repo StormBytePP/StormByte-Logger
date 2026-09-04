@@ -1,26 +1,39 @@
+/*
+ * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+ *
+ * This file is part of StormByte-Logger.
+ *
+ * StormByte-Logger is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License version 3
+ * or later, as published by the Free Software Foundation.
+ *
+ * StormByte-Logger is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with StormByte-Logger. If not, see
+ * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ */
+
 #include <StormByte/logger/threaded_log.hxx>
-
 #include <sstream>
-
 using namespace StormByte::Logger;
-
 namespace {
 	thread_local bool t_line_held = false;
-
 	void claim_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
 		if (!t_line_held) {
 			lock->Lock();
 			t_line_held = true;
 		}
 	}
-
 	void release_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
 		if (t_line_held) {
 			lock->Unlock();
 			t_line_held = false;
 		}
 	}
-
 	bool manipulator_writes_newline(std::ostream& (*manip)(std::ostream&)) {
 		try {
 			std::ostringstream probe;
@@ -32,10 +45,8 @@ namespace {
 		}
 	}
 }
-
 ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
 	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
-
 void ThreadedLog::Write(bool v) {
 	if (!WillWrite()) return;
 	claim_line(m_lock);
@@ -131,14 +142,12 @@ void ThreadedLog::Write(const wchar_t* v) {
 	claim_line(m_lock);
 	Log::Write(v);
 }
-
 void ThreadedLog::Write(const Level& level) {
 	claim_line(m_lock);
 	Log::Write(level);
 	if (!WillWrite())
 		release_line(m_lock);
 }
-
 void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 	if (WillWrite()) {
 		claim_line(m_lock);
@@ -149,14 +158,12 @@ void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 		Log::Write(manip);
 	}
 }
-
 void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
 	claim_line(m_lock);
 	Log::Write(manip);
 	if (!WillWrite())
 		release_line(m_lock);
 }
-
 void ThreadedLog::Write(RedactManip m) {
 	// State change on Implementation; serialize like other manipulators.
 	claim_line(m_lock);
