@@ -7,17 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Summary]
 
-StormByte-Logger is the logging module of the StormByte C++ suite.
+StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
-It is a stream logger (`operator<<`) with level filtering, a custom header format, human-readable numbers and bytes, redaction of text and numbers, and `ThreadedLog` for concurrent writers.
+It depends on StormByte Base. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
+
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i`), human-readable numbers and bytes, and redaction of text and numbers.
 
 If you landed here from a release link and have not read the tree:
 
-- How to use it, manipulators, and redaction contract: [README.md](https://github.com/StormBytePP/StormByte-Logger/blob/master/README.md)
+- What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-Logger/blob/master/README.md)
+- License: GNU Lesser General Public License version 3 or later, [LICENSE](https://github.com/StormBytePP/StormByte-Logger/blob/master/LICENSE)
 
 ## [1.0.0] - 2026-09-04
 
-Initial public release of **StormByte-Logger**.
+Initial public release of StormByte Logger.
 
 ### Added
 
@@ -28,7 +31,7 @@ Initial public release of **StormByte-Logger**.
 - Redaction: `redact` / `redact(N)` keep last N; `redact_first(N)` keep first N; `no_redact`; applies to text and numbers
 - `ThreadedLog`: one lock per logical line; filtered messages do not take the lock
 - Uses StormByte Base (`String`, `ThreadLock`, platform)
-- Unit tests (filter load, threads, redaction)
+- Unit tests (filter, threads, redaction)
 - Project version read from the `VERSION` file
 - CMake 3.28 floor
 
