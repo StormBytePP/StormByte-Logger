@@ -1,68 +1,65 @@
-# StormByte
-![Linux](https://img.shields.io/badge/Linux-Supported-1793D1?logo=linux&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-Supported-0078D6?logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-Supported-0078D6?logo=apple&logoColor=white)
+# StormByte-Logger
+
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 ![C++26](https://img.shields.io/badge/C%2B%2B-26-00599C?logo=c%2B%2B&logoColor=white)
-![CMake](https://img.shields.io/badge/CMake-3.12+-064F8C?logo=cmake&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-3.28+-064F8C?logo=cmake&logoColor=white)
 ![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)
 [![CI](https://github.com/StormBytePP/StormByte-Logger/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-Logger/actions/workflows/ci.yml)
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=github)](https://github.com/sponsors/StormBytePP)
 
-StormByte is a comprehensive, cross-platform C++ library aimed at easing system programming, configuration management, logging, and database handling tasks. This library provides a unified API that abstracts away the complexities and inconsistencies of different platforms (Windows, Linux).
+Streaming logger for the StormByte C++ suite: level filtering, custom headers, human-readable numbers, redaction, and a thread-safe facade.
+
+This repository is **only** the Logger module. It depends on [StormByte Base](https://github.com/StormBytePP/StormByte). The rest of the suite lives in sibling repos.
 
 ## Features
 
-- **Buffer Operations**: FIFO buffers, thread-safe shared buffers, producer-consumer interfaces, and pipelines
+- Stream API (`operator<<`) with `Level` filtering
+- Header format: `%L` level, `%T` timestamp, `%i` thread id, `%%` literal `%`
+- `humanreadable_number` / `humanreadable_bytes` / `nohumanreadable`
+- Redaction of text **and** numbers (`redact`, `redact(N)`, `redact_first(N)`, `no_redact`)
+- `ThreadedLog`: one lock per logical line; filtered messages do not take the lock
 
 ## Table of Contents
 
-- [Repository](#Repository)
-- [Installation](#Installation)
-- [Modules](#Modules)
-	- [Base](https://dev.stormbyte.org/StormByte)
-	- **Buffer**
-	- [Config](https://dev.stormbyte.org/StormByte-Config)
-	- [Crypto](https://dev.stormbyte.org/StormByte-Crypto)
-	- [Database](https://dev.stormbyte.org/StormByte-Database)
-	- **Logger**
-	- [Multimedia](https://dev.stormbyte.org/StormByte-Multimedia)
-	- [Network](https://dev.stormbyte.org/StormByte-Network)
-	- [System](https://dev.stormbyte.org/StormByte-System)
-- [Contributing](#Contributing)
-- [License](#License)
+- [Repository](#repository)
+- [Installation](#installation)
+- [Modules](#modules)
+  - [Base](https://dev.stormbyte.org/StormByte)
+  - [Buffer](https://dev.stormbyte.org/StormByte-Buffer)
+  - [Config](https://dev.stormbyte.org/StormByte-Config)
+  - [Crypto](https://dev.stormbyte.org/StormByte-Crypto)
+  - [Database](https://dev.stormbyte.org/StormByte-Database)
+  - **Logger**
+  - [Multimedia](https://dev.stormbyte.org/StormByte-Multimedia)
+  - [Network](https://dev.stormbyte.org/StormByte-Network)
+  - [System](https://dev.stormbyte.org/StormByte-System)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Repository
 
-You can visit the code repository at [GitHub](https://github.com/StormBytePP/StormByte-Logger)
+Source: [GitHub](https://github.com/StormBytePP/StormByte-Logger)
 
 ## Installation
 
 ### Prerequisites
 
-Ensure you have the following installed:
-
-- C++26 compatible compiler
-- CMake 3.12 or higher
+- C++26 compiler
+- CMake 3.28 or newer
+- [StormByte Base](https://github.com/StormBytePP/StormByte) (submodule / BuildMaster)
 
 ### Building
 
-To build the library, follow these steps:
-
 ```sh
-git clone https://github.com/StormBytePP/StormByte-Logger.git
+git clone --recursive https://github.com/StormBytePP/StormByte-Logger.git
 cd StormByte-Logger
-mkdir build
-cd build
-cmake ..
-make
+cmake -S . -B build -G Ninja
+cmake --build build
 ```
 
 ## Modules
 
 ### Logger
-
-Streaming logger with level filtering, customizable headers, human-readable numeric formatting, optional redaction of sensitive text, and a thread-safe variant.
-
-#### Basics
 
 ```cpp
 #include <StormByte/logger/log.hxx>
@@ -74,46 +71,49 @@ using namespace StormByte::Logger;
 Log log(std::cout, Level::Info, "[%L] %T");
 log << Level::Info << "hello" << std::endl;
 
-// Header placeholders: %L level, %T timestamp, %i thread id, %% literal %
 ThreadedLog tlog(std::cout, Level::Debug, "[%L %i] %T");
 ```
 
 #### Human-readable numbers
 
+State stays until another of these manipulators is applied.
+
 ```cpp
 log << Level::Info << humanreadable_number << 1000 << std::endl;   // e.g. 1,000
 log << Level::Info << humanreadable_bytes << 10240 << std::endl;  // e.g. 10 KiB
-log << Level::Info << nohumanreadable << 1000 << std::endl;       // raw again
+log << Level::Info << nohumanreadable << 1000 << std::endl;
 ```
-
-State persists until another human-readable manipulator (or `nohumanreadable`) is applied.
 
 #### Redaction
 
-Mask string-like values (`std::string`, `const char*`, wide strings) while logging. Numbers and booleans are not redacted. Policy stays active until `no_redact`.
+Applies to strings **and** numbers (numbers are converted first). Stays on until `no_redact`.
 
 | Manipulator | Effect |
 |-------------|--------|
-| `redact` / `redact(0)` | Replace every character with `*` (same length) |
-| `redact(N)` | Keep the **first N** characters; mask the rest with `*` |
-| `no_redact` | Disable redaction |
+| `redact` / `redact(0)` | Every character becomes `*` |
+| `redact(N)` | Keep the **last** N characters |
+| `redact_first(N)` | Keep the **first** N characters |
+| `no_redact` | Disable |
 
 ```cpp
 log << Level::Info << redact << "super-secret" << std::endl;
-// ... ************
+// ************
 
 log << Level::Info << redact(4) << "super-secret" << std::endl;
-// ... supe********
+// ********cret
+
+log << Level::Info << redact_first(4) << "super-secret" << std::endl;
+// supe********
 
 log << Level::Info << no_redact << "visible again" << std::endl;
 ```
 
-Works the same on `ThreadedLog`. Safe for tokens, passwords, and other sensitive text in log lines without changing call sites beyond the manipulator.
+Same contract on `ThreadedLog`.
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit pull requests for any enhancements or bug fixes.
+Fork and open a pull request. Issues only (no Wiki / Discussions).
 
 ## License
 
-This project is licensed under LGPL v3 License - see the [LICENSE](LICENSE) file for details.
+LGPLv3 or later. See [LICENSE](LICENSE).
