@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte-Logger.
- *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
- *
- * StormByte-Logger is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
- * <https://www.gnu.org/licenses/lgpl-3.0.html>.
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte-Logger.
+*
+* StormByte-Logger is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Lesser General Public License version 3
+* or later, as published by the Free Software Foundation.
+*
+* StormByte-Logger is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* along with StormByte-Logger. If not, see
+* <https://www.gnu.org/licenses/lgpl-3.0.html>.
+*/
 
 #pragma once
 
@@ -26,15 +26,15 @@
 
 /**
  * @namespace StormByte::Logger
- * @brief Logging module for StormByte library.
+ * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
 	/**
 	 * @class ThreadedLog
 	 * @brief Thread-safe logging facade.
 	 *
-	 * Serializes logical lines (until a newline manipulator) so concurrent writers
-	 * do not interleave. Filtered messages do not hold the line lock.
+	 * Serializes logical lines (until a newline manipulator) so concurrent
+	 * writers do not interleave. Filtered messages do not hold the line lock.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
@@ -46,10 +46,15 @@ namespace StormByte::Logger {
 			 */
 			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
+			/** @brief Copy constructor. Shares the line lock. */
 			ThreadedLog(const ThreadedLog&) = default;
+			/** @brief Move constructor. */
 			ThreadedLog(ThreadedLog&&) noexcept = default;
+			/** @brief Destructor. */
 			~ThreadedLog() noexcept = default;
+			/** @brief Copy assignment. Shares the line lock. */
 			ThreadedLog& operator=(const ThreadedLog&) = default;
+			/** @brief Move assignment. */
 			ThreadedLog& operator=(ThreadedLog&&) noexcept = default;
 
 			/**
@@ -171,30 +176,30 @@ namespace StormByte::Logger {
 			//@}
 
 		private:
-			std::shared_ptr<ThreadLock> m_lock;
+			std::shared_ptr<ThreadLock> m_lock;	///< Shared line lock (copy shares it)
 
-			void Write(bool v) override;
-			void Write(char v) override;
-			void Write(signed char v) override;
-			void Write(unsigned char v) override;
-			void Write(short v) override;
-			void Write(unsigned short v) override;
-			void Write(int v) override;
-			void Write(unsigned int v) override;
-			void Write(long v) override;
-			void Write(unsigned long v) override;
-			void Write(long long v) override;
-			void Write(unsigned long long v) override;
-			void Write(float v) override;
-			void Write(double v) override;
-			void Write(long double v) override;
-			void Write(const std::string& v) override;
-			void Write(const char* v) override;
-			void Write(const std::wstring& v) override;
-			void Write(const wchar_t* v) override;
-			void Write(const Level& level) override;
-			void Write(std::ostream& (*manip)(std::ostream&)) override;
-			void Write(Log& (*manip)(Log&) noexcept) override;
-			void Write(RedactManip m) override;
+			void Write(bool v) override;								///< @brief Locked emit.
+			void Write(char v) override;								///< @brief Locked emit.
+			void Write(signed char v) override;							///< @brief Locked emit.
+			void Write(unsigned char v) override;						///< @brief Locked emit.
+			void Write(short v) override;								///< @brief Locked emit.
+			void Write(unsigned short v) override;						///< @brief Locked emit.
+			void Write(int v) override;									///< @brief Locked emit.
+			void Write(unsigned int v) override;						///< @brief Locked emit.
+			void Write(long v) override;								///< @brief Locked emit.
+			void Write(unsigned long v) override;						///< @brief Locked emit.
+			void Write(long long v) override;							///< @brief Locked emit.
+			void Write(unsigned long long v) override;					///< @brief Locked emit.
+			void Write(float v) override;								///< @brief Locked emit.
+			void Write(double v) override;								///< @brief Locked emit.
+			void Write(long double v) override;							///< @brief Locked emit.
+			void Write(const std::string& v) override;					///< @brief Locked emit.
+			void Write(const char* v) override;							///< @brief Locked emit.
+			void Write(const std::wstring& v) override;					///< @brief Locked emit.
+			void Write(const wchar_t* v) override;						///< @brief Locked emit.
+			void Write(const Level& level) override;					///< @brief Set level (lock as needed).
+			void Write(std::ostream& (*manip)(std::ostream&)) override;	///< @brief Stream manipulator; newline drops the lock.
+			void Write(Log& (*manip)(Log&) noexcept) override;			///< @brief Logger manipulator.
+			void Write(RedactManip m) override;							///< @brief Enable redaction policy.
 	};
 }

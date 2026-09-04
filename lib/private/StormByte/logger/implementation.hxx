@@ -31,7 +31,7 @@
 
 /**
  * @namespace StormByte::Logger
- * @brief Logging utilities for StormByte.
+ * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
 	/**

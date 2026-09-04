@@ -25,7 +25,7 @@
 
 /**
  * @namespace StormByte::Logger
- * @brief Logging module for StormByte library.
+ * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
 	class Log;
