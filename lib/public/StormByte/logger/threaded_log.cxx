@@ -149,14 +149,17 @@ void ThreadedLog::Write(const Level& level) {
 		release_line(m_lock);
 }
 void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
+	const bool newline = manipulator_writes_newline(manip);
 	if (WillWrite()) {
 		claim_line(m_lock);
 		Log::Write(manip);
-		if (manipulator_writes_newline(manip))
-			release_line(m_lock);
 	} else {
 		Log::Write(manip);
 	}
+	// A concurrent Level can flip WillWrite() after we claimed the line.
+	// endl must drop the lock even when this message is filtered.
+	if (newline)
+		release_line(m_lock);
 }
 void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
 	claim_line(m_lock);

@@ -18,6 +18,17 @@ If you landed here from a release link and have not read the tree:
 - What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-Logger/blob/master/README.md)
 - License: GNU Lesser General Public License version 3 or later, [LICENSE](https://github.com/StormBytePP/StormByte-Logger/blob/master/LICENSE)
 
+## [Unreleased]
+
+### Fixed
+
+- `ThreadedLog`: `endl` always drops the line lock, even if a concurrent
+  `operator<<(Level)` flipped `WillWrite()` mid-line. Without this, a
+  filtered `LowLevel` write could leave the lock held and stall every
+  other thread (seen in StormByte-Multimedia at `Remuxer: created`).
+
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.0...HEAD
+
 ## [1.0.0] - 2026-09-05
 
 Initial public release of StormByte Logger.
