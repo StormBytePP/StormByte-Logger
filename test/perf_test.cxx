@@ -36,7 +36,7 @@ int test_log_filtered_high_volume() {
 	for (int i = 0; i < N; ++i) {
 		log << Level::Debug << "x=" << i << " b=" << true << " d=" << 1.5 << std::endl;
 		log << Level::Info << "info " << i << std::endl;
-		log << Level::Warning << "warn " << i << std::endl;
+		log << Level::Notice << "notice " << i << std::endl;
 	}
 	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - t0).count();

@@ -42,9 +42,26 @@ int test_log_level_filtering() {
 	log << Level::Info << "Info message" << std::endl;
 	log << Level::Warning << "Warning message" << std::endl;
 	log << Level::Error << "Error message" << std::endl;
-	std::string expected = "Error   : Error message\n";
+	std::string expected = "Warning : Warning message\nError   : Error message\n";
 	ASSERT_EQUAL("test_log_level_filtering", expected, output.str());
 	RETURN_TEST("test_log_level_filtering", 0);
+}
+int test_log_critical_levels_are_never_filtered() {
+	std::ostringstream output;
+	Log log(output, Level::Fatal, "%L:");
+	log << Level::LowLevel << "hidden low level" << std::endl;
+	log << Level::Debug << "hidden debug" << std::endl;
+	log << Level::Warning << "visible warning" << std::endl;
+	log << Level::Notice << "hidden notice" << std::endl;
+	log << Level::Info << "hidden info" << std::endl;
+	log << Level::Error << "visible error" << std::endl;
+	log << Level::Fatal << "visible fatal" << std::endl;
+	const std::string expected =
+		"Warning : visible warning\n"
+		"Error   : visible error\n"
+		"Fatal   : visible fatal\n";
+	ASSERT_EQUAL("test_log_critical_levels_are_never_filtered", expected, output.str());
+	RETURN_TEST("test_log_critical_levels_are_never_filtered", 0);
 }
 int test_log_data() {
 	std::ostringstream output;
@@ -126,7 +143,6 @@ int test_filtered_produces_empty_output() {
 	for (int i = 0; i < 100; ++i) {
 		log << Level::Debug << "debug " << i << " " << true << " " << 3.14 << std::endl;
 		log << Level::Info << "info " << i << std::endl;
-		log << Level::Warning << "warn " << i << std::endl;
 	}
 	ASSERT_EQUAL("test_filtered_produces_empty_output", std::string(""), output.str());
 	RETURN_TEST("test_filtered_produces_empty_output", 0);
@@ -204,6 +220,7 @@ int main() {
 	int result = 0;
 	result += test_basic_logging();
 	result += test_log_level_filtering();
+	result += test_log_critical_levels_are_never_filtered();
 	result += test_log_data();
 	result += log_to_stdout();
 	result += test_log_with_std_endl();

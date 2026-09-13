@@ -222,6 +222,23 @@ int test_threadedlog_filtered_wide_skips_conversion() {
 	ASSERT_EQUAL("test_threadedlog_filtered_wide_skips_conversion", "Info    : after filtered invalid input\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_wide_skips_conversion", 0);
 }
+int test_threadedlog_critical_levels_are_never_filtered() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Fatal, "%L:");
+	tlog << Level::LowLevel << "hidden low level" << std::endl;
+	tlog << Level::Debug << "hidden debug" << std::endl;
+	tlog << Level::Warning << "visible warning" << std::endl;
+	tlog << Level::Notice << "hidden notice" << std::endl;
+	tlog << Level::Info << "hidden info" << std::endl;
+	tlog << Level::Error << "visible error" << std::endl;
+	tlog << Level::Fatal << "visible fatal" << std::endl;
+	const std::string expected =
+		"Warning : visible warning\n"
+		"Error   : visible error\n"
+		"Fatal   : visible fatal\n";
+	ASSERT_EQUAL("test_threadedlog_critical_levels_are_never_filtered", expected, output.str());
+	RETURN_TEST("test_threadedlog_critical_levels_are_never_filtered", 0);
+}
 int test_threadedlog_filtered_hot_path() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -256,6 +273,7 @@ int main() {
 	result += test_threadedlog_level_switch_flush();
 	result += test_threadedlog_invalid_wide_releases_line_lock();
 	result += test_threadedlog_filtered_wide_skips_conversion();
+	result += test_threadedlog_critical_levels_are_never_filtered();
 	result += test_threadedlog_filtered_hot_path();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

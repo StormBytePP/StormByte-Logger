@@ -21,6 +21,11 @@
 #include <chrono>
 #include <thread>
 using namespace StormByte::Logger;
+namespace {
+	bool IsAlwaysVisible(const Level level) noexcept {
+		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
+	}
+}
 std::string Implementation::CurrentTime() const noexcept {
 	try {
 		auto now = std::chrono::system_clock::now();
@@ -54,13 +59,13 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 }
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (m_current_level) {
-		if (level != *m_current_level && *m_current_level >= m_print_level && m_header_displayed) {
+		if (level != *m_current_level && (IsAlwaysVisible(*m_current_level) || *m_current_level >= m_print_level) && m_header_displayed) {
 			m_out << std::endl;
 			m_header_displayed = false;
 		}
 	}
 	m_current_level = level;
-	m_enabled.store(level >= m_print_level, std::memory_order_release);
+	m_enabled.store(IsAlwaysVisible(level) || level >= m_print_level, std::memory_order_release);
 	return *this;
 }
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {

@@ -24,6 +24,7 @@ If you landed here from a release link and have not read the tree:
 
 - Requires StormByte Base ≥ 1.1.0 (`Component`-tagged exceptions). Logger call sites did not use the old two-string `Exception` form.
 - Hardened `ThreadedLog` coverage for concurrent filtered hot paths, skipped wide-string conversion, and lock recovery after Unicode errors.
+- `Warning`, `Error` and `Fatal` messages are always displayed, regardless of the configured log level.
 
 ### Fixed
 
