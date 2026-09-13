@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on StormByte Base. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), human-readable numbers and bytes, and redaction of text and numbers.
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, and redaction of text and numbers.
 
 If you landed here from a release link and have not read the tree:
 
@@ -22,28 +22,22 @@ If you landed here from a release link and have not read the tree:
 
 ### Added
 
-- Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
-- Added nested `push_format`/`pop_format` manipulators for temporary format changes. `pop_format` is idempotent when its stack is empty.
-- Added persistent `Format(component, format)` overrides with precedence below temporary `push_format` and above the general format.
-- Added the `group("name")` line manipulator and `%g` header token. Groups are cleared at newline and do not affect formats without `%g`.
-- Added sticky per-thread `component("name")` and `reset_component` with `%c`; component-specific color rules override general level rules without changing legacy behavior when unused.
-- Empty `component("")` now selects the root component without throwing; `reset_component` remains the preferred explicit reset.
-- Expanded color, format, group and component tests for filtered paths, resets and concurrent line isolation.
+- `group("name")` and `%g`; the group is cleared by newline and is not rendered in the body when `%g` is absent.
+- Sticky per-thread `component("name")`, `reset_component` and `%c`. `component("")` selects the root without throwing, while `reset_component` is the canonical reset. The state belongs to the thread, not the `Log`; two `Log` instances on one thread observe the same component.
+- ANSI colors by `Level` and component override, with `color`, `color(Color::X)` and `nocolor`. Color output is disabled by default.
+- Persistent general and component formats, plus nested `push_format` / `pop_format`; an empty `pop_format` is idempotent.
+- Expanded tests for colors, temporary formats, groups, components, threads, Unicode and lock recovery.
 
 ### Changed
 
-- Requires StormByte Base ≥ 1.1.0 (`Component`-tagged exceptions). Logger call sites did not use the old two-string `Exception` form.
-- `Warning`, `Error` and `Fatal` messages are always displayed, regardless of the configured log level; the print floor does not suppress them.
+- Requires StormByte Base ≥ 1.1.0 (`Exception` with `Component`). Logger did not use the two-string `Exception` constructor.
+- `Warning`, `Error` and `Fatal` are always emitted, even when the configured floor is higher. This is intentional.
+- Expanded `ThreadedLog` coverage for the filtered hot path, wide conversion before locking, and recovery when Unicode conversion fails.
 
 ### Fixed
 
-- `ThreadedLog`: `endl` always drops the line lock, even if a concurrent
-  `operator<<(Level)` flipped `WillWrite()` mid-line. Without this, a
-  filtered `LowLevel` write could leave the lock held and stall every
-  other thread.
-- Wide-string logging converts the value before acquiring the `ThreadedLog`
-  line lock, and invalid Unicode errors no longer terminate the logger from
-  an internal `noexcept` conversion path.
+- `endl` releases the `ThreadedLog` line lock even if `WillWrite()` changes midway through a line.
+- Wide-string logging converts before acquiring the lock; a Unicode conversion error no longer terminates the logger from an internal `noexcept` path.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.0...HEAD
 
