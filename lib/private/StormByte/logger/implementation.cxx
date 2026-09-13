@@ -182,14 +182,14 @@ Implementation::~Implementation() noexcept {
 	reset_line_state();
 }
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
-#ifdef MSVC
+#ifdef WINDOWS
 	return m_throttle_table.load(std::memory_order_acquire);
 #else
 	return std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
 #endif
 }
 void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
-#ifdef MSVC
+#ifdef WINDOWS
 	m_throttle_table.store(std::move(table), std::memory_order_release);
 #else
 	std::atomic_store_explicit(&m_throttle_table, std::move(table), std::memory_order_release);
