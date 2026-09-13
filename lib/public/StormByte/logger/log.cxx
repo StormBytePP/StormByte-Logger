@@ -56,11 +56,20 @@ Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
 StormByte::Logger::Color Log::Color(const Level& level) const {
 	return m_impl->Color(level);
 }
+Log& Log::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
+	m_impl->Color(component, level, color);
+	return *this;
+}
+StormByte::Logger::Color Log::Color(const std::string& component, const Level& level) const {
+	return m_impl->Color(component, level);
+}
 void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
 void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
 void Log::Write(PopFormatManip manip) { *m_impl << manip; }
 void Log::Write(GroupManip manip) { *m_impl << std::move(manip); }
+void Log::Write(ComponentManip manip) { *m_impl << std::move(manip); }
+void Log::Write(ResetComponentManip manip) { *m_impl << manip; }
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
 }

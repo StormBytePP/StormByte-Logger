@@ -49,6 +49,34 @@ namespace StormByte::Logger {
 	STORMBYTE_LOGGER_PUBLIC GroupManip group(std::string name);
 
 	/**
+	 * @struct ComponentManip
+	 * @brief Selects the sticky component for the current thread.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC ComponentManip {
+		std::string name; ///< Component name; empty selects the root component.
+	};
+
+	/**
+	 * @brief Select the component associated with subsequent log lines on this thread.
+	 * @param name Component name; empty selects the root component.
+	 * @return Component manipulator carrying the requested name.
+	 * @note An empty component is allowed for compatibility, but @ref reset_component
+	 *       is preferred when returning to the root component explicitly.
+	 */
+	STORMBYTE_LOGGER_PUBLIC ComponentManip component(std::string name);
+
+	/**
+	 * @struct ResetComponentManip
+	 * @brief Clears the component associated with the current thread.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC ResetComponentManip {};
+
+	/**
+	 * @brief Clear the current thread's component.
+	 */
+	inline constexpr STORMBYTE_LOGGER_PUBLIC ResetComponentManip reset_component{};
+
+	/**
 	 * @struct FormatManip
 	 * @brief Temporarily replaces the logger format and saves the previous one.
 	 */

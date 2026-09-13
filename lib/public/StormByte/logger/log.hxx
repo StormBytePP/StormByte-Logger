@@ -52,7 +52,7 @@ namespace StormByte::Logger {
 			 * @brief Construct a Log writing to @p out.
 			 * @param out Output stream (e.g. std::cout).
 			 * @param level Minimum Level that will be emitted.
-			 * @param format Header format: %L level, %T timestamp, %i thread id, %g group, %% literal %.
+			 * @param format Header format: %L level, %T timestamp, %i thread id, %c component, %g group, %% literal %.
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -81,6 +81,23 @@ namespace StormByte::Logger {
 			 * @return Configured color.
 			 */
 			virtual StormByte::Logger::Color Color(const Level& level) const;
+
+			/**
+			 * @brief Set a color override for a component and level.
+			 * @param component Component name.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that component and level.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color);
+
+			/**
+			 * @brief Get a component color, falling back to the general color.
+			 * @param component Component name.
+			 * @param level Level whose color is requested.
+			 * @return Component override or general color.
+			 */
+			virtual StormByte::Logger::Color Color(const std::string& component, const Level& level) const;
 
 			/**
 			 * @name Streaming Operators
@@ -248,6 +265,24 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Select the sticky component for the current thread.
+			 * @param manip Component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Clear the sticky component for the current thread.
+			 * @param manip Reset-component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ResetComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		protected:
@@ -315,6 +350,16 @@ namespace StormByte::Logger {
 			 * @param manip Group manipulator.
 			 */
 			virtual void Write(GroupManip manip);
+			/**
+			 * @brief Forward a component manipulator.
+			 * @param manip Component manipulator.
+			 */
+			virtual void Write(ComponentManip manip);
+			/**
+			 * @brief Forward a reset-component manipulator.
+			 * @param manip Reset-component manipulator.
+			 */
+			virtual void Write(ResetComponentManip manip);
 			//@}
 	};
 

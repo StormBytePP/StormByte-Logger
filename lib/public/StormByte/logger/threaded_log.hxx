@@ -42,7 +42,7 @@ namespace StormByte::Logger {
 			 * @brief Construct a ThreadedLog writing to @p out.
 			 * @param out Output stream.
 			 * @param level Minimum Level that will be emitted.
-			 * @param format Header format string (%L, %T, %i, %g).
+			 * @param format Header format string (%L, %T, %i, %c, %g).
 			 */
 			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -71,6 +71,21 @@ namespace StormByte::Logger {
 			 * @return Configured color.
 			 */
 			StormByte::Logger::Color Color(const Level& level) const override;
+			/**
+			 * @brief Set a component color override under the line lock.
+			 * @param component Component name.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that component and level.
+			 * @return Reference to this logger.
+			 */
+			Log& Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) override;
+			/**
+			 * @brief Get a component color, falling back to the general color.
+			 * @param component Component name.
+			 * @param level Level whose color is requested.
+			 * @return Component override or general color.
+			 */
+			StormByte::Logger::Color Color(const std::string& component, const Level& level) const override;
 
 			/**
 			 * @name Streaming Operators
@@ -233,6 +248,24 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Select the sticky component for the current thread.
+			 * @param manip Component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Clear the sticky component for the current thread.
+			 * @param manip Reset-component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ResetComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		private:
@@ -291,6 +324,16 @@ namespace StormByte::Logger {
 			 * @param manip Group manipulator.
 			 */
 			void Write(GroupManip manip) override;
+			/**
+			 * @brief Apply a component manipulator under the line lock.
+			 * @param manip Component manipulator.
+			 */
+			void Write(ComponentManip manip) override;
+			/**
+			 * @brief Apply a reset-component manipulator under the line lock.
+			 * @param manip Reset-component manipulator.
+			 */
+			void Write(ResetComponentManip manip) override;
 			//@}
 	};
 }

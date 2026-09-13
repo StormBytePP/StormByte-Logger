@@ -60,6 +60,13 @@ Log& ThreadedLog::Color(const Level& level, const StormByte::Logger::Color& colo
 StormByte::Logger::Color ThreadedLog::Color(const Level& level) const {
 	return Log::Color(level);
 }
+Log& ThreadedLog::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
+	Log::Color(component, level, color);
+	return *this;
+}
+StormByte::Logger::Color ThreadedLog::Color(const std::string& component, const Level& level) const {
+	return Log::Color(component, level);
+}
 void ThreadedLog::Write(bool v) {
 	if (!WillWrite()) return;
 	claim_line(m_lock);
@@ -231,4 +238,10 @@ void ThreadedLog::Write(GroupManip m) {
 	}
 	if (!WillWrite())
 		release_line(m_lock);
+}
+void ThreadedLog::Write(ComponentManip m) {
+	Log::Write(std::move(m));
+}
+void ThreadedLog::Write(ResetComponentManip m) {
+	Log::Write(m);
 }

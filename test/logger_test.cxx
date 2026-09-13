@@ -340,6 +340,42 @@ int test_group_and_color_share_the_header() {
 	ASSERT_EQUAL("test_group_and_color_share_the_header", "\033[33mInfo    :Decoder open\033[0m\n", output.str());
 	RETURN_TEST("test_group_and_color_share_the_header", 0);
 }
+int test_component_header_is_sticky_and_resettable() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]");
+	log << component("Multimedia") << Level::Info << "first" << std::endl;
+	log << Level::Info << "second" << std::endl;
+	log << reset_component << Level::Info << "third" << std::endl;
+	ASSERT_EQUAL("test_component_header_is_sticky_and_resettable",
+		"Multimedia[Info    ] first\nMultimedia[Info    ] second\n[Info    ] third\n", output.str());
+	RETURN_TEST("test_component_header_is_sticky_and_resettable", 0);
+}
+int test_component_without_token_preserves_legacy_output() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << component("Hidden") << Level::Info << "message" << std::endl;
+	ASSERT_EQUAL("test_component_without_token_preserves_legacy_output", "Info    : message\n", output.str());
+	RETURN_TEST("test_component_without_token_preserves_legacy_output", 0);
+}
+int test_component_color_override_has_priority() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]");
+	log.Color(Level::Info, Color::Blue);
+	log.Color("Multimedia", Level::Info, Color::Red);
+	log << component("Multimedia") << Level::Info << "red" << std::endl;
+	log << reset_component << Level::Info << "blue" << std::endl;
+	ASSERT_EQUAL("test_component_color_override_has_priority",
+		"\033[31mMultimedia[Info    ] red\033[0m\n\033[34m[Info    ] blue\033[0m\n", output.str());
+	RETURN_TEST("test_component_color_override_has_priority", 0);
+}
+int test_empty_component_selects_root() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]");
+	log << component("Multimedia") << Level::Info << "named" << std::endl;
+	log << component("") << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_empty_component_selects_root", "Multimedia[Info    ] named\n[Info    ] root\n", output.str());
+	RETURN_TEST("test_empty_component_selects_root", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -400,6 +436,10 @@ int main() {
 	result += test_group_change_closes_partial_line();
 	result += test_filtered_group_has_no_side_effects();
 	result += test_group_and_color_share_the_header();
+	result += test_component_header_is_sticky_and_resettable();
+	result += test_component_without_token_preserves_legacy_output();
+	result += test_component_color_override_has_priority();
+	result += test_empty_component_selects_root();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {

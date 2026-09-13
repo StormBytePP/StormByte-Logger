@@ -30,6 +30,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 /**
@@ -42,6 +43,8 @@ namespace StormByte::Logger {
 	struct FormatManip;
 	struct PopFormatManip;
 	struct GroupManip;
+	struct ComponentManip;
+	struct ResetComponentManip;
 
 	/**
 	 * @class Implementation
@@ -61,7 +64,7 @@ namespace StormByte::Logger {
 			 * @brief Construct the internal logger implementation.
 			 * @param out Output stream to write log messages to.
 			 * @param level Initial minimum Level that will be emitted.
-			 * @param format Header format string (%L, %T, %i, %g, %%).
+			 * @param format Header format string (%L, %T, %i, %c, %g, %%).
 			 */
 			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -143,6 +146,22 @@ namespace StormByte::Logger {
 			StormByte::Logger::Color Color(const Level& level) const noexcept;
 
 			/**
+			 * @brief Set a color override for a component and level.
+			 * @param component Component name.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that component and level.
+			 */
+			void Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color);
+
+			/**
+			 * @brief Get a component color, falling back to the general color.
+			 * @param component Component name.
+			 * @param level Level whose color is requested.
+			 * @return Component override or general color.
+			 */
+			StormByte::Logger::Color Color(const std::string& component, const Level& level) const noexcept;
+
+			/**
 			 * @brief Set the current logging level.
 			 * @param level New Level for subsequent messages.
 			 * @return Reference to this Implementation.
@@ -190,6 +209,20 @@ namespace StormByte::Logger {
 			 * @return Reference to this Implementation.
 			 */
 			Implementation& operator<<(GroupManip manip);
+
+			/**
+			 * @brief Select the current thread's component.
+			 * @param manip Component manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(ComponentManip manip);
+
+			/**
+			 * @brief Clear the current thread's component.
+			 * @param manip Reset-component manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(ResetComponentManip manip);
 
 			/**
 			 * @brief Apply an Implementation-specific manipulator.
@@ -262,6 +295,7 @@ namespace StormByte::Logger {
 			std::size_t m_redact_count;                               ///< 0 = all '*'; N = keep N chars
 			bool m_redact_keep_first;                                 ///< true = keep first N, false = keep last N
 			std::array<StormByte::Logger::Color, 7> m_level_colors{}; ///< Configured color per level
+			std::unordered_map<std::string, std::array<StormByte::Logger::Color, 7>> m_component_colors; ///< Component color overrides
 			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
 			bool m_content_nocolor = false;                           ///< Whether content color is suppressed
 			std::optional<StormByte::Logger::Color> m_active_color;   ///< Color currently emitted to the stream

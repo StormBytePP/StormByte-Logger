@@ -24,6 +24,8 @@
 #include <utility>
 using namespace StormByte::Logger;
 namespace {
+	thread_local std::string t_component;
+
 	bool IsAlwaysVisible(const Level level) noexcept {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
 	}
@@ -101,10 +103,19 @@ void Implementation::Color(const Level& level, const StormByte::Logger::Color& c
 	if (ColorIndex(level) < m_level_colors.size())
 		m_level_colors[ColorIndex(level)] = color;
 }
+void Implementation::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
+	if (!component.empty())
+		m_component_colors[component][ColorIndex(level)] = color;
+}
 StormByte::Logger::Color Implementation::Color(const Level& level) const noexcept {
 	if (ColorIndex(level) < m_level_colors.size())
 		return m_level_colors[ColorIndex(level)];
 	return StormByte::Logger::Color::Default;
+}
+StormByte::Logger::Color Implementation::Color(const std::string& component, const Level& level) const noexcept {
+	if (const auto found = m_component_colors.find(component); found != m_component_colors.end())
+		return found->second[ColorIndex(level)];
+	return Color(level);
 }
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (m_current_level) {
@@ -194,6 +205,14 @@ Implementation& Implementation::operator<<(GroupManip manip) {
 	m_group = std::move(manip.name);
 	return *this;
 }
+Implementation& Implementation::operator<<(ComponentManip manip) {
+	t_component = std::move(manip.name);
+	return *this;
+}
+Implementation& Implementation::operator<<(ResetComponentManip) {
+	t_component.clear();
+	return *this;
+}
 void Implementation::print_time() const noexcept {
 	m_out << CurrentTime();
 }
@@ -210,7 +229,7 @@ void Implementation::print_thread_id() const noexcept {
 void Implementation::print_header() noexcept {
 	const std::string& fmt = m_format;
 	constexpr std::size_t fixed_width = 8;
-	emit_color(Color(*m_current_level));
+	emit_color(Color(t_component, *m_current_level));
 	for (std::size_t i = 0; i < fmt.size(); ++i) {
 		if (fmt[i] == '%' && (i + 1) < fmt.size()) {
 			const char spec = fmt[i + 1];
@@ -240,6 +259,10 @@ void Implementation::print_header() noexcept {
 					m_out << m_group;
 					++i;
 					break;
+				case 'c':
+					m_out << t_component;
+					++i;
+					break;
 				default:
 					m_out.put('%');
 					break;
@@ -251,7 +274,8 @@ void Implementation::print_header() noexcept {
 	m_out.put(' ');
 }
 void Implementation::sync_content_color() noexcept {
-	const auto configured = Color(m_current_level.value_or(m_print_level));
+	const auto level = m_current_level.value_or(m_print_level);
+	const auto configured = Color(t_component, level);
 	if (m_content_nocolor)
 		emit_color(StormByte::Logger::Color::Default);
 	else if (m_content_color)

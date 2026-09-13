@@ -354,6 +354,40 @@ int test_threadedlog_filtered_group_releases_lock() {
 	ASSERT_EQUAL("test_threadedlog_filtered_group_releases_lock", "[Info    ] visible\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_group_releases_lock", 0);
 }
+int test_threadedlog_components_are_thread_local() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%c[%L]");
+	constexpr int threads = 4;
+	constexpr int repeats = 100;
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) {
+		pool.emplace_back([&, id] {
+			tlog << component("C" + std::to_string(id));
+			for (int i = 0; i < repeats; ++i)
+				tlog << Level::Info << "message" << std::endl;
+		});
+	}
+	for (auto& thread : pool) thread.join();
+	std::istringstream input(output.str());
+	std::string line;
+	int count = 0;
+	while (std::getline(input, line)) {
+		ASSERT_TRUE("test_threadedlog_components_are_thread_local (line)",
+			std::regex_match(line, std::regex("^C[0-3]\\[Info    \\] message$")));
+		++count;
+	}
+	ASSERT_EQUAL("test_threadedlog_components_are_thread_local (count)", threads * repeats, count);
+	RETURN_TEST("test_threadedlog_components_are_thread_local", 0);
+}
+int test_threadedlog_component_does_not_hold_line_lock() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%c[%L]");
+	tlog << component("Filtered") << Level::Debug << "hidden" << std::endl;
+	tlog << Level::Info << "visible" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_component_does_not_hold_line_lock", "Filtered[Info    ] visible\n", output.str());
+	RETURN_TEST("test_threadedlog_component_does_not_hold_line_lock", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -372,6 +406,8 @@ int main() {
 	result += test_threadedlog_push_pop_format_is_line_safe();
 	result += test_threadedlog_groups_do_not_mix();
 	result += test_threadedlog_filtered_group_releases_lock();
+	result += test_threadedlog_components_are_thread_local();
+	result += test_threadedlog_component_does_not_hold_line_lock();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {
