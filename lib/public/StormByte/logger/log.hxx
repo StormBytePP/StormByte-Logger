@@ -162,6 +162,10 @@ namespace StormByte::Logger {
 			virtual Log& NoThrottle(ComponentManip component);
 			/** @brief Remove an exact component/level/group rule. */
 			virtual Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group);
+			/** @brief Flush dropped summaries for all throttle rules. */
+			virtual Log& FlushThrottle();
+			/** @brief Flush dropped summaries for matching throttle rules. */
+			virtual Log& FlushThrottle(const ThrottleSpec& spec);
 
 			/**
 			 * @name Streaming Operators

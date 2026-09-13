@@ -221,6 +221,10 @@ namespace StormByte::Logger {
 			 * @brief Remove all throttle rules.
 			 */
 			void NoThrottleAll() noexcept;
+			/** @brief Flush all dropped summaries without changing throttle rules. */
+			void FlushThrottle();
+			/** @brief Flush matching dropped summaries without changing throttle rules. */
+			void FlushThrottle(const ThrottleSpec& spec);
 
 			/**
 			 * @brief Decide whether the current line may emit.

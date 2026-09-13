@@ -102,6 +102,11 @@ namespace {
 			(!spec.Level || *spec.Level == level) &&
 			(!spec.Group || *spec.Group == group);
 	}
+	bool Selects(const ThrottleSpec& filter, const ThrottleSpec& rule) {
+		return (!filter.Component || (rule.Component && *filter.Component == *rule.Component)) &&
+			(!filter.Level || (rule.Level && *filter.Level == *rule.Level)) &&
+			(!filter.Group || (rule.Group && *filter.Group == *rule.Group));
+	}
 	void ValidateThrottle(const ThrottleSpec& spec) {
 		if (!std::isfinite(spec.Rate) || spec.Rate < 0.0 || (spec.Rate > 0.0 && spec.Burst == 0))
 			throw StormByte::Logger::ThrottleError("Invalid throttle rate or burst");
@@ -275,6 +280,39 @@ void Implementation::NoThrottle(const ThrottleSpec& spec) {
 }
 void Implementation::NoThrottleAll() noexcept {
 	std::atomic_store_explicit(&m_throttle_table, std::make_shared<const ThrottleTable>(), std::memory_order_release);
+}
+void Implementation::FlushThrottle() {
+	FlushThrottle(ThrottleSpec{});
+}
+void Implementation::FlushThrottle(const ThrottleSpec& filter) {
+	const auto table = std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+	const auto saved = t_line;
+	if (t_line.header_displayed) {
+		reset_color();
+		m_out.put('\n');
+		reset_line_state();
+	}
+	for (const auto& rule : table->rules) {
+		if (!Selects(filter, rule.spec))
+			continue;
+		const auto dropped = rule.state->dropped.exchange(0, std::memory_order_acq_rel);
+		if (dropped == 0)
+			continue;
+		t_line.decided = true;
+		t_line.admitted = true;
+		t_line.level = rule.spec.Level.value_or(Level::Notice);
+		t_line.component = rule.spec.Component.value_or(std::string{});
+		t_line.group = rule.spec.Group.value_or(std::string{});
+		t_line.dropped = 0;
+		BeginOutputLine();
+		print_header();
+		sync_content_color();
+		m_out << "dropped " << dropped << " messages";
+		reset_color();
+		m_out.put('\n');
+		reset_line_state();
+	}
+	t_line = saved;
 }
 bool Implementation::PrepareLine() {
 	if (t_line.decided)

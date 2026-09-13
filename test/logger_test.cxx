@@ -600,6 +600,42 @@ int test_throttle_level_change_redecides_line() {
 	ASSERT_EQUAL("test_throttle_level_change_redecides_line", "Info    : first\nWarning : second\n", output.str());
 	RETURN_TEST("test_throttle_level_change_redecides_line", 0);
 }
+int test_flush_throttle_emits_orphaned_summary() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
+	log << Level::Info << "first" << std::endl;
+	log << Level::Info << "dropped" << std::endl;
+	log.FlushThrottle();
+	ASSERT_EQUAL("test_flush_throttle_emits_orphaned_summary",
+		"Info    : first\nNotice  : dropped 1 messages\n", output.str());
+	RETURN_TEST("test_flush_throttle_emits_orphaned_summary", 0);
+}
+int test_flush_throttle_selects_component_only() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]:");
+	ThrottleSpec a;
+	a.Component = "A";
+	a.Burst = 1;
+	ThrottleSpec b = a;
+	b.Component = "B";
+	log.Throttle(a);
+	log.Throttle(b);
+	log << component("A") << Level::Info << "a0" << std::endl;
+	log << Level::Info << "a1" << std::endl;
+	log << component("B") << Level::Info << "b0" << std::endl;
+	log << Level::Info << "b1" << std::endl;
+	ThrottleSpec filter;
+	filter.Component = "A";
+	log.FlushThrottle(filter);
+	ASSERT_TRUE("test_flush_throttle_selects_component_only (A)", output.str().find("A[Notice  ]: dropped 1 messages\n") != std::string::npos);
+	ASSERT_TRUE("test_flush_throttle_selects_component_only (B absent)", output.str().find("B[Info    ]: dropped") == std::string::npos);
+	RETURN_TEST("test_flush_throttle_selects_component_only", 0);
+}
 int test_throttle_rejects_invalid_specs() {
 	Log log(std::cout, Level::Info);
 	ThrottleSpec spec;
@@ -685,6 +721,8 @@ int main() {
 	result += test_throttle_component_and_group_isolation();
 	result += test_throttle_empty_lines_are_counted();
 	result += test_throttle_level_change_redecides_line();
+	result += test_flush_throttle_emits_orphaned_summary();
+	result += test_flush_throttle_selects_component_only();
 	result += test_throttle_rejects_invalid_specs();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

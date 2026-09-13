@@ -156,6 +156,14 @@ Log& Log::NoThrottle(ComponentManip component, const Level& level, GroupManip gr
 	spec.Group = std::move(group.name);
 	return NoThrottle(spec);
 }
+Log& Log::FlushThrottle() {
+	m_impl->FlushThrottle();
+	return *this;
+}
+Log& Log::FlushThrottle(const ThrottleSpec& spec) {
+	m_impl->FlushThrottle(spec);
+	return *this;
+}
 void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
 void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }

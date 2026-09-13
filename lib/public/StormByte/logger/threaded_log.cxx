@@ -124,6 +124,18 @@ Log& ThreadedLog::NoThrottle(ComponentManip component) { return Log::NoThrottle(
 Log& ThreadedLog::NoThrottle(ComponentManip component, const Level& level, GroupManip group) {
 	return Log::NoThrottle(component, level, group);
 }
+Log& ThreadedLog::FlushThrottle() {
+	claim_line(m_lock);
+	Log::FlushThrottle();
+	release_line(m_lock);
+	return *this;
+}
+Log& ThreadedLog::FlushThrottle(const ThrottleSpec& spec) {
+	claim_line(m_lock);
+	Log::FlushThrottle(spec);
+	release_line(m_lock);
+	return *this;
+}
 void ThreadedLog::Write(bool v) {
 	if (!WillWrite() || !PrepareLine()) return;
 	claim_line(m_lock);

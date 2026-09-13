@@ -436,6 +436,18 @@ int test_threadedlog_throttle_drops_without_deadlock() {
 	ASSERT_TRUE("test_threadedlog_throttle_drops_without_deadlock", output.str().find("Fatal   : fatal survives\n") != std::string::npos);
 	RETURN_TEST("test_threadedlog_throttle_drops_without_deadlock", 0);
 }
+int test_threadedlog_flush_throttle_releases_lock() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log.Throttle(0.0, 1);
+	log << Level::Info << "first" << std::endl;
+	log << Level::Info << "dropped" << std::endl;
+	log.FlushThrottle();
+	log << Level::Fatal << "fatal after flush" << std::endl;
+	ASSERT_TRUE("test_threadedlog_flush_throttle_releases_lock",
+		output.str().find("Fatal   : fatal after flush\n") != std::string::npos);
+	RETURN_TEST("test_threadedlog_flush_throttle_releases_lock", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -458,6 +470,7 @@ int main() {
 	result += test_threadedlog_component_does_not_hold_line_lock();
 	result += test_threadedlog_component_formats_do_not_mix();
 	result += test_threadedlog_throttle_drops_without_deadlock();
+	result += test_threadedlog_flush_throttle_releases_lock();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

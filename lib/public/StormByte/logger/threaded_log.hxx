@@ -136,6 +136,10 @@ namespace StormByte::Logger {
 			Log& NoThrottle(ComponentManip component) override;
 			/** @brief Remove an exact component/level/group rule. */
 			Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group) override;
+			/** @brief Flush all dropped summaries under the line lock. */
+			Log& FlushThrottle() override;
+			/** @brief Flush matching dropped summaries under the line lock. */
+			Log& FlushThrottle(const ThrottleSpec& spec) override;
 
 			/**
 			 * @name Streaming Operators

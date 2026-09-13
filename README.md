@@ -362,6 +362,10 @@ messages` using the same level, component, group, effective format and color.
 The summary does not consume throttle credit. A discarded line is decided
 before output and before `ThreadedLog` claims its line lock.
 
+Call `FlushThrottle()` at a job boundary to emit pending `dropped N messages`
+summaries even when no later line is admitted. `FlushThrottle(spec)` limits the
+flush to rules matching the same selectors; flushing does not remove rules.
+
 Throttle configuration is intended to be installed before concurrent writers
 start. Rules are published as immutable snapshots through atomic shared-pointer
 operations; the logger does not promise physical lock-free behavior from the
