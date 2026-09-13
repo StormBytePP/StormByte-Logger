@@ -20,6 +20,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.0...HEAD
+
+## [1.1.0] - 2026-09-13
+
 ### Added
 
 - `group("name")` and `%g`; the group is cleared by newline and is not rendered in the body when `%g` is absent.
@@ -43,7 +47,7 @@ If you landed here from a release link and have not read the tree:
 - `endl` releases the `ThreadedLog` line lock even if `WillWrite()` changes midway through a line.
 - Wide-string logging converts before acquiring the lock; a Unicode conversion error no longer terminates the logger from an internal `noexcept` path.
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.0...HEAD
+[1.1.0]: https://github.com/StormBytePP/StormByte-Logger/releases/tag/1.1.0
 
 ## [1.0.0] - 2026-09-05
 
