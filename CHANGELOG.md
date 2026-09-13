@@ -30,6 +30,9 @@ If you landed here from a release link and have not read the tree:
   `operator<<(Level)` flipped `WillWrite()` mid-line. Without this, a
   filtered `LowLevel` write could leave the lock held and stall every
   other thread.
+- Wide-string logging converts the value before acquiring the `ThreadedLog`
+  line lock, and invalid Unicode errors no longer terminate the logger from
+  an internal `noexcept` conversion path.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.0...HEAD
 

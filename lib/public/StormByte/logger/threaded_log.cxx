@@ -18,6 +18,7 @@
  */
 
 #include <StormByte/logger/threaded_log.hxx>
+#include <StormByte/string.hxx>
 #include <sstream>
 using namespace StormByte::Logger;
 namespace {
@@ -134,13 +135,15 @@ void ThreadedLog::Write(const char* v) {
 }
 void ThreadedLog::Write(const std::wstring& v) {
 	if (!WillWrite()) return;
+	const std::string encoded = StormByte::String::UTF8Encode(v);
 	claim_line(m_lock);
-	Log::Write(v);
+	Log::Write(encoded);
 }
 void ThreadedLog::Write(const wchar_t* v) {
 	if (!WillWrite()) return;
+	const std::string encoded = v ? StormByte::String::UTF8Encode(std::wstring(v)) : std::string{};
 	claim_line(m_lock);
-	Log::Write(v);
+	Log::Write(encoded);
 }
 void ThreadedLog::Write(const Level& level) {
 	claim_line(m_lock);

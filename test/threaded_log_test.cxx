@@ -18,6 +18,7 @@
  */
 
 #include <StormByte/logger/threaded_log.hxx>
+#include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
 #include <sstream>
 #include <thread>
@@ -192,6 +193,20 @@ int test_threadedlog_level_switch_flush() {
 	}
 	RETURN_TEST("test_threadedlog_level_switch_flush", 0);
 }
+int test_threadedlog_invalid_wide_releases_line_lock() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%L:");
+	bool threw = false;
+	try {
+		tlog << Level::Info << std::wstring(1, static_cast<wchar_t>(0xD800));
+	} catch (const StormByte::UTF8Error&) {
+		threw = true;
+	}
+	ASSERT_TRUE("test_threadedlog_invalid_wide_releases_line_lock (throws)", threw);
+	tlog << Level::Info << "after invalid input" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_invalid_wide_releases_line_lock", "Info    : after invalid input\n", output.str());
+	RETURN_TEST("test_threadedlog_invalid_wide_releases_line_lock", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -202,6 +217,7 @@ int main() {
 	result += test_threadedlog_filtered_endl_no_deadlock();
 	result += test_threadedlog_filtered_multithreaded_then_info();
 	result += test_threadedlog_level_switch_flush();
+	result += test_threadedlog_invalid_wide_releases_line_lock();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

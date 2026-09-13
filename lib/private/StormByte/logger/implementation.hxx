@@ -149,7 +149,7 @@ namespace StormByte::Logger {
 			 * @return Reference to this Implementation.
 			 */
 			template <typename T>
-			Implementation& operator<<(const T& value) noexcept
+				Implementation& operator<<(const T& value)
 				requires (!std::is_same_v<std::decay_t<T>, Implementation& (*)(Implementation&) noexcept>) {
 				using DecayedT = std::decay_t<T>;
 
@@ -311,7 +311,7 @@ namespace StormByte::Logger {
 			 * @brief Print a wide character.
 			 * @param value Wide character to print.
 			 */
-			void print_message(const wchar_t& value) noexcept;
+			void print_message(const wchar_t& value);
 	};
 
 	/**
@@ -353,7 +353,7 @@ namespace StormByte::Logger {
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr, typename T>
-	Ptr& operator<<(Ptr& logger, const T& value) noexcept
+	Ptr& operator<<(Ptr& logger, const T& value)
 		requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << value;

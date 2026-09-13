@@ -18,7 +18,9 @@
  */
 
 #include <StormByte/logger/log.hxx>
+#include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
+#include <clocale>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -167,6 +169,37 @@ int test_escaped_percent_in_format() {
 	}
 	RETURN_TEST("test_escaped_percent_in_format", 0);
 }
+int test_wide_string_logging_is_locale_independent() {
+	int result = 0;
+	const char* current_locale = std::setlocale(LC_ALL, nullptr);
+	const std::string saved_locale = current_locale == nullptr ? "C" : current_locale;
+	std::setlocale(LC_ALL, "C");
+	try {
+		std::ostringstream output;
+		Log log(output, Level::Info, "%L:");
+		log << Level::Info << std::wstring{L"caf\u00e9 \U0001F600"} << std::endl;
+		ASSERT_EQUAL("test_wide_string_logging_is_locale_independent", "Info    : caf\xC3\xA9 \xF0\x9F\x98\x80\n", output.str());
+	} catch (const std::exception& ex) {
+		std::cerr << ex.what() << std::endl;
+		result++;
+	}
+	std::setlocale(LC_ALL, saved_locale.c_str());
+	RETURN_TEST("test_wide_string_logging_is_locale_independent", result);
+}
+int test_invalid_wide_string_propagates_without_termination() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	bool threw = false;
+	try {
+		log << Level::Info << std::wstring(1, static_cast<wchar_t>(0xD800));
+	} catch (const StormByte::UTF8Error&) {
+		threw = true;
+	}
+	ASSERT_TRUE("test_invalid_wide_string_propagates_without_termination", threw);
+	log << Level::Info << "after invalid input" << std::endl;
+	ASSERT_EQUAL("test_invalid_wide_string_propagates_without_termination", "Info    : after invalid input\n", output.str());
+	RETURN_TEST("test_invalid_wide_string_propagates_without_termination", 0);
+}
 int main() {
 	int result = 0;
 	result += test_basic_logging();
@@ -182,6 +215,8 @@ int main() {
 	result += test_filtered_produces_empty_output();
 	result += test_filtered_then_enabled_message();
 	result += test_escaped_percent_in_format();
+	result += test_wide_string_logging_is_locale_independent();
+	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

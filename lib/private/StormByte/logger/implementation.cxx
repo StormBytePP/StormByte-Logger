@@ -126,27 +126,27 @@ void Implementation::print_message(const std::string& message) noexcept {
 		return;
 	write_text(message);
 }
-void Implementation::print_message(const wchar_t& value) noexcept {
+void Implementation::print_message(const wchar_t& value) {
 	print_message(String::UTF8Encode(std::wstring(1, value)));
 }
 namespace StormByte::Logger {
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<bool>(const bool& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<short>(const short& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned short>(const unsigned short& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<int>(const int& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned int>(const unsigned int& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long>(const long& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long>(const unsigned long& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long long>(const long long& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long long>(const unsigned long long& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<float>(const float& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<double>(const double& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long double>(const long double& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<char>(const char& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned char>(const unsigned char& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<wchar_t>(const wchar_t& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string>(const std::string& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value) noexcept;
-	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value) noexcept;
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<bool>(const bool& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<short>(const short& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned short>(const unsigned short& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<int>(const int& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned int>(const unsigned int& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long>(const long& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long>(const unsigned long& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long long>(const long long& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long long>(const unsigned long long& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<float>(const float& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<double>(const double& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long double>(const long double& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<char>(const char& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned char>(const unsigned char& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<wchar_t>(const wchar_t& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string>(const std::string& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
 }
