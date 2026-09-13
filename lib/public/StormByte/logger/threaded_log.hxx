@@ -206,6 +206,24 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Save and activate a temporary format under the line lock.
+			 * @param manip Format manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(FormatManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Restore a saved format under the line lock.
+			 * @param manip Pop-format manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(PopFormatManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		private:
@@ -249,6 +267,16 @@ namespace StormByte::Logger {
 		 * @param manip No-color manipulator.
 		 */
 		void Write(NoColorManip manip) override;
+		/**
+		 * @brief Apply a push-format manipulator under the line lock.
+		 * @param manip Format manipulator.
+		 */
+		void Write(FormatManip manip) override;
+		/**
+		 * @brief Apply a pop-format manipulator under the line lock.
+		 * @param manip Pop-format manipulator.
+		 */
+		void Write(PopFormatManip manip) override;
 			//@}
 	};
 }

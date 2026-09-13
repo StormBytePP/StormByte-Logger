@@ -19,6 +19,7 @@
 
 #include <StormByte/logger/log.hxx>
 #include <StormByte/logger/implementation.hxx>
+#include <utility>
 using namespace StormByte::Logger;
 Log::Log(std::ostream& out, const Level& level, const std::string& format) {
 	m_impl = std::make_shared<Implementation>(out, level, format);
@@ -57,6 +58,8 @@ StormByte::Logger::Color Log::Color(const Level& level) const {
 }
 void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
+void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
+void Log::Write(PopFormatManip manip) { *m_impl << manip; }
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
 }

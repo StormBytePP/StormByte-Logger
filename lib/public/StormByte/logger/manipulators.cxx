@@ -20,7 +20,11 @@
 #include <StormByte/logger/log.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/implementation.hxx>
+#include <utility>
 namespace StormByte::Logger {
+	STORMBYTE_LOGGER_PUBLIC FormatManip push_format(std::string format) {
+		return FormatManip{std::move(format)};
+	}
 	STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept {
 		humanreadable_number(*log.m_impl);
 		return log;

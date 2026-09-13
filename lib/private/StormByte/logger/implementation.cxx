@@ -21,6 +21,7 @@
 #include <StormByte/logger/manipulators.hxx>
 #include <chrono>
 #include <thread>
+#include <utility>
 using namespace StormByte::Logger;
 namespace {
 	bool IsAlwaysVisible(const Level level) noexcept {
@@ -149,6 +150,32 @@ Implementation& Implementation::operator<<(NoColorManip) noexcept {
 	m_content_nocolor = true;
 	if (m_header_displayed)
 		sync_content_color();
+	return *this;
+}
+Implementation& Implementation::operator<<(FormatManip manip) {
+	if (m_header_displayed) {
+		reset_color();
+		m_out << std::endl;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+	}
+	m_format_stack.push_back(m_format);
+	m_format = std::move(manip.format);
+	return *this;
+}
+Implementation& Implementation::operator<<(PopFormatManip) noexcept {
+	if (m_format_stack.empty())
+		return *this;
+	if (m_header_displayed) {
+		reset_color();
+		m_out << std::endl;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+	}
+	m_format = std::move(m_format_stack.back());
+	m_format_stack.pop_back();
 	return *this;
 }
 void Implementation::print_time() const noexcept {

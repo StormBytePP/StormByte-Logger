@@ -21,6 +21,7 @@
 
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/string.hxx>
+#include <StormByte/type_traits.hxx>
 
 #include <array>
 #include <atomic>
@@ -29,6 +30,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 /**
  * @namespace StormByte::Logger
@@ -37,6 +39,8 @@
 namespace StormByte::Logger {
 	struct ColorManip;
 	struct NoColorManip;
+	struct FormatManip;
+	struct PopFormatManip;
 
 	/**
 	 * @class Implementation
@@ -166,6 +170,20 @@ namespace StormByte::Logger {
 			Implementation& operator<<(NoColorManip manip) noexcept;
 
 			/**
+			 * @brief Push and activate a temporary format.
+			 * @param manip Format manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(FormatManip manip);
+
+			/**
+			 * @brief Restore the last saved format when one exists.
+			 * @param manip Pop-format manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(PopFormatManip manip) noexcept;
+
+			/**
 			 * @brief Apply an Implementation-specific manipulator.
 			 * @param manip Manipulator function.
 			 * @return Reference to this Implementation.
@@ -182,20 +200,20 @@ namespace StormByte::Logger {
 			 */
 			template <typename T>
 				Implementation& operator<<(const T& value)
-				requires (!std::is_same_v<std::decay_t<T>, Implementation& (*)(Implementation&) noexcept>) {
+				requires (!StormByte::Type::SameAs<T, Implementation& (*)(Implementation&) noexcept>) {
 				using DecayedT = std::decay_t<T>;
 
 				if (!m_enabled.load(std::memory_order_acquire)) [[likely]] {
 					return *this;
 				}
 
-				if constexpr (std::is_same_v<DecayedT, bool>) {
+				if constexpr (StormByte::Type::SameAs<DecayedT, bool>) {
 					write_text(std::string_view{value ? "true" : "false"});
 				}
-				else if constexpr (std::is_same_v<DecayedT, wchar_t>) {
+				else if constexpr (StormByte::Type::SameAs<DecayedT, wchar_t>) {
 					print_message(value);
 				}
-				else if constexpr (std::is_integral_v<DecayedT> || std::is_floating_point_v<DecayedT>) {
+				else if constexpr (StormByte::Type::Arithmetic<DecayedT>) {
 					std::string message;
 					if (m_human_readable_format == String::Format::Raw) {
 						message = std::to_string(value);
@@ -204,23 +222,20 @@ namespace StormByte::Logger {
 					}
 					write_text(message);
 				}
-				else if constexpr (std::is_same_v<DecayedT, std::string>) {
+				else if constexpr (StormByte::Type::SameAs<DecayedT, std::string>) {
 					write_text(value);
 				}
-				else if constexpr (std::is_same_v<DecayedT, const char*>) {
+				else if constexpr (StormByte::Type::SameAs<DecayedT, const char*>) {
 					write_text(value ? std::string_view{value} : std::string_view{});
 				}
-				else if constexpr (std::is_same_v<DecayedT, std::wstring>) {
+				else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring>) {
 					write_text(String::UTF8Encode(value));
 				}
-				else if constexpr (std::is_same_v<DecayedT, const wchar_t*>) {
+				else if constexpr (StormByte::Type::SameAs<DecayedT, const wchar_t*>) {
 					write_text(value ? String::UTF8Encode(std::wstring(value)) : std::string{});
 				}
-				else if constexpr (std::is_array_v<T> && std::is_same_v<std::remove_extent_t<T>, char>) {
-					write_text(std::string_view{value});
-				}
 				else {
-					static_assert(!std::is_same_v<T, T>, "Unsupported type for Implementation::operator<<");
+					static_assert(!StormByte::Type::SameAs<T, T>, "Unsupported type for Implementation::operator<<");
 				}
 				return *this;
 			}
@@ -231,7 +246,8 @@ namespace StormByte::Logger {
 			std::optional<Level> m_current_level; 	///< Level of the current message
 			std::atomic<bool> m_enabled; 			///< Whether the current level is enabled
 			bool m_header_displayed; 				///< Whether the header has already been written
-			const std::string m_format; 			///< Header format string
+			std::string m_format; 			///< Header format string
+			std::vector<std::string> m_format_stack; ///< Saved formats for push/pop
 			String::Format m_human_readable_format; ///< Current human-readable format
 			bool m_redact_active; 					///< When true, text and numbers are redacted
 			std::size_t m_redact_count; 			///< 0 = all '*'; N = keep N chars
@@ -344,7 +360,8 @@ namespace StormByte::Logger {
 			 * @tparam T Arithmetic type.
 			 * @param value Value to print.
 			 */
-			template <typename T, typename = std::enable_if_t<std::is_arithmetic_v<T> && !std::is_same_v<T, wchar_t>>>
+			template <typename T>
+			requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 			void print_message(const T& value) noexcept {
 				std::string message;
 				if (m_human_readable_format == String::Format::Raw)
@@ -407,7 +424,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value)
-		requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << value;
 		return logger;
@@ -422,7 +439,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-		requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << level;
 		return logger;
@@ -437,7 +454,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-		requires std::is_same_v<Ptr, std::shared_ptr<Implementation>> || std::is_same_v<Ptr, std::unique_ptr<Implementation>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << manip;
 		return logger;

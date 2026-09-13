@@ -20,6 +20,7 @@
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/string.hxx>
 #include <sstream>
+#include <utility>
 using namespace StormByte::Logger;
 namespace {
 	thread_local bool t_line_held = false;
@@ -200,5 +201,23 @@ void ThreadedLog::Write(NoColorManip m) {
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!WillWrite())
+		release_line(m_lock);
+}
+void ThreadedLog::Write(FormatManip m) {
+	claim_line(m_lock);
+	try {
+		Log::Write(std::move(m));
+	} catch (...) {
+		release_line(m_lock);
+		throw;
+	}
+	if (!WillWrite())
+		release_line(m_lock);
+}
+void ThreadedLog::Write(PopFormatManip m) {
+	const bool already_held = t_line_held;
+	claim_line(m_lock);
+	Log::Write(m);
+	if (!already_held)
 		release_line(m_lock);
 }

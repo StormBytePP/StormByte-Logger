@@ -204,6 +204,39 @@ int test_default_color_emits_no_ansi() {
 	ASSERT_EQUAL("test_default_color_emits_no_ansi", "Info    : plain text\n", output.str());
 	RETURN_TEST("test_default_color_emits_no_ansi", 0);
 }
+int test_push_pop_format_stack() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "BASE[%L]");
+	log << Level::Info << "base" << std::endl;
+	log << push_format("TEMP[%L]") << Level::Info << "temp" << std::endl;
+	log << push_format("INNER[%L]") << Level::Info << "inner" << std::endl;
+	log << pop_format << Level::Info << "temp again" << std::endl;
+	log << pop_format << Level::Info << "base again" << std::endl;
+	log << pop_format << Level::Info << "still base" << std::endl;
+	const std::string expected =
+		"BASE[Info    ] base\n"
+		"TEMP[Info    ] temp\n"
+		"INNER[Info    ] inner\n"
+		"TEMP[Info    ] temp again\n"
+		"BASE[Info    ] base again\n"
+		"BASE[Info    ] still base\n";
+	ASSERT_EQUAL("test_push_pop_format_stack", expected, output.str());
+	RETURN_TEST("test_push_pop_format_stack", 0);
+}
+int test_push_format_empty_and_partial_line_reset() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "BASE[%L]");
+	log << Level::Info << "before" << push_format("NEXT[%L]") << "after" << std::endl;
+	log << push_format("") << Level::Info << "empty" << std::endl;
+	log << pop_format << Level::Info << "next" << std::endl;
+	const std::string expected =
+		"BASE[Info    ] before\n"
+		"NEXT[Info    ] after\n"
+		" empty\n"
+		"NEXT[Info    ] next\n";
+	ASSERT_EQUAL("test_push_format_empty_and_partial_line_reset", expected, output.str());
+	RETURN_TEST("test_push_format_empty_and_partial_line_reset", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -253,6 +286,8 @@ int main() {
 	result += test_escaped_percent_in_format();
 	result += test_color_manipulators_and_line_reset();
 	result += test_default_color_emits_no_ansi();
+	result += test_push_pop_format_stack();
+	result += test_push_format_empty_and_partial_line_reset();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {

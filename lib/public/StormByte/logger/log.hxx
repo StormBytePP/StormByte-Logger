@@ -21,6 +21,7 @@
 
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/typedefs.hxx>
+#include <StormByte/type_traits.hxx>
 
 #include <memory>
 #include <ostream>
@@ -220,6 +221,24 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Save the current format and activate a temporary format.
+			 * @param manip Format manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(FormatManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Restore the most recently saved format.
+			 * @param manip Pop-format manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(PopFormatManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		protected:
@@ -272,6 +291,16 @@ namespace StormByte::Logger {
 			 * @param manip No-color manipulator.
 			 */
 			virtual void Write(NoColorManip manip);
+			/**
+			 * @brief Forward a push-format manipulator.
+			 * @param manip Format manipulator.
+			 */
+			virtual void Write(FormatManip manip);
+			/**
+			 * @brief Forward a pop-format manipulator.
+			 * @param manip Pop-format manipulator.
+			 */
+			virtual void Write(PopFormatManip manip);
 			//@}
 	};
 
@@ -285,7 +314,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value) noexcept
-		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
 		if (logger)
 			*logger << value;
 		return logger;
@@ -300,7 +329,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
 		if (logger)
 			*logger << level;
 		return logger;
@@ -315,7 +344,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-		requires std::is_same_v<Ptr, std::shared_ptr<Log>> || std::is_same_v<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
 		if (logger)
 			*logger << manip;
 		return logger;

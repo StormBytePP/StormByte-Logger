@@ -24,6 +24,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 
 /**
  * @namespace StormByte::Logger
@@ -31,6 +32,32 @@
  */
 namespace StormByte::Logger {
 	class Log;
+
+	/**
+	 * @struct FormatManip
+	 * @brief Temporarily replaces the logger format and saves the previous one.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC FormatManip {
+		std::string format; ///< Temporary format, including an empty format if requested.
+	};
+
+	/**
+	 * @struct PopFormatManip
+	 * @brief Restores the most recently saved logger format.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC PopFormatManip {};
+
+	/**
+	 * @brief Save the current format and activate a temporary format.
+	 * @param format Format to activate until pop_format is streamed.
+	 * @return Format manipulator containing the requested format.
+	 */
+	STORMBYTE_LOGGER_PUBLIC FormatManip push_format(std::string format);
+
+	/**
+	 * @brief Restore the most recently saved format, or do nothing if empty.
+	 */
+	inline constexpr STORMBYTE_LOGGER_PUBLIC PopFormatManip pop_format{};
 
 	/**
 	 * @struct ColorManip
