@@ -20,6 +20,7 @@
 #include <StormByte/logger/log.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/logger/manipulators.hxx>
+#include <StormByte/logger/exception.hxx>
 #include <StormByte/test_handlers.h>
 #include <sstream>
 #include <string>
@@ -226,6 +227,101 @@ int test_manip_redact_first_threadedlog() {
 	ASSERT_EQUAL("test_manip_redact_first_threadedlog", expected, output.str());
 	RETURN_TEST("test_manip_redact_first_threadedlog", 0);
 }
+int test_manip_color_and_nocolor_log() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]%g");
+	log.Color(Level::Info, Color::Red);
+	log << component("Core") << group("work") << Level::Info
+		<< nocolor << "plain " << color(Color::Green) << "green" << std::endl;
+	ASSERT_EQUAL("test_manip_color_and_nocolor_log",
+		"\033[31mCore[Info    ]work \033[0mplain \033[32mgreen\033[0m\n", output.str());
+	RETURN_TEST("test_manip_color_and_nocolor_log", 0);
+}
+int test_manip_color_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log.Color(Level::Info, Color::Cyan);
+	log << Level::Info << color << "cyan" << std::endl;
+	ASSERT_EQUAL("test_manip_color_threadedlog", "\033[36mInfo    : cyan\033[0m\n", output.str());
+	RETURN_TEST("test_manip_color_threadedlog", 0);
+}
+int test_manip_group_component_reset() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]%g");
+	log << component("Module") << group("line") << Level::Info << "first" << std::endl;
+	log << Level::Info << "second" << std::endl;
+	log << reset_component << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_manip_group_component_reset",
+		"Module[Info    ]line first\nModule[Info    ] second\n[Info    ] root\n", output.str());
+	RETURN_TEST("test_manip_group_component_reset", 0);
+}
+int test_manip_group_component_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c[%L]%g");
+	log << component("Module") << group("line") << Level::Info << "first" << std::endl;
+	ASSERT_EQUAL("test_manip_group_component_threadedlog", "Module[Info    ]line first\n", output.str());
+	RETURN_TEST("test_manip_group_component_threadedlog", 0);
+}
+int test_manip_push_pop_and_component_format() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "GENERAL[%L]");
+	log.Format("Module", "COMPONENT[%L]");
+	log << component("Module") << push_format("TEMP[%L]") << Level::Info << "temp" << std::endl;
+	log << pop_format << Level::Info << "component" << std::endl;
+	log << reset_component << Level::Info << "general" << std::endl;
+	ASSERT_EQUAL("test_manip_push_pop_and_component_format",
+		"TEMP[Info    ] temp\nCOMPONENT[Info    ] component\nGENERAL[Info    ] general\n", output.str());
+	RETURN_TEST("test_manip_push_pop_and_component_format", 0);
+}
+int test_manip_push_pop_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "BASE[%L]");
+	log << push_format("TEMP[%L]") << Level::Info << "temp" << std::endl;
+	log << pop_format << Level::Info << "base" << std::endl;
+	ASSERT_EQUAL("test_manip_push_pop_threadedlog", "TEMP[Info    ] temp\nBASE[Info    ] base\n", output.str());
+	RETURN_TEST("test_manip_push_pop_threadedlog", 0);
+}
+int test_manip_throttle_policies_log() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
+	log << Level::Info << "one" << std::endl;
+	log << Level::Info << "two" << std::endl;
+	log << Level::Info << "three" << std::endl;
+	ASSERT_EQUAL("test_manip_throttle_policies_log",
+		"Info    : one\nInfo    : dropped 1 messages\nInfo    : three\n", output.str());
+	RETURN_TEST("test_manip_throttle_policies_log", 0);
+}
+int test_manip_throttle_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log.Throttle(0.0, 1);
+	log << Level::Info << "one" << std::endl;
+	log << Level::Info << "two" << std::endl;
+	log << Level::Fatal << "fatal" << std::endl;
+	ASSERT_EQUAL("test_manip_throttle_threadedlog",
+		"Info    : one\nFatal   : fatal\n", output.str());
+	RETURN_TEST("test_manip_throttle_threadedlog", 0);
+}
+int test_manip_throttle_invalid_configuration() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Rate = 1.0;
+	bool threw = false;
+	try {
+		log.Throttle(spec);
+	} catch (const StormByte::Logger::ThrottleError&) {
+		threw = true;
+	}
+	ASSERT_TRUE("test_manip_throttle_invalid_configuration", threw);
+	ASSERT_EQUAL("test_manip_throttle_invalid_configuration (output)", std::string{}, output.str());
+	RETURN_TEST("test_manip_throttle_invalid_configuration", 0);
+}
 int main() {
 	int result = 0;
 	result += test_manip_humanreadable_number_log();
@@ -250,6 +346,15 @@ int main() {
 	result += test_manip_redact_first_ge_length();
 	result += test_manip_redact_first_const_char_ptr();
 	result += test_manip_redact_first_threadedlog();
+	result += test_manip_color_and_nocolor_log();
+	result += test_manip_color_threadedlog();
+	result += test_manip_group_component_reset();
+	result += test_manip_group_component_threadedlog();
+	result += test_manip_push_pop_and_component_format();
+	result += test_manip_push_pop_threadedlog();
+	result += test_manip_throttle_policies_log();
+	result += test_manip_throttle_threadedlog();
+	result += test_manip_throttle_invalid_configuration();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {
