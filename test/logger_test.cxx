@@ -204,6 +204,69 @@ int test_default_color_emits_no_ansi() {
 	ASSERT_EQUAL("test_default_color_emits_no_ansi", "Info    : plain text\n", output.str());
 	RETURN_TEST("test_default_color_emits_no_ansi", 0);
 }
+int test_all_configured_colors_emit_expected_ansi() {
+	const std::vector<std::pair<Color, std::string>> colors = {
+		{Color::Default, ""},
+		{Color::Black, "\033[30m"},
+		{Color::Red, "\033[31m"},
+		{Color::Green, "\033[32m"},
+		{Color::Yellow, "\033[33m"},
+		{Color::Blue, "\033[34m"},
+		{Color::Magenta, "\033[35m"},
+		{Color::Cyan, "\033[36m"},
+		{Color::Gray, "\033[90m"},
+		{Color::White, "\033[37m"},
+		{Color::BrightBlack, "\033[90m"},
+		{Color::BrightRed, "\033[91m"},
+		{Color::BrightGreen, "\033[92m"},
+		{Color::BrightYellow, "\033[93m"},
+		{Color::BrightBlue, "\033[94m"},
+		{Color::BrightMagenta, "\033[95m"},
+		{Color::BrightCyan, "\033[96m"},
+		{Color::BrightWhite, "\033[97m"}
+	};
+	for (const auto& [configured, ansi] : colors) {
+		std::ostringstream output;
+		Log log(output, Level::Info, "%L:");
+		log.Color(Level::Info, configured);
+		ASSERT_EQUAL("test_all_configured_colors_emit_expected_ansi (getter)", configured, log.Color(Level::Info));
+		log << Level::Info << "value" << std::endl;
+		const std::string expected = ansi + "Info    : value" + (ansi.empty() ? "" : "\033[0m") + "\n";
+		ASSERT_EQUAL("test_all_configured_colors_emit_expected_ansi", expected, output.str());
+	}
+	RETURN_TEST("test_all_configured_colors_emit_expected_ansi", 0);
+}
+int test_filtered_color_has_no_side_effects() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log.Color(Level::Debug, Color::Red);
+	log << Level::Debug << color(Color::Green) << "hidden" << std::endl;
+	log << Level::Info << "visible" << std::endl;
+	ASSERT_EQUAL("test_filtered_color_has_no_side_effects", "Info    : visible\n", output.str());
+	RETURN_TEST("test_filtered_color_has_no_side_effects", 0);
+}
+int test_color_and_temporary_format_interoperate() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "BASE[%L]");
+	log.Color(Level::Info, Color::Blue);
+	log << push_format("TEMP[%L]") << Level::Info << nocolor << "plain" << color << " blue" << std::endl;
+	log << pop_format << Level::Info << "base" << std::endl;
+	const std::string expected =
+		"\033[34mTEMP[Info    ] \033[0mplain\033[34m blue\033[0m\n"
+		"\033[34mBASE[Info    ] base\033[0m\n";
+	ASSERT_EQUAL("test_color_and_temporary_format_interoperate", expected, output.str());
+	RETURN_TEST("test_color_and_temporary_format_interoperate", 0);
+}
+int test_colored_logger_destructor_resets_stream() {
+	std::ostringstream output;
+	{
+		Log log(output, Level::Info, "%L:");
+		log.Color(Level::Info, Color::Red);
+		log << Level::Info << "unterminated";
+	}
+	ASSERT_EQUAL("test_colored_logger_destructor_resets_stream", "\033[31mInfo    : unterminated\033[0m", output.str());
+	RETURN_TEST("test_colored_logger_destructor_resets_stream", 0);
+}
 int test_push_pop_format_stack() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "BASE[%L]");
@@ -286,6 +349,10 @@ int main() {
 	result += test_escaped_percent_in_format();
 	result += test_color_manipulators_and_line_reset();
 	result += test_default_color_emits_no_ansi();
+	result += test_all_configured_colors_emit_expected_ansi();
+	result += test_filtered_color_has_no_side_effects();
+	result += test_color_and_temporary_format_interoperate();
+	result += test_colored_logger_destructor_resets_stream();
 	result += test_push_pop_format_stack();
 	result += test_push_format_empty_and_partial_line_reset();
 	result += test_wide_string_logging_is_locale_independent();

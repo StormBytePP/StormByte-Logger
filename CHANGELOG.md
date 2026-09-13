@@ -27,6 +27,7 @@ If you landed here from a release link and have not read the tree:
 - `Warning`, `Error` and `Fatal` messages are always displayed, regardless of the configured log level.
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 - Added nested `push_format`/`pop_format` manipulators for temporary format changes. `pop_format` is idempotent when its stack is empty.
+- Expanded color and temporary-format tests to cover every ANSI color, filtered side effects, destructor resets, and concurrent line isolation.
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 
 ### Fixed

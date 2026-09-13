@@ -311,10 +311,14 @@ int test_threadedlog_push_pop_format_is_line_safe() {
 	int count = 0;
 	while (std::getline(input, line)) {
 		ASSERT_TRUE("test_threadedlog_push_pop_format_is_line_safe (format)",
-			line.find("[Info    ] message") != std::string::npos);
+			std::regex_match(line, std::regex("^T[0-3]\\[Info    \\] message$")));
 		++count;
 	}
 	ASSERT_EQUAL("test_threadedlog_push_pop_format_is_line_safe (count)", threads * repeats, count);
+	tlog << pop_format;
+	tlog << Level::Info << "after empty pop" << std::endl;
+	ASSERT_TRUE("test_threadedlog_push_pop_format_is_line_safe (restored base)",
+		output.str().ends_with("BASE[Info    ] after empty pop\n"));
 	RETURN_TEST("test_threadedlog_push_pop_format_is_line_safe", 0);
 }
 int main() {
