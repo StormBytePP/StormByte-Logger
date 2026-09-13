@@ -125,15 +125,19 @@ Log& ThreadedLog::NoThrottle(ComponentManip component, const Level& level, Group
 	return Log::NoThrottle(component, level, group);
 }
 Log& ThreadedLog::FlushThrottle() {
+	const bool already_held = t_line_held;
 	claim_line(m_lock);
 	Log::FlushThrottle();
-	release_line(m_lock);
+	if (!already_held)
+		release_line(m_lock);
 	return *this;
 }
 Log& ThreadedLog::FlushThrottle(const ThrottleSpec& spec) {
+	const bool already_held = t_line_held;
 	claim_line(m_lock);
 	Log::FlushThrottle(spec);
-	release_line(m_lock);
+	if (!already_held)
+		release_line(m_lock);
 	return *this;
 }
 void ThreadedLog::Write(bool v) {

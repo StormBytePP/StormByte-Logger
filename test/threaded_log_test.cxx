@@ -439,7 +439,11 @@ int test_threadedlog_throttle_drops_without_deadlock() {
 int test_threadedlog_flush_throttle_releases_lock() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
-	log.Throttle(0.0, 1);
+	ThrottleSpec spec;
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
 	log << Level::Info << "first" << std::endl;
 	log << Level::Info << "dropped" << std::endl;
 	log.FlushThrottle();
@@ -447,6 +451,29 @@ int test_threadedlog_flush_throttle_releases_lock() {
 	ASSERT_TRUE("test_threadedlog_flush_throttle_releases_lock",
 		output.str().find("Fatal   : fatal after flush\n") != std::string::npos);
 	RETURN_TEST("test_threadedlog_flush_throttle_releases_lock", 0);
+}
+int test_threadedlog_flush_mid_line_preserves_lock_owner() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
+	log << Level::Info << "seed" << std::endl;
+	log << Level::Info << "dropped" << std::endl;
+	log << Level::Info << "first";
+	log.FlushThrottle();
+	log << Level::Fatal << "after" << std::endl;
+	std::thread other([&] { log << Level::Fatal << "other" << std::endl; });
+	other.join();
+	ASSERT_TRUE("test_threadedlog_flush_mid_line_preserves_lock_owner",
+		output.str().find("Info    : first\n") != std::string::npos &&
+		output.str().find("Info    : dropped 1 messages\n") != std::string::npos &&
+		output.str().find("Fatal   : after\n") != std::string::npos);
+	ASSERT_TRUE("test_threadedlog_flush_mid_line_preserves_lock_owner (other)",
+		output.str().find("Fatal   : other\n") != std::string::npos);
+	RETURN_TEST("test_threadedlog_flush_mid_line_preserves_lock_owner", 0);
 }
 int main() {
 	int result = 0;
@@ -471,6 +498,7 @@ int main() {
 	result += test_threadedlog_component_formats_do_not_mix();
 	result += test_threadedlog_throttle_drops_without_deadlock();
 	result += test_threadedlog_flush_throttle_releases_lock();
+	result += test_threadedlog_flush_mid_line_preserves_lock_owner();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {
