@@ -572,6 +572,27 @@ namespace StormByte::Logger {
 		return logger;
 	}
 
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<bool>(const bool& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<short>(const short& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned short>(const unsigned short& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<int>(const int& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned int>(const unsigned int& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long>(const long& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long>(const unsigned long& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long long>(const long long& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned long long>(const unsigned long long& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<float>(const float& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<double>(const double& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<long double>(const long double& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<char>(const char& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<signed char>(const signed char& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<unsigned char>(const unsigned char& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<wchar_t>(const wchar_t& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string>(const std::string& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
+
 	/**
 	 * @brief Stream a value into a smart pointer to Implementation.
 	 * @tparam Ptr Smart pointer type.
