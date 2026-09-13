@@ -81,7 +81,7 @@ namespace StormByte::Logger {
 	 * @brief Clear the current thread's component.
 	 * @note The reset is thread-local and does not affect other threads.
 	 */
-	inline constexpr STORMBYTE_LOGGER_PUBLIC ResetComponentManip reset_component{};
+	inline constexpr ResetComponentManip reset_component{};
 
 	/**
 	 * @struct FormatManip
@@ -107,7 +107,7 @@ namespace StormByte::Logger {
 	/**
 	 * @brief Restore the most recently saved format, or do nothing if empty.
 	 */
-	inline constexpr STORMBYTE_LOGGER_PUBLIC PopFormatManip pop_format{};
+	inline constexpr PopFormatManip pop_format{};
 
 	/**
 	 * @struct ColorManip
@@ -129,7 +129,7 @@ namespace StormByte::Logger {
 	/**
 	 * @brief Restore the configured color for the current level.
 	 */
-	inline constexpr STORMBYTE_LOGGER_PUBLIC ColorManip color{};
+	inline constexpr ColorManip color{};
 
 	/**
 	 * @struct NoColorManip
@@ -140,7 +140,7 @@ namespace StormByte::Logger {
 	/**
 	 * @brief Disable color for subsequent content in the current line.
 	 */
-	inline constexpr STORMBYTE_LOGGER_PUBLIC NoColorManip nocolor{};
+	inline constexpr NoColorManip nocolor{};
 
 	/**
 	 * @brief Stateful redaction manipulator.
