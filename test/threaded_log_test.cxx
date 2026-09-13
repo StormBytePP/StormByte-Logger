@@ -207,6 +207,43 @@ int test_threadedlog_invalid_wide_releases_line_lock() {
 	ASSERT_EQUAL("test_threadedlog_invalid_wide_releases_line_lock", "Info    : after invalid input\n", output.str());
 	RETURN_TEST("test_threadedlog_invalid_wide_releases_line_lock", 0);
 }
+int test_threadedlog_filtered_wide_skips_conversion() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%L:");
+	bool threw = false;
+	try {
+		tlog << Level::Debug << std::wstring(1, static_cast<wchar_t>(0xD800)) << std::endl;
+	} catch (const StormByte::UTF8Error&) {
+		threw = true;
+	}
+	ASSERT_TRUE("test_threadedlog_filtered_wide_skips_conversion (no throw)", !threw);
+	ASSERT_EQUAL("test_threadedlog_filtered_wide_skips_conversion (no output)", std::string{}, output.str());
+	tlog << Level::Info << "after filtered invalid input" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_filtered_wide_skips_conversion", "Info    : after filtered invalid input\n", output.str());
+	RETURN_TEST("test_threadedlog_filtered_wide_skips_conversion", 0);
+}
+int test_threadedlog_filtered_hot_path() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%L:");
+	constexpr int threads = 8;
+	constexpr int repeats = 5000;
+	std::atomic<int> completed{0};
+	auto worker = [&](int id) {
+		for (int i = 0; i < repeats; ++i) {
+			tlog << Level::Debug << "discarded-" << id << ':' << i << std::endl;
+		}
+		completed.fetch_add(1, std::memory_order_release);
+	};
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) pool.emplace_back(worker, id);
+	for (auto& thread : pool) thread.join();
+	ASSERT_EQUAL("test_threadedlog_filtered_hot_path (workers)", threads, completed.load(std::memory_order_acquire));
+	ASSERT_EQUAL("test_threadedlog_filtered_hot_path (no output)", std::string{}, output.str());
+	tlog << Level::Info << "after filtered hot path" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_filtered_hot_path", "Info    : after filtered hot path\n", output.str());
+	RETURN_TEST("test_threadedlog_filtered_hot_path", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -218,6 +255,8 @@ int main() {
 	result += test_threadedlog_filtered_multithreaded_then_info();
 	result += test_threadedlog_level_switch_flush();
 	result += test_threadedlog_invalid_wide_releases_line_lock();
+	result += test_threadedlog_filtered_wide_skips_conversion();
+	result += test_threadedlog_filtered_hot_path();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {
