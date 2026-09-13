@@ -384,7 +384,7 @@ namespace StormByte::Logger {
 			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
 			bool m_content_nocolor = false;                           ///< Whether content color is suppressed
 			std::optional<StormByte::Logger::Color> m_active_color;   ///< Color currently emitted to the stream
-			#ifdef _MSC_VER
+			#ifdef MSVC
 			std::atomic<std::shared_ptr<const ThrottleTable>> m_throttle_table; ///< Immutable rules snapshot
 			#else
 			std::shared_ptr<const ThrottleTable> m_throttle_table;        ///< Immutable rules snapshot, atomically accessed
