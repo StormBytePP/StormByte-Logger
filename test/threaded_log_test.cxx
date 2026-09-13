@@ -261,6 +261,34 @@ int test_threadedlog_filtered_hot_path() {
 	ASSERT_EQUAL("test_threadedlog_filtered_hot_path", "Info    : after filtered hot path\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_hot_path", 0);
 }
+int test_threadedlog_colored_lines_do_not_mix() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%L:");
+	tlog.Color(Level::Info, Color::Cyan);
+	constexpr int threads = 8;
+	constexpr int repeats = 250;
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) {
+		pool.emplace_back([&, id] {
+			for (int i = 0; i < repeats; ++i)
+				tlog << Level::Info << "T" << id << ':' << i << std::endl;
+		});
+	}
+	for (auto& thread : pool) thread.join();
+	std::istringstream input(output.str());
+	std::string line;
+	int count = 0;
+	while (std::getline(input, line)) {
+		ASSERT_TRUE("test_threadedlog_colored_lines_do_not_mix (prefix)", line.starts_with("\033[36mInfo    : T"));
+		ASSERT_TRUE("test_threadedlog_colored_lines_do_not_mix (reset)", line.ends_with("\033[0m"));
+		ASSERT_EQUAL("test_threadedlog_colored_lines_do_not_mix (single color)", std::size_t{1},
+			static_cast<std::size_t>(line.find("\033[36m") != std::string::npos));
+		++count;
+	}
+	ASSERT_EQUAL("test_threadedlog_colored_lines_do_not_mix (count)", threads * repeats, count);
+	RETURN_TEST("test_threadedlog_colored_lines_do_not_mix", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -275,6 +303,7 @@ int main() {
 	result += test_threadedlog_filtered_wide_skips_conversion();
 	result += test_threadedlog_critical_levels_are_never_filtered();
 	result += test_threadedlog_filtered_hot_path();
+	result += test_threadedlog_colored_lines_do_not_mix();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

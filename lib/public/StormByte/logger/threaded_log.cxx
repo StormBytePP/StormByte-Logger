@@ -48,6 +48,17 @@ namespace {
 }
 ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
 	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
+Log& ThreadedLog::Color(const Level& level, const StormByte::Logger::Color& color) {
+	const bool already_held = t_line_held;
+	claim_line(m_lock);
+	Log::Color(level, color);
+	if (!already_held)
+		release_line(m_lock);
+	return *this;
+}
+StormByte::Logger::Color ThreadedLog::Color(const Level& level) const {
+	return Log::Color(level);
+}
 void ThreadedLog::Write(bool v) {
 	if (!WillWrite()) return;
 	claim_line(m_lock);
@@ -172,6 +183,20 @@ void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
 }
 void ThreadedLog::Write(RedactManip m) {
 	// State change on Implementation; serialize like other manipulators.
+	claim_line(m_lock);
+	Log::Write(m);
+	if (!WillWrite())
+		release_line(m_lock);
+}
+void ThreadedLog::Write(ColorManip m) {
+	if (!WillWrite()) return;
+	claim_line(m_lock);
+	Log::Write(m);
+	if (!WillWrite())
+		release_line(m_lock);
+}
+void ThreadedLog::Write(NoColorManip m) {
+	if (!WillWrite()) return;
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!WillWrite())

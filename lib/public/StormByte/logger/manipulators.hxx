@@ -19,9 +19,11 @@
 
 #pragma once
 
+#include <StormByte/logger/typedefs.hxx>
 #include <StormByte/logger/visibility.h>
 
 #include <cstddef>
+#include <optional>
 
 /**
  * @namespace StormByte::Logger
@@ -29,6 +31,39 @@
  */
 namespace StormByte::Logger {
 	class Log;
+
+	/**
+	 * @struct ColorManip
+	 * @brief Temporarily selects a configured or explicit content color.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC ColorManip {
+		std::optional<Color> value; ///< Explicit color, or empty for the configured level color.
+
+		/**
+		 * @brief Select an explicit color for subsequent content.
+		 * @param selected Color to use until another color manipulator or endl.
+		 * @return A color manipulator carrying the selected color.
+		 */
+		constexpr ColorManip operator()(Color selected) const noexcept {
+			return ColorManip{selected};
+		}
+	};
+
+	/**
+	 * @brief Restore the configured color for the current level.
+	 */
+	inline constexpr STORMBYTE_LOGGER_PUBLIC ColorManip color{};
+
+	/**
+	 * @struct NoColorManip
+	 * @brief Disables color for subsequent content until changed.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC NoColorManip {};
+
+	/**
+	 * @brief Disable color for subsequent content in the current line.
+	 */
+	inline constexpr STORMBYTE_LOGGER_PUBLIC NoColorManip nocolor{};
 
 	/**
 	 * @brief Stateful redaction manipulator.

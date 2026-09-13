@@ -48,6 +48,15 @@ void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
 void Log::Write(RedactManip m) {
     m_impl->SetRedact(true, m.count, m.keep_first);
 }
+Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
+	m_impl->Color(level, color);
+	return *this;
+}
+StormByte::Logger::Color Log::Color(const Level& level) const {
+	return m_impl->Color(level);
+}
+void Log::Write(ColorManip manip) { *m_impl << manip; }
+void Log::Write(NoColorManip manip) { *m_impl << manip; }
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
 }

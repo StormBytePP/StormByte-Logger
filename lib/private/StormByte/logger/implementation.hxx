@@ -22,6 +22,7 @@
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/string.hxx>
 
+#include <array>
 #include <atomic>
 #include <optional>
 #include <ostream>
@@ -34,6 +35,9 @@
  * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
+	struct ColorManip;
+	struct NoColorManip;
+
 	/**
 	 * @class Implementation
 	 * @brief Internal logger implementation (private).
@@ -81,7 +85,7 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Destructor.
 			 */
-			~Implementation() noexcept = default;
+			~Implementation() noexcept;
 
 			/**
 			 * @brief Get the minimum print level.
@@ -120,6 +124,20 @@ namespace StormByte::Logger {
 			}
 
 			/**
+			 * @brief Set the configured color for a logging level.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that level.
+			 */
+			void Color(const Level& level, const StormByte::Logger::Color& color) noexcept;
+
+			/**
+			 * @brief Get the configured color for a logging level.
+			 * @param level Level whose color is requested.
+			 * @return Configured color.
+			 */
+			StormByte::Logger::Color Color(const Level& level) const noexcept;
+
+			/**
 			 * @brief Set the current logging level.
 			 * @param level New Level for subsequent messages.
 			 * @return Reference to this Implementation.
@@ -132,6 +150,20 @@ namespace StormByte::Logger {
 			 * @return Reference to this Implementation.
 			 */
 			Implementation& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
+
+			/**
+			 * @brief Apply a temporary content color manipulator.
+			 * @param manip Color selection to apply.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(ColorManip manip) noexcept;
+
+			/**
+			 * @brief Disable content color until another color manipulator or endl.
+			 * @param manip No-color manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(NoColorManip manip) noexcept;
 
 			/**
 			 * @brief Apply an Implementation-specific manipulator.
@@ -204,6 +236,10 @@ namespace StormByte::Logger {
 			bool m_redact_active; 					///< When true, text and numbers are redacted
 			std::size_t m_redact_count; 			///< 0 = all '*'; N = keep N chars
 			bool m_redact_keep_first; 				///< true = keep first N, false = keep last N
+			std::array<StormByte::Logger::Color, 7> m_level_colors{}; ///< Configured color per level
+			std::optional<StormByte::Logger::Color> m_content_color; ///< Temporary content color override
+			bool m_content_nocolor = false; ///< Whether content color is suppressed
+			std::optional<StormByte::Logger::Color> m_active_color; ///< Color currently emitted to the stream
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.
@@ -246,6 +282,7 @@ namespace StormByte::Logger {
 			 */
 			void write_text(std::string_view text) noexcept {
 				ensure_header();
+				sync_content_color();
 				if (m_redact_active)
 					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
 				else
@@ -284,7 +321,23 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Print the configured header.
 			 */
-			void print_header() const noexcept;
+			void print_header() noexcept;
+
+			/**
+			 * @brief Synchronize the stream color with the current content mode.
+			 */
+			void sync_content_color() noexcept;
+
+			/**
+			 * @brief Emit a color transition when needed.
+			 * @param color Desired ANSI color.
+			 */
+			void emit_color(StormByte::Logger::Color color) noexcept;
+
+			/**
+			 * @brief Reset any ANSI color currently emitted to the stream.
+			 */
+			void reset_color() noexcept;
 
 			/**
 			 * @brief Helper to print an arithmetic value (with optional human-readable formatting).

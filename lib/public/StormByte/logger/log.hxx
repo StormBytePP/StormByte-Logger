@@ -67,6 +67,21 @@ namespace StormByte::Logger {
 			Log& operator=(Log&&) noexcept = default;
 
 			/**
+			 * @brief Set the configured color for a logging level.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that level.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& Color(const Level& level, const StormByte::Logger::Color& color);
+
+			/**
+			 * @brief Get the configured color for a logging level.
+			 * @param level Level whose color is requested.
+			 * @return Configured color.
+			 */
+			virtual StormByte::Logger::Color Color(const Level& level) const;
+
+			/**
 			 * @name Streaming Operators
 			 * Data overloads early-out when the current message level is filtered.
 			 * Level, stream manipulators, Log manipulators and RedactManip are always
@@ -187,6 +202,24 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+			/**
+			 * @brief Apply a configured or explicit content color.
+			 * @param manip Color manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ColorManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Disable color for subsequent content.
+			 * @param manip No-color manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(NoColorManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		protected:
@@ -229,6 +262,16 @@ namespace StormByte::Logger {
 			 * @brief Forward redaction state to the implementation.
 			 */
 			virtual void Write(RedactManip m);
+			/**
+			 * @brief Forward a color manipulator.
+			 * @param manip Color manipulator.
+			 */
+			virtual void Write(ColorManip manip);
+			/**
+			 * @brief Forward a no-color manipulator.
+			 * @param manip No-color manipulator.
+			 */
+			virtual void Write(NoColorManip manip);
 			//@}
 	};
 

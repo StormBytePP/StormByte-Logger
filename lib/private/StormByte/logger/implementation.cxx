@@ -18,12 +18,48 @@
  */
 
 #include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/manipulators.hxx>
 #include <chrono>
 #include <thread>
 using namespace StormByte::Logger;
 namespace {
 	bool IsAlwaysVisible(const Level level) noexcept {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
+	}
+	std::size_t ColorIndex(const Level level) noexcept {
+		return static_cast<std::size_t>(level);
+	}
+	const char* AnsiColor(const StormByte::Logger::Color color) noexcept {
+		switch (color) {
+			case StormByte::Logger::Color::Black: return "\033[30m";
+			case StormByte::Logger::Color::Red: return "\033[31m";
+			case StormByte::Logger::Color::Green: return "\033[32m";
+			case StormByte::Logger::Color::Yellow: return "\033[33m";
+			case StormByte::Logger::Color::Blue: return "\033[34m";
+			case StormByte::Logger::Color::Magenta: return "\033[35m";
+			case StormByte::Logger::Color::Cyan: return "\033[36m";
+			case StormByte::Logger::Color::Gray: return "\033[90m";
+			case StormByte::Logger::Color::White: return "\033[37m";
+			case StormByte::Logger::Color::BrightBlack: return "\033[90m";
+			case StormByte::Logger::Color::BrightRed: return "\033[91m";
+			case StormByte::Logger::Color::BrightGreen: return "\033[92m";
+			case StormByte::Logger::Color::BrightYellow: return "\033[93m";
+			case StormByte::Logger::Color::BrightBlue: return "\033[94m";
+			case StormByte::Logger::Color::BrightMagenta: return "\033[95m";
+			case StormByte::Logger::Color::BrightCyan: return "\033[96m";
+			case StormByte::Logger::Color::BrightWhite: return "\033[97m";
+			case StormByte::Logger::Color::Default: return "";
+		}
+		return "";
+	}
+	bool ManipulatorWritesNewline(std::ostream& (*manip)(std::ostream&)) {
+		try {
+			std::ostringstream probe;
+			manip(probe);
+			return probe.str().find('\n') != std::string::npos;
+		} catch (...) {
+			return false;
+		}
 	}
 }
 std::string Implementation::CurrentTime() const noexcept {
@@ -57,22 +93,62 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_redact_count(0),
 	m_redact_keep_first(false) {
 }
+Implementation::~Implementation() noexcept {
+	reset_color();
+}
+void Implementation::Color(const Level& level, const StormByte::Logger::Color& color) noexcept {
+	if (ColorIndex(level) < m_level_colors.size())
+		m_level_colors[ColorIndex(level)] = color;
+}
+StormByte::Logger::Color Implementation::Color(const Level& level) const noexcept {
+	if (ColorIndex(level) < m_level_colors.size())
+		return m_level_colors[ColorIndex(level)];
+	return StormByte::Logger::Color::Default;
+}
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (m_current_level) {
 		if (level != *m_current_level && (IsAlwaysVisible(*m_current_level) || *m_current_level >= m_print_level) && m_header_displayed) {
+			reset_color();
 			m_out << std::endl;
 			m_header_displayed = false;
 		}
 	}
 	m_current_level = level;
+	m_content_color.reset();
+	m_content_nocolor = false;
 	m_enabled.store(IsAlwaysVisible(level) || level >= m_print_level, std::memory_order_release);
 	return *this;
 }
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	if (m_enabled.load(std::memory_order_acquire)) {
+		if (ManipulatorWritesNewline(manip)) {
+			reset_color();
+			m_out << manip;
+			m_header_displayed = false;
+			m_content_color.reset();
+			m_content_nocolor = false;
+			return *this;
+		}
 		m_out << manip;
-		m_header_displayed = false;
 	}
+	return *this;
+}
+Implementation& Implementation::operator<<(ColorManip manip) noexcept {
+	if (!m_enabled.load(std::memory_order_acquire))
+		return *this;
+	m_content_nocolor = false;
+	m_content_color = manip.value;
+	if (m_header_displayed)
+		sync_content_color();
+	return *this;
+}
+Implementation& Implementation::operator<<(NoColorManip) noexcept {
+	if (!m_enabled.load(std::memory_order_acquire))
+		return *this;
+	m_content_color.reset();
+	m_content_nocolor = true;
+	if (m_header_displayed)
+		sync_content_color();
 	return *this;
 }
 void Implementation::print_time() const noexcept {
@@ -88,9 +164,10 @@ void Implementation::print_level() const noexcept {
 void Implementation::print_thread_id() const noexcept {
 	m_out << std::this_thread::get_id();
 }
-void Implementation::print_header() const noexcept {
+void Implementation::print_header() noexcept {
 	const std::string& fmt = m_format;
 	constexpr std::size_t fixed_width = 8;
+	emit_color(Color(*m_current_level));
 	for (std::size_t i = 0; i < fmt.size(); ++i) {
 		if (fmt[i] == '%' && (i + 1) < fmt.size()) {
 			const char spec = fmt[i + 1];
@@ -125,6 +202,33 @@ void Implementation::print_header() const noexcept {
 		}
 	}
 	m_out.put(' ');
+}
+void Implementation::sync_content_color() noexcept {
+	const auto configured = Color(m_current_level.value_or(m_print_level));
+	if (m_content_nocolor)
+		emit_color(StormByte::Logger::Color::Default);
+	else if (m_content_color)
+		emit_color(*m_content_color);
+	else
+		emit_color(configured);
+}
+void Implementation::emit_color(const StormByte::Logger::Color color) noexcept {
+	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
+		return;
+	if (m_active_color) {
+		m_out << "\033[0m";
+		m_active_color.reset();
+	}
+	if (color != StormByte::Logger::Color::Default) {
+		m_out << AnsiColor(color);
+		m_active_color = color;
+	}
+}
+void Implementation::reset_color() noexcept {
+	if (m_active_color) {
+		m_out << "\033[0m";
+		m_active_color.reset();
+	}
 }
 void Implementation::print_message(const std::string& message) noexcept {
 	if (!m_enabled.load(std::memory_order_acquire))

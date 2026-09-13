@@ -58,6 +58,21 @@ namespace StormByte::Logger {
 			ThreadedLog& operator=(ThreadedLog&&) noexcept = default;
 
 			/**
+			 * @brief Set a level color while holding the line lock.
+			 * @param level Level whose color is changed.
+			 * @param color Color to use for that level.
+			 * @return Reference to this logger.
+			 */
+			Log& Color(const Level& level, const StormByte::Logger::Color& color) override;
+
+			/**
+			 * @brief Get the configured color for a logging level.
+			 * @param level Level whose color is requested.
+			 * @return Configured color.
+			 */
+			StormByte::Logger::Color Color(const Level& level) const override;
+
+			/**
 			 * @name Streaming Operators
 			 * Same contract as Log; data overloads early-out when filtered.
 			 */
@@ -173,6 +188,24 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+			/**
+			 * @brief Apply a configured or explicit content color.
+			 * @param manip Color manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(ColorManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Disable color for subsequent content.
+			 * @param manip No-color manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(NoColorManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		private:
@@ -206,6 +239,16 @@ namespace StormByte::Logger {
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;
 			void Write(RedactManip m) override;
+		/**
+		 * @brief Apply a color manipulator under the line lock.
+		 * @param manip Color manipulator.
+		 */
+		void Write(ColorManip manip) override;
+		/**
+		 * @brief Apply a no-color manipulator under the line lock.
+		 * @param manip No-color manipulator.
+		 */
+		void Write(NoColorManip manip) override;
 			//@}
 	};
 }

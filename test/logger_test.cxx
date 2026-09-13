@@ -185,6 +185,25 @@ int test_escaped_percent_in_format() {
 	}
 	RETURN_TEST("test_escaped_percent_in_format", 0);
 }
+int test_color_manipulators_and_line_reset() {
+	std::ostringstream output;
+	Log log(output, Level::LowLevel, "%L:");
+	log.Color(Level::Notice, Color::Yellow);
+	log << Level::Notice << nocolor << "plain " << color(Color::Green) << "green " << color << "configured" << std::endl;
+	log << Level::Notice << "next" << std::endl;
+	const std::string expected =
+		"\033[33mNotice  : \033[0mplain \033[32mgreen \033[0m\033[33mconfigured\033[0m\n"
+		"\033[33mNotice  : next\033[0m\n";
+	ASSERT_EQUAL("test_color_manipulators_and_line_reset", expected, output.str());
+	RETURN_TEST("test_color_manipulators_and_line_reset", 0);
+}
+int test_default_color_emits_no_ansi() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << color << "plain" << nocolor << " text" << std::endl;
+	ASSERT_EQUAL("test_default_color_emits_no_ansi", "Info    : plain text\n", output.str());
+	RETURN_TEST("test_default_color_emits_no_ansi", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -232,6 +251,8 @@ int main() {
 	result += test_filtered_produces_empty_output();
 	result += test_filtered_then_enabled_message();
 	result += test_escaped_percent_in_format();
+	result += test_color_manipulators_and_line_reset();
+	result += test_default_color_emits_no_ansi();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {
