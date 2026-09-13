@@ -21,7 +21,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
 - **Components** — sticky per-thread `component("name")` and `reset_component`; component-specific color rules can override general level rules.
 - **Groups** — line-scoped `group("name")` labels, cleared by a newline.
 - **Colors** — ANSI colors configured by level or component, with `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
-- **Temporary formats** — nested `push_format("...")` / `pop_format` with an idempotent empty pop.
+- **Formats** — persistent general/component formats plus nested temporary `push_format("...")` / `pop_format` with an idempotent empty pop.
 - **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable` (state sticks until the next one).
 - **Redaction** — text **and** numbers: `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `no_redact`.
 - **ThreadedLog** — one lock per logical line (held until a newline manipulator). Messages below the print floor do not take the lock on payload writes.
@@ -98,7 +98,7 @@ Examples:
 
 `LevelToString(Level)` returns the short name used in `%L` (`"LowLevel"`, `"Debug"`, `"Notice"`, …). The header pads the name to 8 characters.
 
-Payload `operator<<` for values returns immediately when the current message is below the floor. Setting a `Level`, applying a manipulator, or writing `std::endl` is still forwarded so logger state stays consistent.
+Payload `operator<<` for ordinary filtered levels returns immediately below the floor. `Warning`, `Error` and `Fatal` remain enabled. Setting a `Level`, applying a manipulator, or writing `std::endl` is still forwarded so logger state stays consistent.
 
 ## Headers
 
@@ -326,7 +326,7 @@ Other suite modules log through this module. A useful convention is:
 - `LowLevel` — per-packet / per-frame / wait-wake. Sparse-sample if the volume would drown the log.
 - `Debug` — binds, reserves, work `n/min/max`.
 - `Notice` — created, open path, eof, closed. Must stay low-noise.
-- `Info` — job close only (`Transcoder: done`).
+- `Info` — job close or other application-level completion events.
 
 When a shared logger is passed through suite modules, the module can identify
 itself without changing the application's logger instance:
@@ -346,7 +346,7 @@ The application chooses the floor. A user who sets `LowLevel` is asking for nois
 - The line lock is taken when a write that will be printed starts (or when `<< Level` starts a line).
 - The lock is dropped when a stream manipulator that writes a newline is applied (`std::endl`).
 - Filtered payload writes do not take the lock.
-- `<< Level` always updates the current message level. If that level is below the floor, the lock is released immediately after the update.
+- `<< Level` always updates the current message level. If that level is an ordinary filtered level below the floor, the lock is released immediately after the update; Warning, Error and Fatal remain enabled.
 
 `endl` must drop the lock even if another thread just changed the current level. That is required so a filtered `LowLevel` line cannot leave the lock held and stall every other writer.
 
