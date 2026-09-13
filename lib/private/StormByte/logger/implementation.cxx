@@ -181,6 +181,20 @@ Implementation::~Implementation() noexcept {
 	reset_color();
 	reset_line_state();
 }
+std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
+#ifdef _MSC_VER
+	return m_throttle_table.load(std::memory_order_acquire);
+#else
+	return std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+#endif
+}
+void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
+#ifdef _MSC_VER
+	m_throttle_table.store(std::move(table), std::memory_order_release);
+#else
+	std::atomic_store_explicit(&m_throttle_table, std::move(table), std::memory_order_release);
+#endif
+}
 const Level& Implementation::CurrentLevel() const noexcept {
 	return t_level ? *t_level : m_print_level;
 }
@@ -256,7 +270,7 @@ void Implementation::Format(const std::string& component, const std::string& for
 }
 void Implementation::Throttle(const ThrottleSpec& spec) {
 	ValidateThrottle(spec);
-	auto current = std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
 	const auto state = std::make_shared<ThrottleRuleState>();
 	state->finite_credits.store(spec.Burst, std::memory_order_relaxed);
@@ -268,24 +282,24 @@ void Implementation::Throttle(const ThrottleSpec& spec) {
 		next->rules.push_back(rule);
 	else
 		*found = rule;
-	std::atomic_store_explicit(&m_throttle_table, std::shared_ptr<const ThrottleTable>(std::move(next)), std::memory_order_release);
+	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
 void Implementation::NoThrottle(const ThrottleSpec& spec) {
-	auto current = std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
 	next->rules.erase(std::remove_if(next->rules.begin(), next->rules.end(), [&](const ThrottleRule& candidate) {
 		return SameSelectors(candidate.spec, spec);
 	}), next->rules.end());
-	std::atomic_store_explicit(&m_throttle_table, std::shared_ptr<const ThrottleTable>(std::move(next)), std::memory_order_release);
+	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
 void Implementation::NoThrottleAll() noexcept {
-	std::atomic_store_explicit(&m_throttle_table, std::make_shared<const ThrottleTable>(), std::memory_order_release);
+	StoreThrottleTable(std::make_shared<const ThrottleTable>());
 }
 void Implementation::FlushThrottle() {
 	FlushThrottle(ThrottleSpec{});
 }
 void Implementation::FlushThrottle(const ThrottleSpec& filter) {
-	const auto table = std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+	const auto table = LoadThrottleTable();
 	const auto saved = t_line;
 	if (t_line.header_displayed) {
 		reset_color();
@@ -325,7 +339,7 @@ bool Implementation::PrepareLine() {
 	t_line.dropped = 0;
 	if (t_line.level == Level::Error || t_line.level == Level::Fatal)
 		return true;
-	const auto table = std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
+	const auto table = LoadThrottleTable();
 	const ThrottleRule* selected = nullptr;
 	int selected_specificity = -1;
 	for (const auto& rule : table->rules) {
