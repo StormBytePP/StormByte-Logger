@@ -40,6 +40,7 @@ namespace StormByte::Logger {
 	 *
 	 * Owns a shared_ptr to the internal Implementation and exposes operator<<
 	 * overloads similar to std::ostream. Filtered levels early-out without I/O.
+	 * The configured print level does not suppress Warning, Error or Fatal.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Log {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;

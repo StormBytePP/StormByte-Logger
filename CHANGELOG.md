@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on StormByte Base. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i`), human-readable numbers and bytes, and redaction of text and numbers.
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), human-readable numbers and bytes, and redaction of text and numbers.
 
 If you landed here from a release link and have not read the tree:
 
@@ -20,18 +20,19 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- Requires StormByte Base ≥ 1.1.0 (`Component`-tagged exceptions). Logger call sites did not use the old two-string `Exception` form.
-- Hardened `ThreadedLog` coverage for concurrent filtered hot paths, skipped wide-string conversion, and lock recovery after Unicode errors.
-- `Warning`, `Error` and `Fatal` messages are always displayed, regardless of the configured log level.
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 - Added nested `push_format`/`pop_format` manipulators for temporary format changes. `pop_format` is idempotent when its stack is empty.
-- Expanded color and temporary-format tests to cover every ANSI color, filtered side effects, destructor resets, and concurrent line isolation.
 - Added the `group("name")` line manipulator and `%g` header token. Groups are cleared at newline and do not affect formats without `%g`.
 - Added sticky per-thread `component("name")` and `reset_component` with `%c`; component-specific color rules override general level rules without changing legacy behavior when unused.
 - Empty `component("")` now selects the root component without throwing; `reset_component` remains the preferred explicit reset.
-- Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
+- Expanded color, format, group and component tests for filtered paths, resets and concurrent line isolation.
+
+### Changed
+
+- Requires StormByte Base ≥ 1.1.0 (`Component`-tagged exceptions). Logger call sites did not use the old two-string `Exception` form.
+- `Warning`, `Error` and `Fatal` messages are always displayed, regardless of the configured log level; the print floor does not suppress them.
 
 ### Fixed
 

@@ -1,3 +1,5 @@
+			 * @note Warning, Error and Fatal remain enabled even when below the
+			 *       configured print level.
 /*
  * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
  *
@@ -114,6 +116,8 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Whether the current message level will be emitted.
 			 * @return true if the message will be written.
+			 * @note Warning, Error and Fatal remain enabled even when below the
+			 *       configured print level.
 			 */
 			bool Enabled() const noexcept {
 				return m_enabled.load(std::memory_order_acquire);

@@ -51,6 +51,10 @@ namespace StormByte::Logger {
 	/**
 	 * @struct ComponentManip
 	 * @brief Selects the sticky component for the current thread.
+	 *
+	 * The component is thread-local to the calling thread, not tied to a
+	 * particular Log instance. Two Log instances used by one thread therefore
+	 * observe the same component; this is intentional for shared logger use.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC ComponentManip {
 		std::string name; ///< Component name; empty selects the root component.
@@ -68,13 +72,17 @@ namespace StormByte::Logger {
 	/**
 	 * @struct ResetComponentManip
 	 * @brief Clears the component associated with the current thread.
+	 *
+	 * This is the canonical way to return to the root component.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC ResetComponentManip {};
 
 	/**
 	 * @brief Clear the current thread's component.
+	 * @note The reset is thread-local and does not affect other threads.
 	 */
 	inline constexpr STORMBYTE_LOGGER_PUBLIC ResetComponentManip reset_component{};
+	 * @note The reset is thread-local and does not affect other threads.
 
 	/**
 	 * @struct FormatManip

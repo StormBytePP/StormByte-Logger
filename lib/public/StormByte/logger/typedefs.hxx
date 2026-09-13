@@ -60,7 +60,8 @@ namespace StormByte::Logger {
 	 * @brief Severity levels used by the logger.
 	 *
 	 * Ordered from least to most severe. Used both as the print floor
-	 * and as the level of the current message.
+	 * and as the level of the current message. Warning, Error and Fatal
+	 * are always emitted regardless of the configured print floor.
 	 */
 	enum class STORMBYTE_LOGGER_PUBLIC Level : unsigned short {
 		LowLevel = 0,   ///< Verbose diagnostics
