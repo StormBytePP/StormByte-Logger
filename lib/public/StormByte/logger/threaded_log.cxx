@@ -238,6 +238,7 @@ void ThreadedLog::Write(const wchar_t* v) {
 	Log::Write(encoded);
 }
 void ThreadedLog::Write(const Level& level) {
+	claim_line(m_lock);
 	Log::Write(level);
 }
 void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {

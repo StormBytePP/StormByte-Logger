@@ -46,6 +46,7 @@ If you landed here from a release link and have not read the tree:
 - Format changes now reset the active throttle line snapshot after closing an open line.
 - `endl` releases the `ThreadedLog` line lock even if `WillWrite()` changes midway through a line.
 - Wide-string logging converts before acquiring the lock; a Unicode conversion error no longer terminates the logger from an internal `noexcept` path.
+- **ThreadedLog::Write(Level)** — two threads sharing a `ThreadedLog` raced on `Implementation`’s `optional<Color>` (`m_content_color.reset()` at the start of a line). The level token now takes the line lock like other `Write` overloads; payload and `endl` already did.
 
 [1.1.0]: https://github.com/StormBytePP/StormByte-Logger/releases/tag/1.1.0
 
