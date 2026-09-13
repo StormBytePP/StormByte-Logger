@@ -37,6 +37,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Fixed
 
+- Format changes now reset the active throttle line snapshot after closing an open line.
 - `endl` releases the `ThreadedLog` line lock even if `WillWrite()` changes midway through a line.
 - Wide-string logging converts before acquiring the lock; a Unicode conversion error no longer terminates the logger from an internal `noexcept` path.
 

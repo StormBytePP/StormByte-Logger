@@ -226,6 +226,7 @@ void Implementation::Format(const std::string& format) {
 		m_content_color.reset();
 		m_content_nocolor = false;
 		t_group.clear();
+		reset_line_state();
 	}
 	m_format = format;
 }
@@ -241,6 +242,7 @@ void Implementation::Format(const std::string& component, const std::string& for
 		m_content_color.reset();
 		m_content_nocolor = false;
 		t_group.clear();
+		reset_line_state();
 	}
 	if (format.empty())
 		m_component_formats.erase(component);

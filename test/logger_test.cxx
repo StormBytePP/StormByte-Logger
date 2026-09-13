@@ -410,6 +410,16 @@ int test_push_format_overrides_component_and_restores_resolution() {
 	ASSERT_EQUAL("test_push_format_overrides_component_and_restores_resolution", expected, output.str());
 	RETURN_TEST("test_push_format_overrides_component_and_restores_resolution", 0);
 }
+int test_format_change_redecides_throttle_line() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "A[%L]");
+	log.Throttle(0.0, 1);
+	log << Level::Info << "first";
+	log.Format("B[%L]");
+	log << Level::Info << "second" << std::endl;
+	ASSERT_EQUAL("test_format_change_redecides_throttle_line", "A[Info    ] first\n", output.str());
+	RETURN_TEST("test_format_change_redecides_throttle_line", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -663,6 +673,7 @@ int main() {
 	result += test_empty_component_selects_root();
 	result += test_component_format_priority_and_fallback();
 	result += test_push_format_overrides_component_and_restores_resolution();
+	result += test_format_change_redecides_throttle_line();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	result += test_throttle_off_preserves_output();
