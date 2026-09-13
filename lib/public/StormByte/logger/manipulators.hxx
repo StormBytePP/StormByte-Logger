@@ -82,7 +82,6 @@ namespace StormByte::Logger {
 	 * @note The reset is thread-local and does not affect other threads.
 	 */
 	inline constexpr STORMBYTE_LOGGER_PUBLIC ResetComponentManip reset_component{};
-	 * @note The reset is thread-local and does not affect other threads.
 
 	/**
 	 * @struct FormatManip

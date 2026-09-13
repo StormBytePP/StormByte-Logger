@@ -1,5 +1,3 @@
-			 * @note Warning, Error and Fatal remain enabled even when below the
-			 *       configured print level.
 /*
  * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
  *
