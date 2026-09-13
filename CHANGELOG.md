@@ -24,6 +24,7 @@ If you landed here from a release link and have not read the tree:
 
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 - Added nested `push_format`/`pop_format` manipulators for temporary format changes. `pop_format` is idempotent when its stack is empty.
+- Added persistent `Format(component, format)` overrides with precedence below temporary `push_format` and above the general format.
 - Added the `group("name")` line manipulator and `%g` header token. Groups are cleared at newline and do not affect formats without `%g`.
 - Added sticky per-thread `component("name")` and `reset_component` with `%c`; component-specific color rules override general level rules without changing legacy behavior when unused.
 - Empty `component("")` now selects the root component without throwing; `reset_component` remains the preferred explicit reset.

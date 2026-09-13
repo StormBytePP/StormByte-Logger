@@ -11,7 +11,7 @@ This repository is **StormByte Logger**: stream logging for the StormByte C++ su
 
 It depends on [StormByte Base](https://github.com/StormBytePP/StormByte) ≥ 1.1.0. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, components, groups, colors, temporary formats, human-readable numbers and redaction.
 
-The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Multimedia, Network and System are **other repositories**. This one does not implement them.
+The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network and System are **other repositories**. This one does not implement them.
 
 ## What this module does
 
@@ -37,7 +37,6 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Multimedi
 | [Crypto](https://github.com/StormBytePP/StormByte-Crypto) | Hash, compress, encrypt, sign and key agreement — Crypto++ never leaves the private tree | [/StormByte-Crypto](https://dev.stormbyte.org/StormByte-Crypto) |
 | [Database](https://github.com/StormBytePP/StormByte-Database) | One API over SQLite, PostgreSQL and MariaDB | [/StormByte-Database](https://dev.stormbyte.org/StormByte-Database) |
 | **Logger** | This repository | [/StormByte-Logger](https://dev.stormbyte.org/StormByte-Logger) |
-| [Multimedia](https://github.com/StormBytePP/StormByte-Multimedia) | Decode, encode and containers without raw FFmpeg types; codecs enabled only if present | [/StormByte-Multimedia](https://dev.stormbyte.org/StormByte-Multimedia) |
 | [Network](https://github.com/StormBytePP/StormByte-Network) | Framed packets, Client/Server, IPv4/IPv6 TCP and Buffer pipelines (compress/encrypt) | [/StormByte-Network](https://dev.stormbyte.org/StormByte-Network) |
 | [System](https://github.com/StormBytePP/StormByte-System) | Processes, pipes and environment variables across Linux, Windows and macOS | [/StormByte-System](https://dev.stormbyte.org/StormByte-System) |
 
@@ -68,7 +67,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Multimedi
 - This README: how to build, levels, headers, streaming contract, examples.
 - Doxygen class reference (headers under `StormByte/logger/`): [https://dev.stormbyte.org/StormByte-Logger/](https://dev.stormbyte.org/StormByte-Logger/).
 
-Other modules that take a `std::shared_ptr<StormByte::Logger::Log>` (Multimedia pipeline steps, FFmpeg filter writers) should point here rather than re-document the logger. The print floor is chosen by the **application**, not by the library that logs.
+Other modules that take a `std::shared_ptr<StormByte::Logger::Log>` should point here rather than re-document the logger. The print floor is chosen by the **application**, not by the library that logs.
 
 ## Levels
 
@@ -85,7 +84,7 @@ Order is **least severe → most severe** (this is not syslog):
 | `Debug` | 1 | Useful but quieter: binds, reserves, work summaries, codec open. |
 | `Warning` | 2 | Recoverable problems that did not fail the job. |
 | `Notice` | 3 | Significant *normal* events: created, opened path, eof, closed. Keep this quiet. |
-| `Info` | 4 | Job-level information (for example Multimedia `Transcoder: done`). |
+| `Info` | 4 | Job-level information, such as a completed operation. |
 | `Error` | 5 | Error conditions. |
 | `Fatal` | 6 | Unrecoverable errors. |
 
@@ -237,9 +236,9 @@ component is active:
 
 ```cpp
 log.Color(Level::Warning, Color::Yellow);                         // general rule
-log.Color("Multimedia", Level::Warning, Color::BrightYellow);     // component override
+log.Color("Media", Level::Warning, Color::BrightYellow);          // component override
 
-log << component("Multimedia") << Level::Warning << "recoverable" << std::endl;
+log << component("Media") << Level::Warning << "recoverable" << std::endl;
 log << reset_component << Level::Warning << "general warning" << std::endl;
 ```
 
@@ -277,6 +276,21 @@ log << pop_format << Level::Info << "back to the original format" << std::endl;
 Changing the format while a line is active closes that line before the new
 format is used.
 
+Formats can also be configured persistently per component:
+
+```cpp
+log.Format("[%L] %T");                         // general format
+log.Format("Media", "[%L] %T %c %g");         // component override
+
+log << component("Media") << Level::Info << "component format" << std::endl;
+log << reset_component << Level::Info << "general format" << std::endl;
+```
+
+The effective precedence is `push_format` first, then the active component's
+format, then the general format. `Format("Component", "")` removes that
+component override. Persistent component formats are configuration; establish
+them before starting concurrent writers.
+
 ### Groups and components
 
 `group("name")` labels one line and is rendered by `%g`. A newline clears the
@@ -293,10 +307,10 @@ object, so two `Log` instances used by one thread observe the same component.
 ```cpp
 auto log = std::make_shared<ThreadedLog>(std::cout, Level::Notice, "[%L] %c %g");
 
-*log << component("Multimedia")
+*log << component("Media")
    << group("Decoder")
    << Level::Notice << "open" << std::endl;
-*log << Level::Info << "still Multimedia" << std::endl;
+*log << Level::Info << "still in the same component" << std::endl;
 *log << reset_component << Level::Info << "back at root" << std::endl;
 ```
 
@@ -306,9 +320,9 @@ component.
 
 ### Use from other suite modules
 
-Multimedia (and any FFmpeg filter linked against it) logs through this module. Convention used there:
+Other suite modules log through this module. A useful convention is:
 
-- Prefix the payload with a module tag, then the producer: `STMM Encoder(libx265): finish`.
+- Prefix the payload with a module tag, then the producer when the application needs that distinction.
 - `LowLevel` — per-packet / per-frame / wait-wake. Sparse-sample if the volume would drown the log.
 - `Debug` — binds, reserves, work `n/min/max`.
 - `Notice` — created, open path, eof, closed. Must stay low-noise.
@@ -318,7 +332,7 @@ When a shared logger is passed through suite modules, the module can identify
 itself without changing the application's logger instance:
 
 ```cpp
-*log << component("Multimedia")
+*log << component("Media")
   << group("Decoder")
   << Level::Notice << "open" << std::endl;
 ```

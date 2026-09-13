@@ -63,6 +63,20 @@ Log& Log::Color(const std::string& component, const Level& level, const StormByt
 StormByte::Logger::Color Log::Color(const std::string& component, const Level& level) const {
 	return m_impl->Color(component, level);
 }
+Log& Log::Format(const std::string& format) {
+	m_impl->Format(format);
+	return *this;
+}
+const std::string& Log::Format() const {
+	return m_impl->Format();
+}
+Log& Log::Format(const std::string& component, const std::string& format) {
+	m_impl->Format(component, format);
+	return *this;
+}
+const std::string& Log::Format(const std::string& component) const {
+	return static_cast<const Implementation&>(*m_impl).Format(component);
+}
 void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
 void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }

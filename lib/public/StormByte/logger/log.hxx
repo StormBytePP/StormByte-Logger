@@ -101,6 +101,34 @@ namespace StormByte::Logger {
 			virtual StormByte::Logger::Color Color(const std::string& component, const Level& level) const;
 
 			/**
+			 * @brief Set the general header format.
+			 * @param format Format used by default.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& Format(const std::string& format);
+
+			/**
+			 * @brief Get the effective current header format.
+			 * @return Temporary, component-specific or general format.
+			 */
+			virtual const std::string& Format() const;
+
+			/**
+			 * @brief Set or remove a component-specific header format.
+			 * @param component Component name; empty selects the general format.
+			 * @param format Format, or empty to remove the override.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& Format(const std::string& component, const std::string& format);
+
+			/**
+			 * @brief Get a component-specific format, falling back to the general format.
+			 * @param component Component name.
+			 * @return Component format or general format.
+			 */
+			virtual const std::string& Format(const std::string& component) const;
+
+			/**
 			 * @name Streaming Operators
 			 * Data overloads early-out when the current message level is filtered.
 			 * Level, stream manipulators, Log manipulators and RedactManip are always

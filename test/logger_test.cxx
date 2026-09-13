@@ -376,6 +376,38 @@ int test_empty_component_selects_root() {
 	ASSERT_EQUAL("test_empty_component_selects_root", "Multimedia[Info    ] named\n[Info    ] root\n", output.str());
 	RETURN_TEST("test_empty_component_selects_root", 0);
 }
+int test_component_format_priority_and_fallback() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "GENERAL[%L]");
+	log.Format("Media", "MEDIA[%L]");
+	log << component("Media") << Level::Info << "media" << std::endl;
+	log << component("Other") << Level::Info << "fallback" << std::endl;
+	log.Format("Media", "");
+	log << component("Media") << Level::Info << "general again" << std::endl;
+	const std::string expected =
+		"MEDIA[Info    ] media\n"
+		"GENERAL[Info    ] fallback\n"
+		"GENERAL[Info    ] general again\n";
+	ASSERT_EQUAL("test_component_format_priority_and_fallback", expected, output.str());
+	RETURN_TEST("test_component_format_priority_and_fallback", 0);
+}
+int test_push_format_overrides_component_and_restores_resolution() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "GENERAL[%L]");
+	log.Format("Media", "MEDIA[%L]");
+	log << component("Media") << push_format("TEMP[%L]") << Level::Info << "temporary" << std::endl;
+	log << pop_format << Level::Info << "component again" << std::endl;
+	log << component("Other") << push_format("TEMP[%L]") << Level::Info << "other temporary" << std::endl;
+	log << pop_format;
+	log << component("Media") << Level::Info << "media after component switch" << std::endl;
+	const std::string expected =
+		"TEMP[Info    ] temporary\n"
+		"MEDIA[Info    ] component again\n"
+		"TEMP[Info    ] other temporary\n"
+		"MEDIA[Info    ] media after component switch\n";
+	ASSERT_EQUAL("test_push_format_overrides_component_and_restores_resolution", expected, output.str());
+	RETURN_TEST("test_push_format_overrides_component_and_restores_resolution", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -440,6 +472,8 @@ int main() {
 	result += test_component_without_token_preserves_legacy_output();
 	result += test_component_color_override_has_priority();
 	result += test_empty_component_selects_root();
+	result += test_component_format_priority_and_fallback();
+	result += test_push_format_overrides_component_and_restores_resolution();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {

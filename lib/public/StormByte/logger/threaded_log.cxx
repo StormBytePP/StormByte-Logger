@@ -67,6 +67,38 @@ Log& ThreadedLog::Color(const std::string& component, const Level& level, const 
 StormByte::Logger::Color ThreadedLog::Color(const std::string& component, const Level& level) const {
 	return Log::Color(component, level);
 }
+Log& ThreadedLog::Format(const std::string& format) {
+	const bool already_held = t_line_held;
+	claim_line(m_lock);
+	try {
+		Log::Format(format);
+	} catch (...) {
+		release_line(m_lock);
+		throw;
+	}
+	if (!already_held)
+		release_line(m_lock);
+	return *this;
+}
+const std::string& ThreadedLog::Format() const {
+	return Log::Format();
+}
+Log& ThreadedLog::Format(const std::string& component, const std::string& format) {
+	const bool already_held = t_line_held;
+	claim_line(m_lock);
+	try {
+		Log::Format(component, format);
+	} catch (...) {
+		release_line(m_lock);
+		throw;
+	}
+	if (!already_held)
+		release_line(m_lock);
+	return *this;
+}
+const std::string& ThreadedLog::Format(const std::string& component) const {
+	return Log::Format(component);
+}
 void ThreadedLog::Write(bool v) {
 	if (!WillWrite()) return;
 	claim_line(m_lock);

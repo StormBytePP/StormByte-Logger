@@ -117,6 +117,50 @@ StormByte::Logger::Color Implementation::Color(const std::string& component, con
 		return found->second[ColorIndex(level)];
 	return Color(level);
 }
+const std::string& Implementation::effective_format() const noexcept {
+	if (!m_format_stack.empty())
+		return m_format_stack.back();
+	if (const auto found = m_component_formats.find(t_component); found != m_component_formats.end())
+		return found->second;
+	return m_format;
+}
+const std::string& Implementation::Format() const noexcept {
+	return effective_format();
+}
+const std::string& Implementation::Format(const std::string& component) const noexcept {
+	if (const auto found = m_component_formats.find(component); found != m_component_formats.end())
+		return found->second;
+	return m_format;
+}
+void Implementation::Format(const std::string& format) {
+	if (m_header_displayed) {
+		reset_color();
+		m_out << std::endl;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+		m_group.clear();
+	}
+	m_format = format;
+}
+void Implementation::Format(const std::string& component, const std::string& format) {
+	if (component.empty()) {
+		Format(format);
+		return;
+	}
+	if (m_header_displayed) {
+		reset_color();
+		m_out << std::endl;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+		m_group.clear();
+	}
+	if (format.empty())
+		m_component_formats.erase(component);
+	else
+		m_component_formats[component] = format;
+}
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (m_current_level) {
 		if (level != *m_current_level && (IsAlwaysVisible(*m_current_level) || *m_current_level >= m_print_level) && m_header_displayed) {
@@ -175,8 +219,7 @@ Implementation& Implementation::operator<<(FormatManip manip) {
 		m_content_nocolor = false;
 		m_group.clear();
 	}
-	m_format_stack.push_back(m_format);
-	m_format = std::move(manip.format);
+	m_format_stack.push_back(std::move(manip.format));
 	return *this;
 }
 Implementation& Implementation::operator<<(PopFormatManip) noexcept {
@@ -190,7 +233,6 @@ Implementation& Implementation::operator<<(PopFormatManip) noexcept {
 		m_content_nocolor = false;
 		m_group.clear();
 	}
-	m_format = std::move(m_format_stack.back());
 	m_format_stack.pop_back();
 	return *this;
 }
@@ -227,7 +269,7 @@ void Implementation::print_thread_id() const noexcept {
 	m_out << std::this_thread::get_id();
 }
 void Implementation::print_header() noexcept {
-	const std::string& fmt = m_format;
+	const std::string& fmt = effective_format();
 	constexpr std::size_t fixed_width = 8;
 	emit_color(Color(t_component, *m_current_level));
 	for (std::size_t i = 0; i < fmt.size(); ++i) {

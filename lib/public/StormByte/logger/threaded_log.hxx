@@ -86,6 +86,30 @@ namespace StormByte::Logger {
 			 * @return Component override or general color.
 			 */
 			StormByte::Logger::Color Color(const std::string& component, const Level& level) const override;
+			/**
+			 * @brief Set the general header format under the line lock.
+			 * @param format Format used by default.
+			 * @return Reference to this logger.
+			 */
+			Log& Format(const std::string& format) override;
+			/**
+			 * @brief Get the effective current header format.
+			 * @return Temporary, component-specific or general format.
+			 */
+			const std::string& Format() const override;
+			/**
+			 * @brief Set or remove a component-specific header format under the line lock.
+			 * @param component Component name.
+			 * @param format Format, or empty to remove the override.
+			 * @return Reference to this logger.
+			 */
+			Log& Format(const std::string& component, const std::string& format) override;
+			/**
+			 * @brief Get a component-specific format, falling back to the general format.
+			 * @param component Component name.
+			 * @return Component format or general format.
+			 */
+			const std::string& Format(const std::string& component) const override;
 
 			/**
 			 * @name Streaming Operators

@@ -388,6 +388,35 @@ int test_threadedlog_component_does_not_hold_line_lock() {
 	ASSERT_EQUAL("test_threadedlog_component_does_not_hold_line_lock", "Filtered[Info    ] visible\n", output.str());
 	RETURN_TEST("test_threadedlog_component_does_not_hold_line_lock", 0);
 }
+int test_threadedlog_component_formats_do_not_mix() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "GENERAL[%L]");
+	tlog.Format("A", "A[%L]");
+	tlog.Format("B", "B[%L]");
+	constexpr int threads = 2;
+	constexpr int repeats = 100;
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) {
+		pool.emplace_back([&, id] {
+			const std::string name(1, static_cast<char>('A' + id));
+			tlog << component(name);
+			for (int i = 0; i < repeats; ++i)
+				tlog << Level::Info << "message" << std::endl;
+		});
+	}
+	for (auto& thread : pool) thread.join();
+	std::istringstream input(output.str());
+	std::string line;
+	int count = 0;
+	while (std::getline(input, line)) {
+		ASSERT_TRUE("test_threadedlog_component_formats_do_not_mix (line)",
+			std::regex_match(line, std::regex("^[AB]\\[Info    \\] message$")));
+		++count;
+	}
+	ASSERT_EQUAL("test_threadedlog_component_formats_do_not_mix (count)", threads * repeats, count);
+	RETURN_TEST("test_threadedlog_component_formats_do_not_mix", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -408,6 +437,7 @@ int main() {
 	result += test_threadedlog_filtered_group_releases_lock();
 	result += test_threadedlog_components_are_thread_local();
 	result += test_threadedlog_component_does_not_hold_line_lock();
+	result += test_threadedlog_component_formats_do_not_mix();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

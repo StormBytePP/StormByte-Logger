@@ -164,6 +164,32 @@ namespace StormByte::Logger {
 			StormByte::Logger::Color Color(const std::string& component, const Level& level) const noexcept;
 
 			/**
+			 * @brief Set the general header format.
+			 * @param format Format used when no component or temporary override applies.
+			 */
+			void Format(const std::string& format);
+
+			/**
+			 * @brief Get the effective current header format.
+			 * @return Temporary, component-specific or general format.
+			 */
+			const std::string& Format() const noexcept;
+
+			/**
+			 * @brief Set or remove a component-specific header format.
+			 * @param component Component name; empty selects the general format.
+			 * @param format Format, or empty to remove the component override.
+			 */
+			void Format(const std::string& component, const std::string& format);
+
+			/**
+			 * @brief Get a component-specific format, falling back to the general format.
+			 * @param component Component name.
+			 * @return Component format or general format.
+			 */
+			const std::string& Format(const std::string& component) const noexcept;
+
+			/**
 			 * @brief Set the current logging level.
 			 * @param level New Level for subsequent messages.
 			 * @return Reference to this Implementation.
@@ -290,7 +316,8 @@ namespace StormByte::Logger {
 			std::atomic<bool> m_enabled;                              ///< Whether the current level is enabled
 			bool m_header_displayed;                                  ///< Whether the header has already been written
 			std::string m_format;                                     ///< Header format string
-			std::vector<std::string> m_format_stack;                  ///< Saved formats for push/pop
+			std::vector<std::string> m_format_stack;                  ///< Temporary formats for push/pop
+			std::unordered_map<std::string, std::string> m_component_formats; ///< Persistent component formats
 			std::string m_group;                                      ///< Producer group for the current line
 			String::Format m_human_readable_format;                   ///< Current human-readable format
 			bool m_redact_active;                                     ///< When true, text and numbers are redacted
@@ -399,6 +426,12 @@ namespace StormByte::Logger {
 			 * @brief Reset any ANSI color currently emitted to the stream.
 			 */
 			void reset_color() noexcept;
+
+			/**
+			 * @brief Resolve the format selected by the current component and stack.
+			 * @return Effective header format.
+			 */
+			const std::string& effective_format() const noexcept;
 
 			/**
 			 * @brief Helper to print an arithmetic value (with optional human-readable formatting).
