@@ -20,12 +20,16 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Changed
+
+- Requires StormByte Base ≥ 1.1.0 (`Component`-tagged exceptions). Logger call sites did not use the old two-string `Exception` form.
+
 ### Fixed
 
 - `ThreadedLog`: `endl` always drops the line lock, even if a concurrent
   `operator<<(Level)` flipped `WillWrite()` mid-line. Without this, a
   filtered `LowLevel` write could leave the lock held and stall every
-  other thread (seen in StormByte-Multimedia at `Remuxer: created`).
+  other thread.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.0.0...HEAD
 
