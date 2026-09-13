@@ -151,7 +151,7 @@ std::string Implementation::CurrentTime() const noexcept {
 		auto now = std::chrono::system_clock::now();
 		std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
 		struct tm timeinfo{};
-#ifdef WINDOWS
+#if defined(WINDOWS) || defined(__GLIBCXX__)
 		localtime_s(&timeinfo, &rawtime);
 #elifdef UNIX
 		localtime_r(&rawtime, &timeinfo);
@@ -182,7 +182,7 @@ Implementation::~Implementation() noexcept {
 	reset_line_state();
 }
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
-#ifdef WINDOWS
+#if defined(WINDOWS) || defined(__GLIBCXX__)
 	return m_throttle_table.load(std::memory_order_acquire);
 #else
 	return std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
