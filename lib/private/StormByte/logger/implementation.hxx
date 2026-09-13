@@ -41,6 +41,7 @@ namespace StormByte::Logger {
 	struct NoColorManip;
 	struct FormatManip;
 	struct PopFormatManip;
+	struct GroupManip;
 
 	/**
 	 * @class Implementation
@@ -60,7 +61,7 @@ namespace StormByte::Logger {
 			 * @brief Construct the internal logger implementation.
 			 * @param out Output stream to write log messages to.
 			 * @param level Initial minimum Level that will be emitted.
-			 * @param format Header format string (%L, %T, %i, %%).
+			 * @param format Header format string (%L, %T, %i, %g, %%).
 			 */
 			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -184,6 +185,13 @@ namespace StormByte::Logger {
 			Implementation& operator<<(PopFormatManip manip) noexcept;
 
 			/**
+			 * @brief Set the producer group for the current line.
+			 * @param manip Group manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(GroupManip manip);
+
+			/**
 			 * @brief Apply an Implementation-specific manipulator.
 			 * @param manip Manipulator function.
 			 * @return Reference to this Implementation.
@@ -241,21 +249,22 @@ namespace StormByte::Logger {
 			}
 
 		private:
-			std::ostream& m_out;					///< Output stream
-			Level m_print_level; 					///< Minimum level that will be printed
-			std::optional<Level> m_current_level; 	///< Level of the current message
-			std::atomic<bool> m_enabled; 			///< Whether the current level is enabled
-			bool m_header_displayed; 				///< Whether the header has already been written
-			std::string m_format; 			///< Header format string
-			std::vector<std::string> m_format_stack; ///< Saved formats for push/pop
-			String::Format m_human_readable_format; ///< Current human-readable format
-			bool m_redact_active; 					///< When true, text and numbers are redacted
-			std::size_t m_redact_count; 			///< 0 = all '*'; N = keep N chars
-			bool m_redact_keep_first; 				///< true = keep first N, false = keep last N
+			std::ostream& m_out;                                      ///< Output stream
+			Level m_print_level;                                      ///< Minimum level that will be printed
+			std::optional<Level> m_current_level;                     ///< Level of the current message
+			std::atomic<bool> m_enabled;                              ///< Whether the current level is enabled
+			bool m_header_displayed;                                  ///< Whether the header has already been written
+			std::string m_format;                                     ///< Header format string
+			std::vector<std::string> m_format_stack;                  ///< Saved formats for push/pop
+			std::string m_group;                                      ///< Producer group for the current line
+			String::Format m_human_readable_format;                   ///< Current human-readable format
+			bool m_redact_active;                                     ///< When true, text and numbers are redacted
+			std::size_t m_redact_count;                               ///< 0 = all '*'; N = keep N chars
+			bool m_redact_keep_first;                                 ///< true = keep first N, false = keep last N
 			std::array<StormByte::Logger::Color, 7> m_level_colors{}; ///< Configured color per level
-			std::optional<StormByte::Logger::Color> m_content_color; ///< Temporary content color override
-			bool m_content_nocolor = false; ///< Whether content color is suppressed
-			std::optional<StormByte::Logger::Color> m_active_color; ///< Color currently emitted to the stream
+			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
+			bool m_content_nocolor = false;                           ///< Whether content color is suppressed
+			std::optional<StormByte::Logger::Color> m_active_color;   ///< Color currently emitted to the stream
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.

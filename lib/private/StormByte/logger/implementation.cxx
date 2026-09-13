@@ -112,6 +112,7 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 			reset_color();
 			m_out << std::endl;
 			m_header_displayed = false;
+			m_group.clear();
 		}
 	}
 	m_current_level = level;
@@ -121,17 +122,19 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 	return *this;
 }
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
-	if (m_enabled.load(std::memory_order_acquire)) {
-		if (ManipulatorWritesNewline(manip)) {
+	if (ManipulatorWritesNewline(manip)) {
+		if (m_enabled.load(std::memory_order_acquire)) {
 			reset_color();
 			m_out << manip;
-			m_header_displayed = false;
-			m_content_color.reset();
-			m_content_nocolor = false;
-			return *this;
 		}
-		m_out << manip;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+		m_group.clear();
+		return *this;
 	}
+	if (m_enabled.load(std::memory_order_acquire))
+		m_out << manip;
 	return *this;
 }
 Implementation& Implementation::operator<<(ColorManip manip) noexcept {
@@ -159,6 +162,7 @@ Implementation& Implementation::operator<<(FormatManip manip) {
 		m_header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
+		m_group.clear();
 	}
 	m_format_stack.push_back(m_format);
 	m_format = std::move(manip.format);
@@ -173,9 +177,21 @@ Implementation& Implementation::operator<<(PopFormatManip) noexcept {
 		m_header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
+		m_group.clear();
 	}
 	m_format = std::move(m_format_stack.back());
 	m_format_stack.pop_back();
+	return *this;
+}
+Implementation& Implementation::operator<<(GroupManip manip) {
+	if (m_header_displayed) {
+		reset_color();
+		m_out << std::endl;
+		m_header_displayed = false;
+		m_content_color.reset();
+		m_content_nocolor = false;
+	}
+	m_group = std::move(manip.name);
 	return *this;
 }
 void Implementation::print_time() const noexcept {
@@ -218,6 +234,10 @@ void Implementation::print_header() noexcept {
 					break;
 				case 'i':
 					print_thread_id();
+					++i;
+					break;
+				case 'g':
+					m_out << m_group;
 					++i;
 					break;
 				default:

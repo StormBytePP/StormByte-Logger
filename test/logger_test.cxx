@@ -300,6 +300,46 @@ int test_push_format_empty_and_partial_line_reset() {
 	ASSERT_EQUAL("test_push_format_empty_and_partial_line_reset", expected, output.str());
 	RETURN_TEST("test_push_format_empty_and_partial_line_reset", 0);
 }
+int test_group_header_and_line_reset() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:%g");
+	log << group("Decoder") << Level::Info << "open" << std::endl;
+	log << Level::Info << "plain" << std::endl;
+	ASSERT_EQUAL("test_group_header_and_line_reset", "Info    :Decoder open\nInfo    : plain\n", output.str());
+	RETURN_TEST("test_group_header_and_line_reset", 0);
+}
+int test_group_without_token_and_empty_group() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << group("Decoder") << Level::Info << "open" << std::endl;
+	log << group("") << Level::Info << "plain" << std::endl;
+	ASSERT_EQUAL("test_group_without_token_and_empty_group", "Info    : open\nInfo    : plain\n", output.str());
+	RETURN_TEST("test_group_without_token_and_empty_group", 0);
+}
+int test_group_change_closes_partial_line() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:%g");
+	log << group("Decoder") << Level::Info << "before";
+	log << group("Encoder") << "after" << std::endl;
+	ASSERT_EQUAL("test_group_change_closes_partial_line", "Info    :Decoder before\nInfo    :Encoder after\n", output.str());
+	RETURN_TEST("test_group_change_closes_partial_line", 0);
+}
+int test_filtered_group_has_no_side_effects() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:%g");
+	log << group("Hidden") << Level::Debug << "hidden" << std::endl;
+	log << Level::Info << "visible" << std::endl;
+	ASSERT_EQUAL("test_filtered_group_has_no_side_effects", "Info    : visible\n", output.str());
+	RETURN_TEST("test_filtered_group_has_no_side_effects", 0);
+}
+int test_group_and_color_share_the_header() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:%g");
+	log.Color(Level::Info, Color::Yellow);
+	log << group("Decoder") << Level::Info << "open" << std::endl;
+	ASSERT_EQUAL("test_group_and_color_share_the_header", "\033[33mInfo    :Decoder open\033[0m\n", output.str());
+	RETURN_TEST("test_group_and_color_share_the_header", 0);
+}
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
 	const char* current_locale = std::setlocale(LC_ALL, nullptr);
@@ -355,6 +395,11 @@ int main() {
 	result += test_colored_logger_destructor_resets_stream();
 	result += test_push_pop_format_stack();
 	result += test_push_format_empty_and_partial_line_reset();
+	result += test_group_header_and_line_reset();
+	result += test_group_without_token_and_empty_group();
+	result += test_group_change_closes_partial_line();
+	result += test_filtered_group_has_no_side_effects();
+	result += test_group_and_color_share_the_header();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
 	if (result == 0) {

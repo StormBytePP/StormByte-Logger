@@ -221,3 +221,14 @@ void ThreadedLog::Write(PopFormatManip m) {
 	if (!already_held)
 		release_line(m_lock);
 }
+void ThreadedLog::Write(GroupManip m) {
+	claim_line(m_lock);
+	try {
+		Log::Write(std::move(m));
+	} catch (...) {
+		release_line(m_lock);
+		throw;
+	}
+	if (!WillWrite())
+		release_line(m_lock);
+}

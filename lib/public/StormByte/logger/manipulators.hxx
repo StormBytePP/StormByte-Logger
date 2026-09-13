@@ -34,6 +34,21 @@ namespace StormByte::Logger {
 	class Log;
 
 	/**
+	 * @struct GroupManip
+	 * @brief Labels the current logging line with a producer group.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC GroupManip {
+		std::string name; ///< Group name; an empty name clears the current group.
+	};
+
+	/**
+	 * @brief Set the producer group for the current line.
+	 * @param name Group name, or an empty string to clear the group.
+	 * @return Group manipulator carrying the requested name.
+	 */
+	STORMBYTE_LOGGER_PUBLIC GroupManip group(std::string name);
+
+	/**
 	 * @struct FormatManip
 	 * @brief Temporarily replaces the logger format and saves the previous one.
 	 */
@@ -111,8 +126,8 @@ namespace StormByte::Logger {
 	 * @endcode
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC RedactManip {
-		std::size_t count = 0;		///< 0 = mask all; N = keep N characters
-		bool keep_first = false;	///< true = keep first N, false = keep last N
+		std::size_t count = 0;     ///< 0 = mask all; N = keep N characters
+		bool keep_first = false;   ///< true = keep first N, false = keep last N characters
 
 		/**
 		 * @brief Build a manipulator that keeps the last @p n characters visible.

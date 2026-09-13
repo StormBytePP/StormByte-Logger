@@ -321,6 +321,39 @@ int test_threadedlog_push_pop_format_is_line_safe() {
 		output.str().ends_with("BASE[Info    ] after empty pop\n"));
 	RETURN_TEST("test_threadedlog_push_pop_format_is_line_safe", 0);
 }
+int test_threadedlog_groups_do_not_mix() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%g[%L]");
+	constexpr int threads = 4;
+	constexpr int repeats = 200;
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) {
+		pool.emplace_back([&, id] {
+			for (int i = 0; i < repeats; ++i)
+				tlog << group("G" + std::to_string(id)) << Level::Info << "message" << std::endl;
+		});
+	}
+	for (auto& thread : pool) thread.join();
+	std::istringstream input(output.str());
+	std::string line;
+	int count = 0;
+	while (std::getline(input, line)) {
+		ASSERT_TRUE("test_threadedlog_groups_do_not_mix (line)",
+			std::regex_match(line, std::regex("^G[0-3]\\[Info    \\] message$")));
+		++count;
+	}
+	ASSERT_EQUAL("test_threadedlog_groups_do_not_mix (count)", threads * repeats, count);
+	RETURN_TEST("test_threadedlog_groups_do_not_mix", 0);
+}
+int test_threadedlog_filtered_group_releases_lock() {
+	std::ostringstream output;
+	ThreadedLog tlog(output, Level::Info, "%g[%L]");
+	tlog << group("Hidden") << Level::Debug << "hidden" << std::endl;
+	tlog << Level::Info << "visible" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_filtered_group_releases_lock", "[Info    ] visible\n", output.str());
+	RETURN_TEST("test_threadedlog_filtered_group_releases_lock", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -337,6 +370,8 @@ int main() {
 	result += test_threadedlog_filtered_hot_path();
 	result += test_threadedlog_colored_lines_do_not_mix();
 	result += test_threadedlog_push_pop_format_is_line_safe();
+	result += test_threadedlog_groups_do_not_mix();
+	result += test_threadedlog_filtered_group_releases_lock();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

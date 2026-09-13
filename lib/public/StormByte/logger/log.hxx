@@ -52,7 +52,7 @@ namespace StormByte::Logger {
 			 * @brief Construct a Log writing to @p out.
 			 * @param out Output stream (e.g. std::cout).
 			 * @param level Minimum Level that will be emitted.
-			 * @param format Header format: %L level, %T timestamp, %i thread id, %% literal %.
+			 * @param format Header format: %L level, %T timestamp, %i thread id, %g group, %% literal %.
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -239,6 +239,15 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Set the producer group for the current line.
+			 * @param manip Group manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(GroupManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		protected:
@@ -301,6 +310,11 @@ namespace StormByte::Logger {
 			 * @param manip Pop-format manipulator.
 			 */
 			virtual void Write(PopFormatManip manip);
+			/**
+			 * @brief Forward a group manipulator.
+			 * @param manip Group manipulator.
+			 */
+			virtual void Write(GroupManip manip);
 			//@}
 	};
 

@@ -42,7 +42,7 @@ namespace StormByte::Logger {
 			 * @brief Construct a ThreadedLog writing to @p out.
 			 * @param out Output stream.
 			 * @param level Minimum Level that will be emitted.
-			 * @param format Header format string (%L, %T, %i).
+			 * @param format Header format string (%L, %T, %i, %g).
 			 */
 			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
@@ -224,6 +224,15 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Set the producer group for the current line under the line lock.
+			 * @param manip Group manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(GroupManip manip) {
+				Write(manip);
+				return *this;
+			}
 			//@}
 
 		private:
@@ -257,26 +266,31 @@ namespace StormByte::Logger {
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;
 			void Write(RedactManip m) override;
-		/**
-		 * @brief Apply a color manipulator under the line lock.
-		 * @param manip Color manipulator.
-		 */
-		void Write(ColorManip manip) override;
-		/**
-		 * @brief Apply a no-color manipulator under the line lock.
-		 * @param manip No-color manipulator.
-		 */
-		void Write(NoColorManip manip) override;
-		/**
-		 * @brief Apply a push-format manipulator under the line lock.
-		 * @param manip Format manipulator.
-		 */
-		void Write(FormatManip manip) override;
-		/**
-		 * @brief Apply a pop-format manipulator under the line lock.
-		 * @param manip Pop-format manipulator.
-		 */
-		void Write(PopFormatManip manip) override;
+			/**
+			 * @brief Apply a color manipulator under the line lock.
+			 * @param manip Color manipulator.
+			 */
+			void Write(ColorManip manip) override;
+			/**
+			 * @brief Apply a no-color manipulator under the line lock.
+			 * @param manip No-color manipulator.
+			 */
+			void Write(NoColorManip manip) override;
+			/**
+			 * @brief Apply a push-format manipulator under the line lock.
+			 * @param manip Format manipulator.
+			 */
+			void Write(FormatManip manip) override;
+			/**
+			 * @brief Apply a pop-format manipulator under the line lock.
+			 * @param manip Pop-format manipulator.
+			 */
+			void Write(PopFormatManip manip) override;
+			/**
+			 * @brief Apply a group manipulator under the line lock.
+			 * @param manip Group manipulator.
+			 */
+			void Write(GroupManip manip) override;
 			//@}
 	};
 }

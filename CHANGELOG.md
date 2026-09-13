@@ -28,6 +28,7 @@ If you landed here from a release link and have not read the tree:
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 - Added nested `push_format`/`pop_format` manipulators for temporary format changes. `pop_format` is idempotent when its stack is empty.
 - Expanded color and temporary-format tests to cover every ANSI color, filtered side effects, destructor resets, and concurrent line isolation.
+- Added the `group("name")` line manipulator and `%g` header token. Groups are cleared at newline and do not affect formats without `%g`.
 - Added configurable ANSI colors by level and temporary `color`/`nocolor` content manipulators. Color output is disabled by default.
 
 ### Fixed

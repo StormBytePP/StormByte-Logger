@@ -60,6 +60,7 @@ void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
 void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
 void Log::Write(PopFormatManip manip) { *m_impl << manip; }
+void Log::Write(GroupManip manip) { *m_impl << std::move(manip); }
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
 }
