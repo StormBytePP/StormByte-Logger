@@ -9,7 +9,7 @@
 
 This repository is **StormByte Logger**: stream logging for the StormByte C++ suite.
 
-It depends on [StormByte Base](https://github.com/StormBytePP/StormByte) ≥ 1.1.0. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, components, groups, colors, temporary formats, human-readable numbers and redaction.
+It depends on [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, components, groups, colors, temporary formats, human-readable numbers and redaction.
 
 The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network and System are **other repositories**. This one does not implement them.
 
@@ -127,7 +127,7 @@ The logger writes the header once per line, then the payload, then the newline m
 
 ## Installation
 
-Needs a C++26 compiler, CMake 3.28 or newer, and [StormByte Base](https://github.com/StormBytePP/StormByte) ≥ 1.1.0.
+Needs a C++26 compiler, CMake 3.28 or newer, and [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer.
 
 ```sh
 git clone --recursive https://github.com/StormBytePP/StormByte-Logger.git
