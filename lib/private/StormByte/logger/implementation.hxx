@@ -20,13 +20,16 @@
 #pragma once
 
 #include <StormByte/logger/typedefs.hxx>
+#include <StormByte/logger/manipulators.hxx>
 #include <StormByte/string.hxx>
 #include <StormByte/type_traits.hxx>
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <optional>
 #include <ostream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -38,6 +41,21 @@
  * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
+	struct ThrottleRuleState {
+		std::atomic<std::uint64_t> dropped{0};
+		std::atomic<std::uint64_t> sample_count{0};
+		std::atomic<std::uint64_t> window_count{0};
+		std::atomic<std::uint64_t> finite_credits{0};
+		std::atomic<std::int64_t> next_token_ns{0};
+	};
+	struct ThrottleRule {
+		ThrottleSpec spec;
+		std::shared_ptr<ThrottleRuleState> state;
+	};
+	struct ThrottleTable {
+		std::vector<ThrottleRule> rules;
+	};
+
 	struct ColorManip;
 	struct NoColorManip;
 	struct FormatManip;
@@ -53,6 +71,8 @@ namespace StormByte::Logger {
 	 * Thread-safety note: `m_enabled` is atomic so `Enabled()` / filtered fast-paths may be
 	 * observed concurrently with `operator<<(Level)` (as with `ThreadedLog`). Full multi-threaded
 	 * emission still requires `ThreadedLog` (line lock around actual writes).
+	 * Throttle rules use atomic shared-pointer publication; Logger does not promise
+	 * that the standard library implementation is physically lock-free.
 	 */
 	class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
@@ -107,9 +127,7 @@ namespace StormByte::Logger {
 			 * @brief Get the level of the current message.
 			 * @return Current message Level (or print level if none set).
 			 */
-			const Level& CurrentLevel() const noexcept {
-				return m_current_level ? *m_current_level : m_print_level;
-			}
+			const Level& CurrentLevel() const noexcept;
 
 			/**
 			 * @brief Whether the current message level will be emitted.
@@ -117,9 +135,7 @@ namespace StormByte::Logger {
 			 * @note Warning, Error and Fatal remain enabled even when below the
 			 *       configured print level.
 			 */
-			bool Enabled() const noexcept {
-				return m_enabled.load(std::memory_order_acquire);
-			}
+			bool Enabled() const noexcept;
 
 			/**
 			 * @brief Enable or disable redaction for subsequent values.
@@ -188,6 +204,42 @@ namespace StormByte::Logger {
 			 * @return Component format or general format.
 			 */
 			const std::string& Format(const std::string& component) const noexcept;
+
+			/**
+			 * @brief Install a throttle rule.
+			 * @param spec Rule to install.
+			 */
+			void Throttle(const ThrottleSpec& spec);
+
+			/**
+			 * @brief Remove a throttle rule with the same selectors.
+			 * @param spec Selectors of the rule to remove.
+			 */
+			void NoThrottle(const ThrottleSpec& spec);
+
+			/**
+			 * @brief Remove all throttle rules.
+			 */
+			void NoThrottleAll() noexcept;
+
+			/**
+			 * @brief Decide whether the current line may emit.
+			 * @return true when the line is admitted.
+			 */
+			bool PrepareLine();
+
+			/**
+			 * @brief Whether the current thread's line was admitted.
+			 * @return true when payload output is allowed.
+			 */
+			bool LineAdmitted() const noexcept;
+
+			/**
+			 * @brief Whether a header/output line is currently open.
+			 * @return true when output has started for the line.
+			 */
+			bool HasOpenOutputLine() const noexcept;
+			void BeginOutputLine() noexcept;
 
 			/**
 			 * @brief Set the current logging level.
@@ -272,7 +324,7 @@ namespace StormByte::Logger {
 				requires (!StormByte::Type::SameAs<T, Implementation& (*)(Implementation&) noexcept>) {
 				using DecayedT = std::decay_t<T>;
 
-				if (!m_enabled.load(std::memory_order_acquire)) [[likely]] {
+				if (!Enabled()) [[likely]] {
 					return *this;
 				}
 
@@ -314,11 +366,9 @@ namespace StormByte::Logger {
 			Level m_print_level;                                      ///< Minimum level that will be printed
 			std::optional<Level> m_current_level;                     ///< Level of the current message
 			std::atomic<bool> m_enabled;                              ///< Whether the current level is enabled
-			bool m_header_displayed;                                  ///< Whether the header has already been written
 			std::string m_format;                                     ///< Header format string
 			std::vector<std::string> m_format_stack;                  ///< Temporary formats for push/pop
 			std::unordered_map<std::string, std::string> m_component_formats; ///< Persistent component formats
-			std::string m_group;                                      ///< Producer group for the current line
 			String::Format m_human_readable_format;                   ///< Current human-readable format
 			bool m_redact_active;                                     ///< When true, text and numbers are redacted
 			std::size_t m_redact_count;                               ///< 0 = all '*'; N = keep N chars
@@ -328,14 +378,18 @@ namespace StormByte::Logger {
 			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
 			bool m_content_nocolor = false;                           ///< Whether content color is suppressed
 			std::optional<StormByte::Logger::Color> m_active_color;   ///< Color currently emitted to the stream
+			std::shared_ptr<const ThrottleTable> m_throttle_table;        ///< Immutable rules snapshot, atomically accessed
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.
 			 */
 			void ensure_header() noexcept {
-				if (!m_header_displayed) {
+				if (!PrepareLine())
+					return;
+				if (!HasOpenOutputLine()) {
+					BeginOutputLine();
+					write_drop_summary();
 					print_header();
-					m_header_displayed = true;
 				}
 			}
 
@@ -370,6 +424,8 @@ namespace StormByte::Logger {
 			 */
 			void write_text(std::string_view text) noexcept {
 				ensure_header();
+				if (!LineAdmitted())
+					return;
 				sync_content_color();
 				if (m_redact_active)
 					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
@@ -426,6 +482,12 @@ namespace StormByte::Logger {
 			 * @brief Reset any ANSI color currently emitted to the stream.
 			 */
 			void reset_color() noexcept;
+
+			/** @brief Reset all line-local throttle and snapshot state. */
+			void reset_line_state() noexcept;
+
+			/** @brief Write the pending dropped summary without throttling it. */
+			void write_drop_summary() noexcept;
 
 			/**
 			 * @brief Resolve the format selected by the current component and stack.

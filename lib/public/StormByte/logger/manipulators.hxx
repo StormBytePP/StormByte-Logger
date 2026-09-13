@@ -34,6 +34,35 @@ namespace StormByte::Logger {
 	class Log;
 
 	/**
+	 * @enum ThrottlePolicy
+	 * @brief Count policy applied before the optional rate bucket.
+	 */
+	enum class STORMBYTE_LOGGER_PUBLIC ThrottlePolicy : unsigned char {
+		Drop,   ///< Admit while the rate bucket has credit.
+		Sample, ///< Admit the first and then one line of every sample period.
+		Window  ///< Admit the first WindowKeep lines of every WindowPeriod.
+	};
+
+	/**
+	 * @struct ThrottleSpec
+	 * @brief Immutable rule description used by Log::Throttle.
+	 *
+	 * An absent Component, Level or Group is a wildcard. An engaged empty
+	 * Component or Group selects the root/empty key.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC ThrottleSpec {
+		std::optional<std::string> Component; ///< Optional component selector.
+		std::optional<Level> Level;           ///< Optional level selector.
+		std::optional<std::string> Group;     ///< Optional group selector.
+		double Rate = 0.0;                    ///< Lines per second; zero disables refill.
+		std::size_t Burst = 0;                ///< Initial and maximum token capacity.
+		ThrottlePolicy Policy = ThrottlePolicy::Drop; ///< Count policy.
+		std::size_t SampleN = 0;              ///< Sample period when Policy is Sample.
+		std::size_t WindowKeep = 0;           ///< Kept lines when Policy is Window.
+		std::size_t WindowPeriod = 0;         ///< Window size when Policy is Window.
+	};
+
+	/**
 	 * @struct GroupManip
 	 * @brief Labels the current logging line with a producer group.
 	 */

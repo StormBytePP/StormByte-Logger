@@ -129,6 +129,41 @@ namespace StormByte::Logger {
 			virtual const std::string& Format(const std::string& component) const;
 
 			/**
+			 * @brief Install a throttle rule.
+			 * @param spec Rule to install.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& Throttle(const ThrottleSpec& spec);
+			/**
+			 * @brief Remove a throttle rule with the same selectors.
+			 * @param spec Selectors of the rule to remove.
+			 * @return Reference to this logger.
+			 */
+			virtual Log& NoThrottle(const ThrottleSpec& spec);
+			/** @brief Install a global Drop rule. */
+			virtual Log& Throttle(double rate, std::size_t burst);
+			/** @brief Install a global Sample or Window rule. */
+			virtual Log& Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period = 0);
+			/** @brief Install a level-scoped Drop rule. */
+			virtual Log& Throttle(const Level& level, double rate, std::size_t burst);
+			/** @brief Install a group-scoped Drop rule. */
+			virtual Log& Throttle(GroupManip group, double rate, std::size_t burst);
+			/** @brief Install a component-scoped Drop rule. */
+			virtual Log& Throttle(ComponentManip component, double rate, std::size_t burst);
+			/** @brief Install an exact component/level/group rule. */
+			virtual Log& Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy = ThrottlePolicy::Drop, std::size_t value = 0, std::size_t period = 0);
+			/** @brief Remove all throttle rules. */
+			virtual Log& NoThrottle();
+			/** @brief Remove a level-scoped rule. */
+			virtual Log& NoThrottle(const Level& level);
+			/** @brief Remove a group-scoped rule. */
+			virtual Log& NoThrottle(GroupManip group);
+			/** @brief Remove a component-scoped rule. */
+			virtual Log& NoThrottle(ComponentManip component);
+			/** @brief Remove an exact component/level/group rule. */
+			virtual Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group);
+
+			/**
 			 * @name Streaming Operators
 			 * Data overloads early-out when the current message level is filtered.
 			 * Level, stream manipulators, Log manipulators and RedactManip are always
@@ -322,6 +357,18 @@ namespace StormByte::Logger {
 			 * @return true if the current level is at or above the print floor.
 			 */
 			bool WillWrite() const noexcept;
+
+			/**
+			 * @brief Decide throttle admission before a payload claims a line lock.
+			 * @return true when the current line may emit.
+			 */
+			bool PrepareLine();
+
+			/**
+			 * @brief Whether output has already started for the current line.
+			 * @return true when the line header has been emitted.
+			 */
+			bool HasOpenOutputLine() const noexcept;
 
 			/**
 			 * @name Write

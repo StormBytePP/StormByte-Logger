@@ -27,6 +27,7 @@ If you landed here from a release link and have not read the tree:
 - ANSI colors by `Level` and component override, with `color`, `color(Color::X)` and `nocolor`. Color output is disabled by default.
 - Persistent general and component formats, plus nested `push_format` / `pop_format`; an empty `pop_format` is idempotent.
 - Expanded tests for colors, temporary formats, groups, components, threads, Unicode and lock recovery.
+- Added configurable line throttle policies (`Drop`, `Sample`, `Window`) with component/level/group rule precedence and drop summaries.
 
 ### Changed
 

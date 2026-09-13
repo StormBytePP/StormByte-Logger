@@ -110,6 +110,32 @@ namespace StormByte::Logger {
 			 * @return Component format or general format.
 			 */
 			const std::string& Format(const std::string& component) const override;
+			/** @brief Install a throttle rule under the line lock. */
+			Log& Throttle(const ThrottleSpec& spec) override;
+			/** @brief Remove a throttle rule under the line lock. */
+			Log& NoThrottle(const ThrottleSpec& spec) override;
+			/** @brief Install a global Drop rule. */
+			Log& Throttle(double rate, std::size_t burst) override;
+			/** @brief Install a global policy rule. */
+			Log& Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period = 0) override;
+			/** @brief Install a level-scoped rule. */
+			Log& Throttle(const Level& level, double rate, std::size_t burst) override;
+			/** @brief Install a group-scoped rule. */
+			Log& Throttle(GroupManip group, double rate, std::size_t burst) override;
+			/** @brief Install a component-scoped rule. */
+			Log& Throttle(ComponentManip component, double rate, std::size_t burst) override;
+			/** @brief Install an exact component/level/group rule. */
+			Log& Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy = ThrottlePolicy::Drop, std::size_t value = 0, std::size_t period = 0) override;
+			/** @brief Remove all throttle rules. */
+			Log& NoThrottle() override;
+			/** @brief Remove a level-scoped rule. */
+			Log& NoThrottle(const Level& level) override;
+			/** @brief Remove a group-scoped rule. */
+			Log& NoThrottle(GroupManip group) override;
+			/** @brief Remove a component-scoped rule. */
+			Log& NoThrottle(ComponentManip component) override;
+			/** @brief Remove an exact component/level/group rule. */
+			Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group) override;
 
 			/**
 			 * @name Streaming Operators

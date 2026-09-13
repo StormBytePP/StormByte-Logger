@@ -21,6 +21,23 @@
 #include <StormByte/logger/implementation.hxx>
 #include <utility>
 using namespace StormByte::Logger;
+namespace {
+	StormByte::Logger::ThrottleSpec make_spec(const double rate, const std::size_t burst,
+		const StormByte::Logger::ThrottlePolicy policy = StormByte::Logger::ThrottlePolicy::Drop,
+		const std::size_t value = 0, const std::size_t period = 0) {
+		StormByte::Logger::ThrottleSpec spec;
+		spec.Rate = rate;
+		spec.Burst = burst;
+		spec.Policy = policy;
+		if (policy == StormByte::Logger::ThrottlePolicy::Sample)
+			spec.SampleN = value;
+		if (policy == StormByte::Logger::ThrottlePolicy::Window) {
+			spec.WindowKeep = value;
+			spec.WindowPeriod = period;
+		}
+		return spec;
+	}
+}
 Log::Log(std::ostream& out, const Level& level, const std::string& format) {
 	m_impl = std::make_shared<Implementation>(out, level, format);
 }
@@ -77,6 +94,68 @@ Log& Log::Format(const std::string& component, const std::string& format) {
 const std::string& Log::Format(const std::string& component) const {
 	return static_cast<const Implementation&>(*m_impl).Format(component);
 }
+Log& Log::Throttle(const ThrottleSpec& spec) {
+	m_impl->Throttle(spec);
+	return *this;
+}
+Log& Log::NoThrottle(const ThrottleSpec& spec) {
+	m_impl->NoThrottle(spec);
+	return *this;
+}
+Log& Log::Throttle(double rate, std::size_t burst) {
+	return Throttle(make_spec(rate, burst));
+}
+Log& Log::Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
+	return Throttle(make_spec(rate, burst, policy, value, period));
+}
+Log& Log::Throttle(const Level& level, double rate, std::size_t burst) {
+	auto spec = make_spec(rate, burst);
+	spec.Level = level;
+	return Throttle(spec);
+}
+Log& Log::Throttle(GroupManip group, double rate, std::size_t burst) {
+	auto spec = make_spec(rate, burst);
+	spec.Group = std::move(group.name);
+	return Throttle(spec);
+}
+Log& Log::Throttle(ComponentManip component, double rate, std::size_t burst) {
+	auto spec = make_spec(rate, burst);
+	spec.Component = std::move(component.name);
+	return Throttle(spec);
+}
+Log& Log::Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
+	auto spec = make_spec(rate, burst, policy, value, period);
+	spec.Component = std::move(component.name);
+	spec.Level = level;
+	spec.Group = std::move(group.name);
+	return Throttle(spec);
+}
+Log& Log::NoThrottle() {
+	m_impl->NoThrottleAll();
+	return *this;
+}
+Log& Log::NoThrottle(const Level& level) {
+	ThrottleSpec spec;
+	spec.Level = level;
+	return NoThrottle(spec);
+}
+Log& Log::NoThrottle(GroupManip group) {
+	ThrottleSpec spec;
+	spec.Group = std::move(group.name);
+	return NoThrottle(spec);
+}
+Log& Log::NoThrottle(ComponentManip component) {
+	ThrottleSpec spec;
+	spec.Component = std::move(component.name);
+	return NoThrottle(spec);
+}
+Log& Log::NoThrottle(ComponentManip component, const Level& level, GroupManip group) {
+	ThrottleSpec spec;
+	spec.Component = std::move(component.name);
+	spec.Level = level;
+	spec.Group = std::move(group.name);
+	return NoThrottle(spec);
+}
 void Log::Write(ColorManip manip) { *m_impl << manip; }
 void Log::Write(NoColorManip manip) { *m_impl << manip; }
 void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
@@ -86,4 +165,10 @@ void Log::Write(ComponentManip manip) { *m_impl << std::move(manip); }
 void Log::Write(ResetComponentManip manip) { *m_impl << manip; }
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
+}
+bool Log::PrepareLine() {
+	return m_impl->PrepareLine();
+}
+bool Log::HasOpenOutputLine() const noexcept {
+	return m_impl->HasOpenOutputLine();
 }

@@ -417,6 +417,25 @@ int test_threadedlog_component_formats_do_not_mix() {
 	ASSERT_EQUAL("test_threadedlog_component_formats_do_not_mix (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_component_formats_do_not_mix", 0);
 }
+int test_threadedlog_throttle_drops_without_deadlock() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log.Throttle(0.0, 10);
+	constexpr int threads = 8;
+	constexpr int repeats = 100;
+	std::vector<std::thread> pool;
+	pool.reserve(threads);
+	for (int id = 0; id < threads; ++id) {
+		pool.emplace_back([&, id] {
+			for (int index = 0; index < repeats; ++index)
+				log << Level::Info << id << ':' << index << std::endl;
+		});
+	}
+	for (auto& thread : pool) thread.join();
+	log << Level::Fatal << "fatal survives" << std::endl;
+	ASSERT_TRUE("test_threadedlog_throttle_drops_without_deadlock", output.str().find("Fatal   : fatal survives\n") != std::string::npos);
+	RETURN_TEST("test_threadedlog_throttle_drops_without_deadlock", 0);
+}
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -438,6 +457,7 @@ int main() {
 	result += test_threadedlog_components_are_thread_local();
 	result += test_threadedlog_component_does_not_hold_line_lock();
 	result += test_threadedlog_component_formats_do_not_mix();
+	result += test_threadedlog_throttle_drops_without_deadlock();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

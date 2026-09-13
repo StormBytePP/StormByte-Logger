@@ -18,6 +18,7 @@
  */
 
 #include <StormByte/logger/log.hxx>
+#include <StormByte/exception.hxx>
 #include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
 #include <clocale>
@@ -439,6 +440,175 @@ int test_invalid_wide_string_propagates_without_termination() {
 	ASSERT_EQUAL("test_invalid_wide_string_propagates_without_termination", "Info    : after invalid input\n", output.str());
 	RETURN_TEST("test_invalid_wide_string_propagates_without_termination", 0);
 }
+int test_throttle_off_preserves_output() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << "one" << std::endl;
+	log << Level::Warning << "two" << std::endl;
+	ASSERT_EQUAL("test_throttle_off_preserves_output", "Info    : one\nWarning : two\n", output.str());
+	RETURN_TEST("test_throttle_off_preserves_output", 0);
+}
+int test_throttle_drop_burst() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log.Throttle(0.0, 2);
+	for (int index = 0; index < 5; ++index)
+		log << Level::Info << index << std::endl;
+	ASSERT_EQUAL("test_throttle_drop_burst", "Info    : 0\nInfo    : 1\n", output.str());
+	RETURN_TEST("test_throttle_drop_burst", 0);
+}
+int test_throttle_sample_and_window() {
+	std::ostringstream sample_output;
+	Log sample(sample_output, Level::Info, "%L:");
+	ThrottleSpec sample_spec;
+	sample_spec.Policy = ThrottlePolicy::Sample;
+	sample_spec.SampleN = 10;
+	sample.Throttle(sample_spec);
+	for (int index = 0; index < 20; ++index)
+		sample << Level::Info << index << std::endl;
+	ASSERT_EQUAL("test_throttle_sample_and_window (sample)",
+		"Info    : 0\nInfo    : dropped 9 messages\nInfo    : 10\n", sample_output.str());
+
+	std::ostringstream window_output;
+	Log window(window_output, Level::Info, "%L:");
+	ThrottleSpec window_spec;
+	window_spec.Policy = ThrottlePolicy::Window;
+	window_spec.WindowKeep = 2;
+	window_spec.WindowPeriod = 5;
+	window.Throttle(window_spec);
+	for (int index = 0; index < 6; ++index)
+		window << Level::Info << index << std::endl;
+	ASSERT_EQUAL("test_throttle_sample_and_window (window)",
+		"Info    : 0\nInfo    : 1\nInfo    : dropped 3 messages\nInfo    : 5\n", window_output.str());
+	RETURN_TEST("test_throttle_sample_and_window", 0);
+}
+int test_throttle_precedence_and_no_throttle() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]%g:");
+	ThrottleSpec global;
+	global.Burst = 10;
+	log.Throttle(global);
+	ThrottleSpec component_rule = global;
+	component_rule.Component = "A";
+	component_rule.Burst = 2;
+	log.Throttle(component_rule);
+	ThrottleSpec other_rule = global;
+	other_rule.Component = "B";
+	other_rule.Burst = 1;
+	log.Throttle(other_rule);
+	log << component("A") << group("x") << Level::Info << "a0" << std::endl;
+	log << Level::Info << "a1" << std::endl;
+	log << Level::Info << "a2" << std::endl;
+	log << component("B") << group("x") << Level::Info << "b0" << std::endl;
+	log << Level::Info << "b1" << std::endl;
+	log.NoThrottle(component("B"));
+	log << Level::Info << "b2" << std::endl;
+	const std::string out = output.str();
+	ASSERT_TRUE("test_throttle_precedence_and_no_throttle (component)", out.find("A[Info    ]x: a0") != std::string::npos);
+	ASSERT_TRUE("test_throttle_precedence_and_no_throttle (root)", out.find("B[Info    ]x: b0") != std::string::npos);
+	ASSERT_EQUAL("test_throttle_precedence_and_no_throttle (reset)", std::string("B[Info    ]: b2\n"), out.substr(out.rfind("B[Info    ]:")));
+	RETURN_TEST("test_throttle_precedence_and_no_throttle", 0);
+}
+int test_throttle_warning_but_not_error_or_fatal() {
+	std::ostringstream output;
+	Log log(output, Level::Fatal, "%L:");
+	ThrottleSpec spec;
+	spec.Burst = 1;
+	log.Throttle(spec);
+	log << Level::Warning << "warning 1" << std::endl;
+	log << Level::Warning << "warning 2" << std::endl;
+	log << Level::Error << "error" << std::endl;
+	log << Level::Fatal << "fatal" << std::endl;
+	ASSERT_EQUAL("test_throttle_warning_but_not_error_or_fatal",
+		"Warning : warning 1\nError   : error\nFatal   : fatal\n", output.str());
+	RETURN_TEST("test_throttle_warning_but_not_error_or_fatal", 0);
+}
+int test_throttle_summary_preserves_context() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]%g ");
+	ThrottleSpec spec;
+	spec.Component = "A";
+	spec.Level = Level::Info;
+	spec.Group = "g";
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
+	log << component("A") << group("g") << Level::Info << "first" << std::endl;
+	log << group("g") << Level::Info << "dropped" << std::endl;
+	log << group("g") << Level::Info << "third" << std::endl;
+	ASSERT_EQUAL("test_throttle_summary_preserves_context",
+		"A[Info    ]g  first\nA[Info    ]g  dropped 1 messages\nA[Info    ]g  third\n", output.str());
+	RETURN_TEST("test_throttle_summary_preserves_context", 0);
+}
+int test_throttle_component_and_group_isolation() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c[%L]%g ");
+	ThrottleSpec component_rule;
+	component_rule.Component = "A";
+	component_rule.Burst = 1;
+	log.Throttle(component_rule);
+	log << component("A") << Level::Info << "a0" << std::endl;
+	log << component("A") << Level::Info << "a1" << std::endl;
+	log << component("B") << Level::Info << "b0" << std::endl;
+	log << Level::Info << "b1" << std::endl;
+	ThrottleSpec group_rule;
+	group_rule.Group = "x";
+	group_rule.Burst = 1;
+	log.Throttle(group_rule);
+	log << group("x") << Level::Info << "x0" << std::endl;
+	log << group("x") << Level::Info << "x1" << std::endl;
+	log << group("y") << Level::Info << "y0" << std::endl;
+	ASSERT_EQUAL("test_throttle_component_and_group_isolation", std::string("A[Info    ]  a0\nB[Info    ]  b0\nB[Info    ]  b1\nB[Info    ]x  x0\nB[Info    ]y  y0\n"), output.str());
+	RETURN_TEST("test_throttle_component_and_group_isolation", 0);
+}
+int test_throttle_empty_lines_are_counted() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 1;
+	spec.WindowPeriod = 2;
+	log.Throttle(spec);
+	log << Level::Info << std::endl;
+	log << Level::Info << std::endl;
+	log << Level::Info << std::endl;
+	ASSERT_EQUAL("test_throttle_empty_lines_are_counted",
+		"\nInfo    : dropped 1 messages\n\n", output.str());
+	RETURN_TEST("test_throttle_empty_lines_are_counted", 0);
+}
+int test_throttle_rejects_invalid_specs() {
+	Log log(std::cout, Level::Info);
+	ThrottleSpec spec;
+	spec.Rate = -1.0;
+	bool threw = false;
+	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	ASSERT_TRUE("test_throttle_rejects_invalid_specs (negative rate)", threw);
+	spec = {};
+	spec.Rate = 1.0;
+	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	ASSERT_TRUE("test_throttle_rejects_invalid_specs (zero burst)", threw);
+	spec = {};
+	spec.Rate = 100.0;
+	spec.Burst = 1;
+	threw = false;
+	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	ASSERT_TRUE("test_throttle_rejects_invalid_specs (valid rate)", !threw);
+	spec = {};
+	spec.Policy = ThrottlePolicy::Sample;
+	spec.SampleN = 1;
+	threw = false;
+	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	ASSERT_TRUE("test_throttle_rejects_invalid_specs (sample)", threw);
+	spec = {};
+	spec.Policy = ThrottlePolicy::Window;
+	spec.WindowKeep = 2;
+	spec.WindowPeriod = 1;
+	threw = false;
+	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	ASSERT_TRUE("test_throttle_rejects_invalid_specs (window)", threw);
+	return 0;
+}
 int main() {
 	int result = 0;
 	result += test_basic_logging();
@@ -476,6 +646,15 @@ int main() {
 	result += test_push_format_overrides_component_and_restores_resolution();
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
+	result += test_throttle_off_preserves_output();
+	result += test_throttle_drop_burst();
+	result += test_throttle_sample_and_window();
+	result += test_throttle_precedence_and_no_throttle();
+	result += test_throttle_warning_but_not_error_or_fatal();
+	result += test_throttle_summary_preserves_context();
+	result += test_throttle_component_and_group_isolation();
+	result += test_throttle_empty_lines_are_counted();
+	result += test_throttle_rejects_invalid_specs();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

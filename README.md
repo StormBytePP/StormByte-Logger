@@ -57,6 +57,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
   - [Colors](#colors)
   - [Temporary formats](#temporary-formats)
   - [Groups and components](#groups-and-components)
+  - [Throttle](#throttle)
   - [Use from other suite modules](#use-from-other-suite-modules)
 - [ThreadedLog contract](#threadedlog-contract)
 - [Contributing](#contributing)
@@ -317,6 +318,54 @@ auto log = std::make_shared<ThreadedLog>(std::cout, Level::Notice, "[%L] %c %g")
 `ThreadedLog` protects group changes and line output with the same line lock.
 Components are thread-local, so one thread cannot overwrite another thread's
 component.
+
+### Throttle
+
+Throttle is disabled by default. It limits complete logical lines, not payload
+fragments, and is configured through `Log` methods so a shared `Log` or
+`ThreadedLog` can be configured once for several library consumers.
+
+Rules are selected by the most specific matching key:
+
+```text
+(component, level, group) > (component, group) > (component, level)
+> (component) > (level, group) > (group) > (level) > global
+```
+
+`Error` and `Fatal` are never throttled. `Warning` can be throttled even though
+it is always visible with respect to the print floor. The throttle is a
+separate layer from level filtering.
+
+```cpp
+ThrottleSpec spec;
+spec.Component = "Media";
+spec.Level = Level::LowLevel;
+spec.Group = "Decoder";
+spec.Policy = ThrottlePolicy::Window;
+spec.WindowKeep = 20;
+spec.WindowPeriod = 500;
+log.Throttle(spec);
+
+log.Throttle(100.0, 20); // global token bucket: rate and burst
+log.NoThrottle(spec);   // remove exactly this rule
+```
+
+Policies are `Drop`, `Sample` and `Window`. `Sample(n)` admits the first line
+and then one of every `n` attempts. `Window(keep, period)` admits the first
+`keep` lines of each count window. Rate/burst can additionally limit the
+admitted lines by time. `rate == 0 && burst == 0` disables the time ceiling;
+`rate > 0` requires `burst >= 1`, while `rate == 0 && burst > 0` allows exactly
+that initial burst with no refill.
+
+When lines are dropped, the next admitted line is preceded by `dropped N
+messages` using the same level, component, group, effective format and color.
+The summary does not consume throttle credit. A discarded line is decided
+before output and before `ThreadedLog` claims its line lock.
+
+Throttle configuration is intended to be installed before concurrent writers
+start. Rules are published as immutable snapshots through atomic shared-pointer
+operations; the logger does not promise physical lock-free behavior from the
+standard library implementation.
 
 ### Use from other suite modules
 
