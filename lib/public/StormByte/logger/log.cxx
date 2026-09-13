@@ -172,3 +172,9 @@ bool Log::PrepareLine() {
 bool Log::HasOpenOutputLine() const noexcept {
 	return m_impl->HasOpenOutputLine();
 }
+bool Log::LineDecided() const noexcept {
+	return m_impl->LineDecided();
+}
+bool Log::LineAdmitted() const noexcept {
+	return m_impl->LineAdmitted();
+}

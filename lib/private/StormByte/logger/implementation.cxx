@@ -18,8 +18,8 @@
  */
 
 #include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/exception.hxx>
 #include <StormByte/logger/manipulators.hxx>
-#include <StormByte/exception.hxx>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -104,12 +104,12 @@ namespace {
 	}
 	void ValidateThrottle(const ThrottleSpec& spec) {
 		if (!std::isfinite(spec.Rate) || spec.Rate < 0.0 || (spec.Rate > 0.0 && spec.Burst == 0))
-			throw StormByte::Exception("Invalid throttle rate or burst");
+			throw StormByte::Logger::ThrottleError("Invalid throttle rate or burst");
 		if (spec.Policy == ThrottlePolicy::Sample && spec.SampleN < 2)
-			throw StormByte::Exception("Invalid throttle sample period");
+			throw StormByte::Logger::ThrottleError("Invalid throttle sample period");
 		if (spec.Policy == ThrottlePolicy::Window &&
 			(spec.WindowPeriod == 0 || spec.WindowKeep == 0 || spec.WindowKeep > spec.WindowPeriod))
-			throw StormByte::Exception("Invalid throttle window");
+			throw StormByte::Logger::ThrottleError("Invalid throttle window");
 	}
 	std::int64_t NowNanoseconds() noexcept {
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -174,6 +174,7 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 }
 Implementation::~Implementation() noexcept {
 	reset_color();
+	reset_line_state();
 }
 const Level& Implementation::CurrentLevel() const noexcept {
 	return t_level ? *t_level : m_print_level;
@@ -320,6 +321,9 @@ bool Implementation::PrepareLine() {
 bool Implementation::LineAdmitted() const noexcept {
 	return t_line.admitted;
 }
+bool Implementation::LineDecided() const noexcept {
+	return t_line.decided;
+}
 bool Implementation::HasOpenOutputLine() const noexcept {
 	return t_line.header_displayed;
 }
@@ -331,6 +335,14 @@ void Implementation::BeginOutputLine() noexcept {
 		t_line.header_displayed = false;
 	}
 	t_line.header_displayed = true;
+}
+void Implementation::close_deferred_line() noexcept {
+	if (!t_line.close_before_header)
+		return;
+	reset_color();
+	m_out.put('\n');
+	t_line.close_before_header = false;
+	t_line.header_displayed = false;
 }
 void Implementation::reset_line_state() noexcept {
 	t_line = {};
@@ -349,13 +361,10 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (t_level) {
 		if (level != *t_level && (IsAlwaysVisible(*t_level) || *t_level >= m_print_level) && t_line.header_displayed) {
 			reset_color();
-			m_out << std::endl;
+			reset_line_state();
 			t_line.close_before_header = true;
 			t_group.clear();
-			reset_line_state();
 		}
-		else if (t_line.decided)
-			reset_line_state();
 	}
 	t_level = level;
 	m_content_color.reset();
@@ -539,7 +548,7 @@ void Implementation::reset_color() noexcept {
 	}
 }
 void Implementation::print_message(const std::string& message) noexcept {
-	if (!m_enabled.load(std::memory_order_acquire))
+	if (!Enabled())
 		return;
 	write_text(message);
 }

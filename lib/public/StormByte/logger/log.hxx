@@ -371,6 +371,18 @@ namespace StormByte::Logger {
 			bool HasOpenOutputLine() const noexcept;
 
 			/**
+			 * @brief Whether throttle has already decided the current line.
+			 * @return true when the line decision exists.
+			 */
+			bool LineDecided() const noexcept;
+
+			/**
+			 * @brief Whether the decided current line is admitted.
+			 * @return true when payload output is allowed.
+			 */
+			bool LineAdmitted() const noexcept;
+
+			/**
 			 * @name Write
 			 * Forward a value or state change to Implementation.
 			 */

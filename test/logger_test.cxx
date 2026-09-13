@@ -18,6 +18,7 @@
  */
 
 #include <StormByte/logger/log.hxx>
+#include <StormByte/logger/exception.hxx>
 #include <StormByte/exception.hxx>
 #include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
@@ -577,16 +578,34 @@ int test_throttle_empty_lines_are_counted() {
 		"\nInfo    : dropped 1 messages\n\n", output.str());
 	RETURN_TEST("test_throttle_empty_lines_are_counted", 0);
 }
+int test_throttle_level_change_redecides_line() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	ThrottleSpec spec;
+	spec.Level = Level::Info;
+	spec.Burst = 1;
+	log.Throttle(spec);
+	log << Level::Info << "first";
+	log << Level::Warning << "second" << std::endl;
+	ASSERT_EQUAL("test_throttle_level_change_redecides_line", "Info    : first\nWarning : second\n", output.str());
+	RETURN_TEST("test_throttle_level_change_redecides_line", 0);
+}
 int test_throttle_rejects_invalid_specs() {
 	Log log(std::cout, Level::Info);
 	ThrottleSpec spec;
 	spec.Rate = -1.0;
 	bool threw = false;
-	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	try { log.Throttle(spec); } catch (const StormByte::Logger::ThrottleError& ex) {
+		threw = true;
+		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte::Logger:") == 0);
+	}
 	ASSERT_TRUE("test_throttle_rejects_invalid_specs (negative rate)", threw);
 	spec = {};
 	spec.Rate = 1.0;
-	try { log.Throttle(spec); } catch (const StormByte::Exception&) { threw = true; }
+	try { log.Throttle(spec); } catch (const StormByte::Logger::ThrottleError& ex) {
+		threw = true;
+		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte::Logger:") == 0);
+	}
 	ASSERT_TRUE("test_throttle_rejects_invalid_specs (zero burst)", threw);
 	spec = {};
 	spec.Rate = 100.0;
@@ -654,6 +673,7 @@ int main() {
 	result += test_throttle_summary_preserves_context();
 	result += test_throttle_component_and_group_isolation();
 	result += test_throttle_empty_lines_are_counted();
+	result += test_throttle_level_change_redecides_line();
 	result += test_throttle_rejects_invalid_specs();
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;

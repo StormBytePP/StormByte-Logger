@@ -233,6 +233,8 @@ namespace StormByte::Logger {
 			 * @return true when payload output is allowed.
 			 */
 			bool LineAdmitted() const noexcept;
+			/** @brief Whether throttle has already decided the current line. */
+			bool LineDecided() const noexcept;
 
 			/**
 			 * @brief Whether a header/output line is currently open.
@@ -386,6 +388,7 @@ namespace StormByte::Logger {
 			void ensure_header() noexcept {
 				if (!PrepareLine())
 					return;
+				close_deferred_line();
 				if (!HasOpenOutputLine()) {
 					BeginOutputLine();
 					write_drop_summary();
@@ -482,6 +485,8 @@ namespace StormByte::Logger {
 			 * @brief Reset any ANSI color currently emitted to the stream.
 			 */
 			void reset_color() noexcept;
+			/** @brief Close a previous partial line before opening this one. */
+			void close_deferred_line() noexcept;
 
 			/** @brief Reset all line-local throttle and snapshot state. */
 			void reset_line_state() noexcept;

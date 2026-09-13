@@ -238,6 +238,10 @@ void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 		release_line(m_lock);
 }
 void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(manip);
+		return;
+	}
 	claim_line(m_lock);
 	Log::Write(manip);
 	if (!WillWrite())
@@ -245,26 +249,40 @@ void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
 }
 void ThreadedLog::Write(RedactManip m) {
 	// State change on Implementation; serialize like other manipulators.
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(m);
+		return;
+	}
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!WillWrite())
 		release_line(m_lock);
 }
 void ThreadedLog::Write(ColorManip m) {
-	if (!WillWrite()) return;
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(m);
+		return;
+	}
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!WillWrite())
 		release_line(m_lock);
 }
 void ThreadedLog::Write(NoColorManip m) {
-	if (!WillWrite()) return;
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(m);
+		return;
+	}
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!WillWrite())
 		release_line(m_lock);
 }
 void ThreadedLog::Write(FormatManip m) {
+	if (LineDecided() && !LineAdmitted()) {
+		Log::Write(std::move(m));
+		return;
+	}
 	claim_line(m_lock);
 	try {
 		Log::Write(std::move(m));
@@ -277,6 +295,10 @@ void ThreadedLog::Write(FormatManip m) {
 }
 void ThreadedLog::Write(PopFormatManip m) {
 	const bool already_held = t_line_held;
+	if (LineDecided() && !LineAdmitted()) {
+		Log::Write(m);
+		return;
+	}
 	claim_line(m_lock);
 	Log::Write(m);
 	if (!already_held)
