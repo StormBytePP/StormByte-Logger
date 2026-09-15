@@ -33,6 +33,7 @@ int test_manip_humanreadable_number_log() {
 	ASSERT_EQUAL("test_manip_humanreadable_number_log", expected, output.str());
 	RETURN_TEST("test_manip_humanreadable_number_log", 0);
 }
+
 int test_manip_humanreadable_bytes_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -41,6 +42,7 @@ int test_manip_humanreadable_bytes_log() {
 	ASSERT_EQUAL("test_manip_humanreadable_bytes_log", expected, output.str());
 	RETURN_TEST("test_manip_humanreadable_bytes_log", 0);
 }
+
 int test_manip_nohumanreadable_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -50,6 +52,7 @@ int test_manip_nohumanreadable_log() {
 	ASSERT_EQUAL("test_manip_nohumanreadable_log", expected, output.str());
 	RETURN_TEST("test_manip_nohumanreadable_log", 0);
 }
+
 int test_manip_chainable_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -58,6 +61,7 @@ int test_manip_chainable_threadedlog() {
 	ASSERT_EQUAL("test_manip_chainable_threadedlog", expected, output.str());
 	RETURN_TEST("test_manip_chainable_threadedlog", 0);
 }
+
 // ---------------------------------------------------------------------------
 // Redact: keep last N characters visible; rest become '*'.
 // redact / redact(0) → mask all.
@@ -71,6 +75,7 @@ int test_manip_redact_full_string() {
 	ASSERT_EQUAL("test_manip_redact_full_string", expected, output.str());
 	RETURN_TEST("test_manip_redact_full_string", 0);
 }
+
 int test_manip_redact_keep_last() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -80,6 +85,7 @@ int test_manip_redact_keep_last() {
 	ASSERT_EQUAL("test_manip_redact_keep_last", expected, output.str());
 	RETURN_TEST("test_manip_redact_keep_last", 0);
 }
+
 int test_manip_redact_keep_last_zero_same_as_full() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -88,6 +94,7 @@ int test_manip_redact_keep_last_zero_same_as_full() {
 	ASSERT_EQUAL("test_manip_redact_keep_last_zero_same_as_full", expected, output.str());
 	RETURN_TEST("test_manip_redact_keep_last_zero_same_as_full", 0);
 }
+
 int test_manip_redact_keep_last_ge_length() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -97,6 +104,7 @@ int test_manip_redact_keep_last_ge_length() {
 	ASSERT_EQUAL("test_manip_redact_keep_last_ge_length", expected, output.str());
 	RETURN_TEST("test_manip_redact_keep_last_ge_length", 0);
 }
+
 int test_manip_redact_empty_string() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -105,6 +113,7 @@ int test_manip_redact_empty_string() {
 	ASSERT_EQUAL("test_manip_redact_empty_string", expected, output.str());
 	RETURN_TEST("test_manip_redact_empty_string", 0);
 }
+
 int test_manip_redact_const_char_ptr() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -115,6 +124,7 @@ int test_manip_redact_const_char_ptr() {
 	ASSERT_EQUAL("test_manip_redact_const_char_ptr", expected, output.str());
 	RETURN_TEST("test_manip_redact_const_char_ptr", 0);
 }
+
 int test_manip_no_redact_restores_plain() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -124,6 +134,7 @@ int test_manip_no_redact_restores_plain() {
 	ASSERT_EQUAL("test_manip_no_redact_restores_plain", expected, output.str());
 	RETURN_TEST("test_manip_no_redact_restores_plain", 0);
 }
+
 int test_manip_redact_stays_active() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -135,6 +146,7 @@ int test_manip_redact_stays_active() {
 	ASSERT_EQUAL("test_manip_redact_stays_active", expected, output.str());
 	RETURN_TEST("test_manip_redact_stays_active", 0);
 }
+
 int test_manip_redact_affects_numbers() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -144,6 +156,7 @@ int test_manip_redact_affects_numbers() {
 	ASSERT_EQUAL("test_manip_redact_affects_numbers", expected, output.str());
 	RETURN_TEST("test_manip_redact_affects_numbers", 0);
 }
+
 int test_manip_redact_then_change_keep() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -155,6 +168,7 @@ int test_manip_redact_then_change_keep() {
 	ASSERT_EQUAL("test_manip_redact_then_change_keep", expected, output.str());
 	RETURN_TEST("test_manip_redact_then_change_keep", 0);
 }
+
 int test_manip_redact_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -164,6 +178,7 @@ int test_manip_redact_threadedlog() {
 	ASSERT_EQUAL("test_manip_redact_threadedlog", expected, output.str());
 	RETURN_TEST("test_manip_redact_threadedlog", 0);
 }
+
 int test_manip_redact_with_humanreadable_independent() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -174,6 +189,7 @@ int test_manip_redact_with_humanreadable_independent() {
 	ASSERT_EQUAL("test_manip_redact_with_humanreadable_independent", expected, output.str());
 	RETURN_TEST("test_manip_redact_with_humanreadable_independent", 0);
 }
+
 int test_manip_redact_wstring() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -183,6 +199,7 @@ int test_manip_redact_wstring() {
 	ASSERT_EQUAL("test_manip_redact_wstring", expected, output.str());
 	RETURN_TEST("test_manip_redact_wstring", 0);
 }
+
 int test_manip_redact_first() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -192,6 +209,7 @@ int test_manip_redact_first() {
 	ASSERT_EQUAL("test_manip_redact_first", expected, output.str());
 	RETURN_TEST("test_manip_redact_first", 0);
 }
+
 int test_manip_redact_first_zero_same_as_full() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -200,6 +218,7 @@ int test_manip_redact_first_zero_same_as_full() {
 	ASSERT_EQUAL("test_manip_redact_first_zero_same_as_full", expected, output.str());
 	RETURN_TEST("test_manip_redact_first_zero_same_as_full", 0);
 }
+
 int test_manip_redact_first_ge_length() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -208,6 +227,7 @@ int test_manip_redact_first_ge_length() {
 	ASSERT_EQUAL("test_manip_redact_first_ge_length", expected, output.str());
 	RETURN_TEST("test_manip_redact_first_ge_length", 0);
 }
+
 int test_manip_redact_first_const_char_ptr() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -218,6 +238,7 @@ int test_manip_redact_first_const_char_ptr() {
 	ASSERT_EQUAL("test_manip_redact_first_const_char_ptr", expected, output.str());
 	RETURN_TEST("test_manip_redact_first_const_char_ptr", 0);
 }
+
 int test_manip_redact_first_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -227,6 +248,7 @@ int test_manip_redact_first_threadedlog() {
 	ASSERT_EQUAL("test_manip_redact_first_threadedlog", expected, output.str());
 	RETURN_TEST("test_manip_redact_first_threadedlog", 0);
 }
+
 int test_manip_color_and_nocolor_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g");
@@ -237,6 +259,7 @@ int test_manip_color_and_nocolor_log() {
 		"\033[31mCore[Info    ]work \033[0mplain \033[32mgreen\033[0m\n", output.str());
 	RETURN_TEST("test_manip_color_and_nocolor_log", 0);
 }
+
 int test_manip_color_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
@@ -245,6 +268,7 @@ int test_manip_color_threadedlog() {
 	ASSERT_EQUAL("test_manip_color_threadedlog", "\033[36mInfo    : cyan\033[0m\n", output.str());
 	RETURN_TEST("test_manip_color_threadedlog", 0);
 }
+
 int test_manip_group_component_reset() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g");
@@ -255,6 +279,7 @@ int test_manip_group_component_reset() {
 		"Module[Info    ]line first\nModule[Info    ] second\n[Info    ] root\n", output.str());
 	RETURN_TEST("test_manip_group_component_reset", 0);
 }
+
 int test_manip_group_component_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%c[%L]%g");
@@ -262,6 +287,7 @@ int test_manip_group_component_threadedlog() {
 	ASSERT_EQUAL("test_manip_group_component_threadedlog", "Module[Info    ]line first\n", output.str());
 	RETURN_TEST("test_manip_group_component_threadedlog", 0);
 }
+
 int test_manip_push_pop_and_component_format() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "GENERAL[%L]");
@@ -273,6 +299,7 @@ int test_manip_push_pop_and_component_format() {
 		"TEMP[Info    ] temp\nCOMPONENT[Info    ] component\nGENERAL[Info    ] general\n", output.str());
 	RETURN_TEST("test_manip_push_pop_and_component_format", 0);
 }
+
 int test_manip_push_pop_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "BASE[%L]");
@@ -281,6 +308,7 @@ int test_manip_push_pop_threadedlog() {
 	ASSERT_EQUAL("test_manip_push_pop_threadedlog", "TEMP[Info    ] temp\nBASE[Info    ] base\n", output.str());
 	RETURN_TEST("test_manip_push_pop_threadedlog", 0);
 }
+
 int test_manip_throttle_policies_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -296,6 +324,7 @@ int test_manip_throttle_policies_log() {
 		"Info    : one\nInfo    : dropped 1 messages\nInfo    : three\n", output.str());
 	RETURN_TEST("test_manip_throttle_policies_log", 0);
 }
+
 int test_manip_throttle_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
@@ -307,6 +336,7 @@ int test_manip_throttle_threadedlog() {
 		"Info    : one\nFatal   : fatal\n", output.str());
 	RETURN_TEST("test_manip_throttle_threadedlog", 0);
 }
+
 int test_manip_throttle_invalid_configuration() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
@@ -318,10 +348,12 @@ int test_manip_throttle_invalid_configuration() {
 	} catch (const StormByte::Logger::ThrottleError&) {
 		threw = true;
 	}
+
 	ASSERT_TRUE("test_manip_throttle_invalid_configuration", threw);
 	ASSERT_EQUAL("test_manip_throttle_invalid_configuration (output)", std::string{}, output.str());
 	RETURN_TEST("test_manip_throttle_invalid_configuration", 0);
 }
+
 int main() {
 	int result = 0;
 	result += test_manip_humanreadable_number_log();
@@ -360,5 +392,6 @@ int main() {
 	} else {
 		std::cout << result << " tests failed." << std::endl;
 	}
+
 	return result;
 }

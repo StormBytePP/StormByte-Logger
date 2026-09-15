@@ -46,9 +46,11 @@ namespace {
 	bool IsAlwaysVisible(const Level level) noexcept {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
 	}
+
 	std::size_t ColorIndex(const Level level) noexcept {
 		return static_cast<std::size_t>(level);
 	}
+
 	const char* AnsiColor(const StormByte::Logger::Color color) noexcept {
 		switch (color) {
 			case StormByte::Logger::Color::Black: return "\033[30m";
@@ -70,8 +72,10 @@ namespace {
 			case StormByte::Logger::Color::BrightWhite: return "\033[97m";
 			case StormByte::Logger::Color::Default: return "";
 		}
+
 		return "";
 	}
+
 	bool ManipulatorWritesNewline(std::ostream& (*manip)(std::ostream&)) {
 		try {
 			std::ostringstream probe;
@@ -81,6 +85,7 @@ namespace {
 			return false;
 		}
 	}
+
 	int PatternSpecificity(const ThrottleSpec& spec) noexcept {
 		const bool component = spec.Component.has_value();
 		const bool level = spec.Level.has_value();
@@ -94,19 +99,23 @@ namespace {
 		if (level) return 1;
 		return 0;
 	}
+
 	bool SameSelectors(const ThrottleSpec& left, const ThrottleSpec& right) noexcept {
 		return left.Component == right.Component && left.Level == right.Level && left.Group == right.Group;
 	}
+
 	bool Matches(const ThrottleSpec& spec, const std::string& component, const Level level, const std::string& group) {
 		return (!spec.Component || *spec.Component == component) &&
 			(!spec.Level || *spec.Level == level) &&
 			(!spec.Group || *spec.Group == group);
 	}
+
 	bool Selects(const ThrottleSpec& filter, const ThrottleSpec& rule) {
 		return (!filter.Component || (rule.Component && *filter.Component == *rule.Component)) &&
 			(!filter.Level || (rule.Level && *filter.Level == *rule.Level)) &&
 			(!filter.Group || (rule.Group && *filter.Group == *rule.Group));
 	}
+
 	void ValidateThrottle(const ThrottleSpec& spec) {
 		if (!std::isfinite(spec.Rate) || spec.Rate < 0.0 || (spec.Rate > 0.0 && spec.Burst == 0))
 			throw StormByte::Logger::ThrottleError("Invalid throttle rate or burst");
@@ -116,16 +125,20 @@ namespace {
 			(spec.WindowPeriod == 0 || spec.WindowKeep == 0 || spec.WindowKeep > spec.WindowPeriod))
 			throw StormByte::Logger::ThrottleError("Invalid throttle window");
 	}
+
 	std::int64_t NowNanoseconds() noexcept {
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(
 			std::chrono::steady_clock::now().time_since_epoch()).count();
 	}
+
 	bool ConsumeFiniteCredit(ThrottleRuleState& state) noexcept {
 		auto credits = state.finite_credits.load(std::memory_order_relaxed);
 		while (credits != 0 && !state.finite_credits.compare_exchange_weak(
 			credits, credits - 1, std::memory_order_acq_rel, std::memory_order_relaxed)) {}
+
 		return credits != 0;
 	}
+
 	bool ConsumeRateCredit(ThrottleRuleState& state, const ThrottleSpec& spec) noexcept {
 		if (spec.Rate == 0.0 && spec.Burst == 0)
 			return true;
@@ -146,6 +159,7 @@ namespace {
 		}
 	}
 }
+
 std::string Implementation::CurrentTime() const noexcept {
 	try {
 		auto now = std::chrono::system_clock::now();
@@ -165,6 +179,7 @@ std::string Implementation::CurrentTime() const noexcept {
 		return std::string();
 	}
 }
+
 Implementation::Implementation(std::ostream& out, const Level& level, const std::string& format):
 	m_out(out),
 	m_print_level(level),
@@ -177,10 +192,12 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_redact_keep_first(false),
 	m_throttle_table(std::make_shared<const ThrottleTable>()) {
 }
+
 Implementation::~Implementation() noexcept {
 	reset_color();
 	reset_line_state();
 }
+
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
 #if defined(WINDOWS) || defined(__GLIBCXX__)
 	return m_throttle_table.load(std::memory_order_acquire);
@@ -188,6 +205,7 @@ std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const n
 	return std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
 #endif
 }
+
 void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
 #if defined(WINDOWS) || defined(__GLIBCXX__)
 	m_throttle_table.store(std::move(table), std::memory_order_release);
@@ -195,32 +213,39 @@ void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> tab
 	std::atomic_store_explicit(&m_throttle_table, std::move(table), std::memory_order_release);
 #endif
 }
+
 const Level& Implementation::CurrentLevel() const noexcept {
 	return t_level ? *t_level : m_print_level;
 }
+
 bool Implementation::Enabled() const noexcept {
 	if (!t_level)
 		return m_enabled.load(std::memory_order_acquire);
 	return IsAlwaysVisible(*t_level) || *t_level >= m_print_level;
 }
+
 void Implementation::Color(const Level& level, const StormByte::Logger::Color& color) noexcept {
 	if (ColorIndex(level) < m_level_colors.size())
 		m_level_colors[ColorIndex(level)] = color;
 }
+
 void Implementation::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
 	if (!component.empty())
 		m_component_colors[component][ColorIndex(level)] = color;
 }
+
 StormByte::Logger::Color Implementation::Color(const Level& level) const noexcept {
 	if (ColorIndex(level) < m_level_colors.size())
 		return m_level_colors[ColorIndex(level)];
 	return StormByte::Logger::Color::Default;
 }
+
 StormByte::Logger::Color Implementation::Color(const std::string& component, const Level& level) const noexcept {
 	if (const auto found = m_component_colors.find(component); found != m_component_colors.end())
 		return found->second[ColorIndex(level)];
 	return Color(level);
 }
+
 const std::string& Implementation::effective_format() const noexcept {
 	if (!m_format_stack.empty())
 		return m_format_stack.back();
@@ -229,14 +254,17 @@ const std::string& Implementation::effective_format() const noexcept {
 		return found->second;
 	return m_format;
 }
+
 const std::string& Implementation::Format() const noexcept {
 	return effective_format();
 }
+
 const std::string& Implementation::Format(const std::string& component) const noexcept {
 	if (const auto found = m_component_formats.find(component); found != m_component_formats.end())
 		return found->second;
 	return m_format;
 }
+
 void Implementation::Format(const std::string& format) {
 	if (t_line.header_displayed) {
 		reset_color();
@@ -247,13 +275,16 @@ void Implementation::Format(const std::string& format) {
 		t_group.clear();
 		reset_line_state();
 	}
+
 	m_format = format;
 }
+
 void Implementation::Format(const std::string& component, const std::string& format) {
 	if (component.empty()) {
 		Format(format);
 		return;
 	}
+
 	if (t_line.header_displayed) {
 		reset_color();
 		m_out << std::endl;
@@ -263,11 +294,13 @@ void Implementation::Format(const std::string& component, const std::string& for
 		t_group.clear();
 		reset_line_state();
 	}
+
 	if (format.empty())
 		m_component_formats.erase(component);
 	else
 		m_component_formats[component] = format;
 }
+
 void Implementation::Throttle(const ThrottleSpec& spec) {
 	ValidateThrottle(spec);
 	auto current = LoadThrottleTable();
@@ -284,6 +317,7 @@ void Implementation::Throttle(const ThrottleSpec& spec) {
 		*found = rule;
 	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
+
 void Implementation::NoThrottle(const ThrottleSpec& spec) {
 	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
@@ -292,12 +326,15 @@ void Implementation::NoThrottle(const ThrottleSpec& spec) {
 	}), next->rules.end());
 	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
+
 void Implementation::NoThrottleAll() noexcept {
 	StoreThrottleTable(std::make_shared<const ThrottleTable>());
 }
+
 void Implementation::FlushThrottle() {
 	FlushThrottle(ThrottleSpec{});
 }
+
 void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 	const auto table = LoadThrottleTable();
 	const auto saved = t_line;
@@ -306,6 +343,7 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 		m_out.put('\n');
 		reset_line_state();
 	}
+
 	for (const auto& rule : table->rules) {
 		if (!Selects(filter, rule.spec))
 			continue;
@@ -326,8 +364,10 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 		m_out.put('\n');
 		reset_line_state();
 	}
+
 	t_line = saved;
 }
+
 bool Implementation::PrepareLine() {
 	if (t_line.decided)
 		return t_line.admitted;
@@ -351,6 +391,7 @@ bool Implementation::PrepareLine() {
 			}
 		}
 	}
+
 	if (selected == nullptr)
 		return true;
 	auto& state = *selected->state;
@@ -362,6 +403,7 @@ bool Implementation::PrepareLine() {
 		const auto index = state.window_count.fetch_add(1, std::memory_order_relaxed);
 		admitted = index % selected->spec.WindowPeriod < selected->spec.WindowKeep;
 	}
+
 	if (admitted)
 		admitted = ConsumeRateCredit(state, selected->spec);
 	if (!admitted) {
@@ -369,18 +411,23 @@ bool Implementation::PrepareLine() {
 		t_line.admitted = false;
 		return false;
 	}
+
 	t_line.dropped = state.dropped.exchange(0, std::memory_order_acq_rel);
 	return true;
 }
+
 bool Implementation::LineAdmitted() const noexcept {
 	return t_line.admitted;
 }
+
 bool Implementation::LineDecided() const noexcept {
 	return t_line.decided;
 }
+
 bool Implementation::HasOpenOutputLine() const noexcept {
 	return t_line.header_displayed;
 }
+
 void Implementation::BeginOutputLine() noexcept {
 	if (t_line.close_before_header) {
 		reset_color();
@@ -388,8 +435,10 @@ void Implementation::BeginOutputLine() noexcept {
 		t_line.close_before_header = false;
 		t_line.header_displayed = false;
 	}
+
 	t_line.header_displayed = true;
 }
+
 void Implementation::close_deferred_line() noexcept {
 	if (!t_line.close_before_header)
 		return;
@@ -398,9 +447,11 @@ void Implementation::close_deferred_line() noexcept {
 	t_line.close_before_header = false;
 	t_line.header_displayed = false;
 }
+
 void Implementation::reset_line_state() noexcept {
 	t_line = {};
 }
+
 void Implementation::write_drop_summary() noexcept {
 	if (t_line.dropped == 0)
 		return;
@@ -411,6 +462,7 @@ void Implementation::write_drop_summary() noexcept {
 	m_out.put('\n');
 	t_line.dropped = 0;
 }
+
 Implementation& Implementation::operator<<(const Level& level) noexcept {
 	if (t_level) {
 		if (level != *t_level && (IsAlwaysVisible(*t_level) || *t_level >= m_print_level) && t_line.header_displayed) {
@@ -420,12 +472,14 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 			t_group.clear();
 		}
 	}
+
 	t_level = level;
 	m_content_color.reset();
 	m_content_nocolor = false;
 	m_enabled.store(IsAlwaysVisible(level) || level >= m_print_level, std::memory_order_release);
 	return *this;
 }
+
 Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	if (ManipulatorWritesNewline(manip)) {
 		if (Enabled() && PrepareLine()) {
@@ -434,6 +488,7 @@ Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)
 			if (t_line.admitted)
 				m_out << manip;
 		}
+
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -441,10 +496,12 @@ Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)
 		reset_line_state();
 		return *this;
 	}
+
 	if (Enabled())
 		m_out << manip;
 	return *this;
 }
+
 Implementation& Implementation::operator<<(ColorManip manip) noexcept {
 	if (!Enabled())
 		return *this;
@@ -454,6 +511,7 @@ Implementation& Implementation::operator<<(ColorManip manip) noexcept {
 		sync_content_color();
 	return *this;
 }
+
 Implementation& Implementation::operator<<(NoColorManip) noexcept {
 	if (!Enabled())
 		return *this;
@@ -463,6 +521,7 @@ Implementation& Implementation::operator<<(NoColorManip) noexcept {
 		sync_content_color();
 	return *this;
 }
+
 Implementation& Implementation::operator<<(FormatManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
@@ -473,9 +532,11 @@ Implementation& Implementation::operator<<(FormatManip manip) {
 		t_group.clear();
 		reset_line_state();
 	}
+
 	m_format_stack.push_back(std::move(manip.format));
 	return *this;
 }
+
 Implementation& Implementation::operator<<(PopFormatManip) noexcept {
 	if (m_format_stack.empty())
 		return *this;
@@ -488,9 +549,11 @@ Implementation& Implementation::operator<<(PopFormatManip) noexcept {
 		t_group.clear();
 		reset_line_state();
 	}
+
 	m_format_stack.pop_back();
 	return *this;
 }
+
 Implementation& Implementation::operator<<(GroupManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
@@ -500,20 +563,25 @@ Implementation& Implementation::operator<<(GroupManip manip) {
 		m_content_nocolor = false;
 		reset_line_state();
 	}
+
 	t_group = std::move(manip.name);
 	return *this;
 }
+
 Implementation& Implementation::operator<<(ComponentManip manip) {
 	t_component = std::move(manip.name);
 	return *this;
 }
+
 Implementation& Implementation::operator<<(ResetComponentManip) {
 	t_component.clear();
 	return *this;
 }
+
 void Implementation::print_time() const noexcept {
 	m_out << CurrentTime();
 }
+
 void Implementation::print_level() const noexcept {
 	constexpr std::size_t fixed_width = 8;
 	const std::string level_str = LevelToString(t_line.decided ? t_line.level : t_level.value_or(m_print_level));
@@ -521,9 +589,11 @@ void Implementation::print_level() const noexcept {
 	for (std::size_t i = level_str.size(); i < fixed_width; ++i)
 		m_out.put(' ');
 }
+
 void Implementation::print_thread_id() const noexcept {
 	m_out << std::this_thread::get_id();
 }
+
 void Implementation::print_header() noexcept {
 	const std::string& fmt = effective_format();
 	constexpr std::size_t fixed_width = 8;
@@ -546,6 +616,7 @@ void Implementation::print_header() noexcept {
 					++i;
 					break;
 				}
+
 				case 'T':
 					print_time();
 					++i;
@@ -570,8 +641,10 @@ void Implementation::print_header() noexcept {
 			m_out.put(fmt[i]);
 		}
 	}
+
 	m_out.put(' ');
 }
+
 void Implementation::sync_content_color() noexcept {
 	const auto level = t_line.decided ? t_line.level : t_level.value_or(m_print_level);
 	const auto& component = t_line.decided ? t_line.component : t_component;
@@ -583,6 +656,7 @@ void Implementation::sync_content_color() noexcept {
 	else
 		emit_color(configured);
 }
+
 void Implementation::emit_color(const StormByte::Logger::Color color) noexcept {
 	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
 		return;
@@ -590,25 +664,30 @@ void Implementation::emit_color(const StormByte::Logger::Color color) noexcept {
 		m_out << "\033[0m";
 		m_active_color.reset();
 	}
+
 	if (color != StormByte::Logger::Color::Default) {
 		m_out << AnsiColor(color);
 		m_active_color = color;
 	}
 }
+
 void Implementation::reset_color() noexcept {
 	if (m_active_color) {
 		m_out << "\033[0m";
 		m_active_color.reset();
 	}
 }
+
 void Implementation::print_message(const std::string& message) noexcept {
 	if (!Enabled())
 		return;
 	write_text(message);
 }
+
 void Implementation::print_message(const wchar_t& value) {
 	print_message(String::UTF8Encode(std::wstring(1, value)));
 }
+
 namespace StormByte::Logger {
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<bool>(const bool& value);
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<short>(const short& value);

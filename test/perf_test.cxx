@@ -38,12 +38,14 @@ int test_log_filtered_high_volume() {
 		log << Level::Info << "info " << i << std::endl;
 		log << Level::Notice << "notice " << i << std::endl;
 	}
+
 	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - t0).count();
 	ASSERT_EQUAL("test_log_filtered_high_volume (output)", std::string(""), output.str());
 	std::cout << "  [perf] Log filtered " << (N * 3) << " lines in " << ms << " ms\n";
 	RETURN_TEST("test_log_filtered_high_volume", 0);
 }
+
 // Filtered ThreadedLog then one visible line (lock must not leak).
 int test_threaded_filtered_high_volume() {
 	std::ostringstream output;
@@ -53,6 +55,7 @@ int test_threaded_filtered_high_volume() {
 	for (int i = 0; i < N; ++i) {
 		tlog << Level::Debug << "hidden " << i << std::endl;
 	}
+
 	tlog << Level::Error << "only" << std::endl;
 	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - t0).count();
@@ -61,6 +64,7 @@ int test_threaded_filtered_high_volume() {
 	std::cout << "  [perf] ThreadedLog filtered " << N << " lines in " << ms << " ms\n";
 	RETURN_TEST("test_threaded_filtered_high_volume", 0);
 }
+
 // Concurrent filtered spam, then one Info.
 int test_threaded_filtered_multithreaded_volume() {
 	std::ostringstream output;
@@ -72,6 +76,7 @@ int test_threaded_filtered_multithreaded_volume() {
 		for (int i = 0; i < per_thread; ++i) {
 			tlog << Level::Debug << "t" << id << ":" << i << std::endl;
 		}
+
 		finished.fetch_add(1, std::memory_order_relaxed);
 	};
 	std::vector<std::thread> pool;
@@ -80,9 +85,11 @@ int test_threaded_filtered_multithreaded_volume() {
 	for (int t = 0; t < threads; ++t) {
 		pool.emplace_back(worker, t);
 	}
+
 	for (auto& th : pool) {
 		th.join();
 	}
+
 	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 		std::chrono::steady_clock::now() - t0).count();
 	ASSERT_EQUAL("test_threaded_filtered_multithreaded_volume (workers)",
@@ -95,6 +102,7 @@ int test_threaded_filtered_multithreaded_volume() {
 			<< ms << " ms\n";
 	RETURN_TEST("test_threaded_filtered_multithreaded_volume", 0);
 }
+
 int main() {
 	int result = 0;
 	result += test_log_filtered_high_volume();
@@ -105,5 +113,6 @@ int main() {
 	} else {
 		std::cout << result << " tests failed." << std::endl;
 	}
+
 	return result;
 }

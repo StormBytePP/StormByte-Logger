@@ -36,6 +36,7 @@ int test_threadedlog_basic() {
 	ASSERT_EQUAL("test_threadedlog_basic", expected, output.str());
 	RETURN_TEST("test_threadedlog_basic", 0);
 }
+
 int test_threadedlog_multithreaded_ordering() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -59,15 +60,19 @@ int test_threadedlog_multithreaded_ordering() {
 			ASSERT_EQUAL("test_threadedlog_multithreaded_ordering (line_format)", "OK", std::string("BAD: ") + line);
 			RETURN_TEST("test_threadedlog_multithreaded_ordering", 1);
 		}
+
 		++count;
 	}
+
 	int expected = threads * repeats;
 	if (count != expected) {
 		ASSERT_EQUAL("test_threadedlog_multithreaded_ordering (count)", std::to_string(expected), std::to_string(count));
 		RETURN_TEST("test_threadedlog_multithreaded_ordering", 1);
 	}
+
 	RETURN_TEST("test_threadedlog_multithreaded_ordering", 0);
 }
+
 int test_threadedlog_no_endl_sharing() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -77,6 +82,7 @@ int test_threadedlog_no_endl_sharing() {
 		for (int i = 0; i < parts; ++i) {
 			tlog << Level::Info << "p" << id << ":" << i << " ";
 		}
+
 		tlog << std::endl;
 	};
 	std::vector<std::thread> pool;
@@ -88,10 +94,12 @@ int test_threadedlog_no_endl_sharing() {
 	while (std::getline(in, line)) {
 		if (!line.empty()) ++count;
 	}
+
 	int expected = threads;
 	ASSERT_EQUAL("test_threadedlog_no_endl_sharing", std::to_string(expected), std::to_string(count));
 	RETURN_TEST("test_threadedlog_no_endl_sharing", 0);
 }
+
 int test_threadedlog_deterministic_ordering() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -112,11 +120,13 @@ int test_threadedlog_deterministic_ordering() {
 			done_promises[i].set_value();
 		});
 	}
+
 	for (int i = 0; i < threads; ++i) {
 		start_promises[i].set_value();
 		done_futures[i].get();
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+
 	for (auto &th : pool) th.join();
 	std::istringstream in(output.str());
 	std::string line;
@@ -127,12 +137,15 @@ int test_threadedlog_deterministic_ordering() {
 		ASSERT_EQUAL("test_threadedlog_deterministic_ordering", expected, line);
 		++idx;
 	}
+
 	if (idx != threads) {
 		ASSERT_EQUAL("test_threadedlog_deterministic_ordering (count)", std::to_string(threads), std::to_string(idx));
 		RETURN_TEST("test_threadedlog_deterministic_ordering", 1);
 	}
+
 	RETURN_TEST("test_threadedlog_deterministic_ordering", 0);
 }
+
 int test_smart_pointer_usage() {
 	std::ostringstream output;
 	std::shared_ptr<StormByte::Logger::Log> log = std::make_shared<StormByte::Logger::ThreadedLog>(output, Level::Info, "%L:");
@@ -141,6 +154,7 @@ int test_smart_pointer_usage() {
 	ASSERT_EQUAL("test_smart_pointer_usage", expected, output.str());
 	RETURN_TEST("test_smart_pointer_usage", 0);
 }
+
 // --- New: filtered path must not leak the lock ---
 int test_threadedlog_filtered_endl_no_deadlock() {
 	std::ostringstream output;
@@ -149,12 +163,14 @@ int test_threadedlog_filtered_endl_no_deadlock() {
 	for (int i = 0; i < 50; ++i) {
 		tlog << Level::Debug << "hidden " << i << std::endl;
 	}
+
 	// If the lock leaked, this Info line would hang.
 	tlog << Level::Info << "after filtered" << std::endl;
 	std::string expected = "Info    : after filtered\n";
 	ASSERT_EQUAL("test_threadedlog_filtered_endl_no_deadlock", expected, output.str());
 	RETURN_TEST("test_threadedlog_filtered_endl_no_deadlock", 0);
 }
+
 int test_threadedlog_filtered_multithreaded_then_info() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -165,6 +181,7 @@ int test_threadedlog_filtered_multithreaded_then_info() {
 		for (int i = 0; i < repeats; ++i) {
 			tlog << Level::Debug << "d" << id << ":" << i << std::endl;
 		}
+
 		done.fetch_add(1);
 	};
 	std::vector<std::thread> pool;
@@ -174,11 +191,13 @@ int test_threadedlog_filtered_multithreaded_then_info() {
 		ASSERT_EQUAL("test_threadedlog_filtered_multithreaded_then_info (workers)", std::to_string(threads), std::to_string(done.load()));
 		RETURN_TEST("test_threadedlog_filtered_multithreaded_then_info", 1);
 	}
+
 	tlog << Level::Info << "ok" << std::endl;
 	std::string expected = "Info    : ok\n";
 	ASSERT_EQUAL("test_threadedlog_filtered_multithreaded_then_info", expected, output.str());
 	RETURN_TEST("test_threadedlog_filtered_multithreaded_then_info", 0);
 }
+
 int test_threadedlog_level_switch_flush() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Debug, "%L:");
@@ -191,8 +210,10 @@ int test_threadedlog_level_switch_flush() {
 		ASSERT_EQUAL("test_threadedlog_level_switch_flush", std::string("contains part1 and part2"), out);
 		RETURN_TEST("test_threadedlog_level_switch_flush", 1);
 	}
+
 	RETURN_TEST("test_threadedlog_level_switch_flush", 0);
 }
+
 int test_threadedlog_invalid_wide_releases_line_lock() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -202,11 +223,13 @@ int test_threadedlog_invalid_wide_releases_line_lock() {
 	} catch (const StormByte::UTF8Error&) {
 		threw = true;
 	}
+
 	ASSERT_TRUE("test_threadedlog_invalid_wide_releases_line_lock (throws)", threw);
 	tlog << Level::Info << "after invalid input" << std::endl;
 	ASSERT_EQUAL("test_threadedlog_invalid_wide_releases_line_lock", "Info    : after invalid input\n", output.str());
 	RETURN_TEST("test_threadedlog_invalid_wide_releases_line_lock", 0);
 }
+
 int test_threadedlog_filtered_wide_skips_conversion() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -216,12 +239,14 @@ int test_threadedlog_filtered_wide_skips_conversion() {
 	} catch (const StormByte::UTF8Error&) {
 		threw = true;
 	}
+
 	ASSERT_TRUE("test_threadedlog_filtered_wide_skips_conversion (no throw)", !threw);
 	ASSERT_EQUAL("test_threadedlog_filtered_wide_skips_conversion (no output)", std::string{}, output.str());
 	tlog << Level::Info << "after filtered invalid input" << std::endl;
 	ASSERT_EQUAL("test_threadedlog_filtered_wide_skips_conversion", "Info    : after filtered invalid input\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_wide_skips_conversion", 0);
 }
+
 int test_threadedlog_critical_levels_are_never_filtered() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Fatal, "%L:");
@@ -239,6 +264,7 @@ int test_threadedlog_critical_levels_are_never_filtered() {
 	ASSERT_EQUAL("test_threadedlog_critical_levels_are_never_filtered", expected, output.str());
 	RETURN_TEST("test_threadedlog_critical_levels_are_never_filtered", 0);
 }
+
 int test_threadedlog_filtered_hot_path() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -249,6 +275,7 @@ int test_threadedlog_filtered_hot_path() {
 		for (int i = 0; i < repeats; ++i) {
 			tlog << Level::Debug << "discarded-" << id << ':' << i << std::endl;
 		}
+
 		completed.fetch_add(1, std::memory_order_release);
 	};
 	std::vector<std::thread> pool;
@@ -261,6 +288,7 @@ int test_threadedlog_filtered_hot_path() {
 	ASSERT_EQUAL("test_threadedlog_filtered_hot_path", "Info    : after filtered hot path\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_hot_path", 0);
 }
+
 int test_threadedlog_colored_lines_do_not_mix() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
@@ -275,6 +303,7 @@ int test_threadedlog_colored_lines_do_not_mix() {
 				tlog << Level::Info << "T" << id << ':' << i << std::endl;
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	std::istringstream input(output.str());
 	std::string line;
@@ -286,9 +315,11 @@ int test_threadedlog_colored_lines_do_not_mix() {
 			static_cast<std::size_t>(line.find("\033[36m") != std::string::npos));
 		++count;
 	}
+
 	ASSERT_EQUAL("test_threadedlog_colored_lines_do_not_mix (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_colored_lines_do_not_mix", 0);
 }
+
 int test_threadedlog_push_pop_format_is_line_safe() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "BASE[%L]");
@@ -305,6 +336,7 @@ int test_threadedlog_push_pop_format_is_line_safe() {
 			}
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	std::istringstream input(output.str());
 	std::string line;
@@ -314,6 +346,7 @@ int test_threadedlog_push_pop_format_is_line_safe() {
 			std::regex_match(line, std::regex("^T[0-3]\\[Info    \\] message$")));
 		++count;
 	}
+
 	ASSERT_EQUAL("test_threadedlog_push_pop_format_is_line_safe (count)", threads * repeats, count);
 	tlog << pop_format;
 	tlog << Level::Info << "after empty pop" << std::endl;
@@ -321,6 +354,7 @@ int test_threadedlog_push_pop_format_is_line_safe() {
 		output.str().ends_with("BASE[Info    ] after empty pop\n"));
 	RETURN_TEST("test_threadedlog_push_pop_format_is_line_safe", 0);
 }
+
 int test_threadedlog_groups_do_not_mix() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%g[%L]");
@@ -334,6 +368,7 @@ int test_threadedlog_groups_do_not_mix() {
 				tlog << group("G" + std::to_string(id)) << Level::Info << "message" << std::endl;
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	std::istringstream input(output.str());
 	std::string line;
@@ -343,9 +378,11 @@ int test_threadedlog_groups_do_not_mix() {
 			std::regex_match(line, std::regex("^G[0-3]\\[Info    \\] message$")));
 		++count;
 	}
+
 	ASSERT_EQUAL("test_threadedlog_groups_do_not_mix (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_groups_do_not_mix", 0);
 }
+
 int test_threadedlog_filtered_group_releases_lock() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%g[%L]");
@@ -354,6 +391,7 @@ int test_threadedlog_filtered_group_releases_lock() {
 	ASSERT_EQUAL("test_threadedlog_filtered_group_releases_lock", "[Info    ] visible\n", output.str());
 	RETURN_TEST("test_threadedlog_filtered_group_releases_lock", 0);
 }
+
 int test_threadedlog_components_are_thread_local() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%c[%L]");
@@ -368,6 +406,7 @@ int test_threadedlog_components_are_thread_local() {
 				tlog << Level::Info << "message" << std::endl;
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	std::istringstream input(output.str());
 	std::string line;
@@ -377,9 +416,11 @@ int test_threadedlog_components_are_thread_local() {
 			std::regex_match(line, std::regex("^C[0-3]\\[Info    \\] message$")));
 		++count;
 	}
+
 	ASSERT_EQUAL("test_threadedlog_components_are_thread_local (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_components_are_thread_local", 0);
 }
+
 int test_threadedlog_component_does_not_hold_line_lock() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%c[%L]");
@@ -388,6 +429,7 @@ int test_threadedlog_component_does_not_hold_line_lock() {
 	ASSERT_EQUAL("test_threadedlog_component_does_not_hold_line_lock", "Filtered[Info    ] visible\n", output.str());
 	RETURN_TEST("test_threadedlog_component_does_not_hold_line_lock", 0);
 }
+
 int test_threadedlog_component_formats_do_not_mix() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "GENERAL[%L]");
@@ -405,6 +447,7 @@ int test_threadedlog_component_formats_do_not_mix() {
 				tlog << Level::Info << "message" << std::endl;
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	std::istringstream input(output.str());
 	std::string line;
@@ -414,9 +457,11 @@ int test_threadedlog_component_formats_do_not_mix() {
 			std::regex_match(line, std::regex("^[AB]\\[Info    \\] message$")));
 		++count;
 	}
+
 	ASSERT_EQUAL("test_threadedlog_component_formats_do_not_mix (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_component_formats_do_not_mix", 0);
 }
+
 int test_threadedlog_throttle_drops_without_deadlock() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
@@ -431,11 +476,13 @@ int test_threadedlog_throttle_drops_without_deadlock() {
 				log << Level::Info << id << ':' << index << std::endl;
 		});
 	}
+
 	for (auto& thread : pool) thread.join();
 	log << Level::Fatal << "fatal survives" << std::endl;
 	ASSERT_TRUE("test_threadedlog_throttle_drops_without_deadlock", output.str().find("Fatal   : fatal survives\n") != std::string::npos);
 	RETURN_TEST("test_threadedlog_throttle_drops_without_deadlock", 0);
 }
+
 int test_threadedlog_flush_throttle_releases_lock() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
@@ -452,6 +499,7 @@ int test_threadedlog_flush_throttle_releases_lock() {
 		output.str().find("Fatal   : fatal after flush\n") != std::string::npos);
 	RETURN_TEST("test_threadedlog_flush_throttle_releases_lock", 0);
 }
+
 int test_threadedlog_flush_mid_line_preserves_lock_owner() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
@@ -475,6 +523,7 @@ int test_threadedlog_flush_mid_line_preserves_lock_owner() {
 		output.str().find("Fatal   : other\n") != std::string::npos);
 	RETURN_TEST("test_threadedlog_flush_mid_line_preserves_lock_owner", 0);
 }
+
 int main() {
 	int result = 0;
 	result += test_threadedlog_basic();
@@ -504,5 +553,6 @@ int main() {
 	} else {
 		std::cout << result << " tests failed." << std::endl;
 	}
+
 	return result;
 }

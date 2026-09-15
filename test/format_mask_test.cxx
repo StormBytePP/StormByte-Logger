@@ -33,26 +33,32 @@ int test_format_mask_literals() {
 		ASSERT_EQUAL("test_format_mask_literals (leftover %L)", std::string("none"), std::string("%L"));
 		RETURN_TEST("test_format_mask_literals", 1);
 	}
+
 	if (out.find("%i") != std::string::npos) {
 		ASSERT_EQUAL("test_format_mask_literals (leftover %i)", std::string("none"), std::string("%i"));
 		RETURN_TEST("test_format_mask_literals", 1);
 	}
+
 	if (out.find("%T") != std::string::npos) {
 		ASSERT_EQUAL("test_format_mask_literals (leftover %T)", std::string("none"), std::string("%T"));
 		RETURN_TEST("test_format_mask_literals", 1);
 	}
+
 	// Literal 'T' followed by thread id should appear as "[T"
 	if (out.find("[T") == std::string::npos) {
 		ASSERT_EQUAL("test_format_mask_literals (missing [T)", std::string("found"), out);
 		RETURN_TEST("test_format_mask_literals", 1);
 	}
+
 	// Message should be present
 	if (out.find("hello") == std::string::npos) {
 		ASSERT_EQUAL("test_format_mask_literals (missing message)", std::string("hello"), out);
 		RETURN_TEST("test_format_mask_literals", 1);
 	}
+
 	RETURN_TEST("test_format_mask_literals", 0);
 }
+
 int main() {
 	int result = 0;
 	result += test_format_mask_literals();
