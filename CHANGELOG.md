@@ -20,17 +20,21 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Changed
-
-- Bundled StormByte Base is [1.1.1](https://github.com/StormBytePP/StormByte/releases/tag/1.1.1). The declared requirement stays [1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer.
-
 ### TODO
 
 - [ ]`operator<<(std::string_view)` / `operator<<(std::wstring_view)` with the same early-out as `string`/`wstring`.
 - [ ] Public `Enabled(Level) const` (preferred) or `WillWrite()` — floor of a level, does not open a line and is not throttle admission. Do not expose `PrepareLine` / `LineAdmitted`.
 - [ ] Tests and a README Streaming note when the two items above land. Target 1.2.0, not 2.0.0.
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...HEAD
+
+## [1.1.1] - 2026-09-15
+
+### Changed
+
+- Bundled StormByte Base is [1.1.1](https://github.com/StormBytePP/StormByte/releases/tag/1.1.1). The declared requirement stays [1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer.
+
+[1.1.1]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.0...1.1.1
 
 ## [1.1.0] - 2026-09-13
 
