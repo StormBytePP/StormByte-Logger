@@ -24,6 +24,7 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <utility>
@@ -203,6 +204,16 @@ namespace {
 				return true;
 		}
 	}
+
+	ThrottleRule MakeRule(const ThrottleSpec& spec) {
+		ThrottleRule rule;
+		rule.spec = spec;
+		rule.state = std::make_shared<ThrottleRuleState>();
+		rule.state->finite_credits.store(spec.Burst, std::memory_order_relaxed);
+		rule.leaf_mutex = std::make_shared<std::mutex>();
+		rule.leaf_states = std::make_shared<std::unordered_map<std::string, std::shared_ptr<ThrottleRuleState>>>();
+		return rule;
+	}
 }
 
 std::string Implementation::CurrentTime() const noexcept {
@@ -361,17 +372,28 @@ void Implementation::Throttle(const ThrottleSpec& spec) {
 	ValidateThrottle(spec);
 	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
-	const auto state = std::make_shared<ThrottleRuleState>();
-	state->finite_credits.store(spec.Burst, std::memory_order_relaxed);
-	const ThrottleRule rule{spec, state};
+	auto rule = MakeRule(spec);
 	auto found = std::find_if(next->rules.begin(), next->rules.end(), [&](const ThrottleRule& candidate) {
 		return SameSelectors(candidate.spec, spec);
 	});
 	if (found == next->rules.end())
-		next->rules.push_back(rule);
+		next->rules.push_back(std::move(rule));
 	else
-		*found = rule;
+		*found = std::move(rule);
 	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
+}
+
+std::shared_ptr<ThrottleRuleState> Implementation::LeafThrottleState(
+	const ThrottleRule& rule, const std::string& path) {
+	if (!rule.leaf_mutex || !rule.leaf_states)
+		return rule.state;
+	std::lock_guard<std::mutex> lock(*rule.leaf_mutex);
+	auto& slot = (*rule.leaf_states)[path];
+	if (!slot) {
+		slot = std::make_shared<ThrottleRuleState>();
+		slot->finite_credits.store(rule.spec.Burst, std::memory_order_relaxed);
+	}
+	return slot;
 }
 
 void Implementation::NoThrottle(const ThrottleSpec& spec) {
@@ -400,16 +422,17 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 		reset_line_state();
 	}
 
-	for (const auto& rule : table->rules) {
-		if (!Selects(filter, rule.spec))
-			continue;
-		const auto dropped = rule.state->dropped.exchange(0, std::memory_order_acq_rel);
+	const auto emit = [&](const ThrottleRule& rule, const std::string& component,
+		const std::shared_ptr<ThrottleRuleState>& state) {
+		if (!state)
+			return;
+		const auto dropped = state->dropped.exchange(0, std::memory_order_acq_rel);
 		if (dropped == 0)
-			continue;
+			return;
 		t_line.decided = true;
 		t_line.admitted = true;
 		t_line.level = rule.spec.Level.value_or(Level::Notice);
-		t_line.component = rule.spec.Component.value_or(std::string{});
+		t_line.component = component;
 		t_line.group = rule.spec.Group.value_or(std::string{});
 		t_line.dropped = 0;
 		BeginOutputLine();
@@ -419,6 +442,18 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 		reset_color();
 		m_out.put('\n');
 		reset_line_state();
+	};
+
+	for (const auto& rule : table->rules) {
+		if (!Selects(filter, rule.spec))
+			continue;
+		if (rule.leaf_states && rule.leaf_mutex) {
+			std::lock_guard<std::mutex> lock(*rule.leaf_mutex);
+			for (const auto& [path, state] : *rule.leaf_states)
+				emit(rule, path, state);
+		}
+		else
+			emit(rule, rule.spec.Component.value_or(std::string{}), rule.state);
 	}
 
 	t_line = saved;
@@ -450,7 +485,8 @@ bool Implementation::PrepareLine() {
 
 	if (selected == nullptr)
 		return true;
-	auto& state = *selected->state;
+	auto state_ptr = LeafThrottleState(*selected, t_line.component);
+	auto& state = *state_ptr;
 	bool admitted = true;
 	if (selected->spec.Policy == ThrottlePolicy::Sample) {
 		const auto index = state.sample_count.fetch_add(1, std::memory_order_relaxed);

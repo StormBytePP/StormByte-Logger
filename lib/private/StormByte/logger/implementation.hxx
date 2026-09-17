@@ -32,6 +32,7 @@
 #include <optional>
 #include <ostream>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <string>
 #include <string_view>
@@ -54,6 +55,8 @@ namespace StormByte::Logger {
 	struct ThrottleRule {
 		ThrottleSpec spec;
 		std::shared_ptr<ThrottleRuleState> state;
+		std::shared_ptr<std::mutex> leaf_mutex;
+		std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<ThrottleRuleState>>> leaf_states;
 	};
 	struct ThrottleTable {
 		std::vector<ThrottleRule> rules;
@@ -80,6 +83,7 @@ namespace StormByte::Logger {
 	 *
 	 * Component emission path is the facade path (@ref SetFacadePath) when set,
 	 * otherwise the thread-local stack joined with `/`.
+	 * A prefix throttle rule supplies the spec; counters are per emitting path.
 	 */
 	class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
@@ -551,6 +555,14 @@ namespace StormByte::Logger {
 			void write_drop_summary() noexcept;
 			std::shared_ptr<const ThrottleTable> LoadThrottleTable() const noexcept;
 			void StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept;
+
+			/**
+			 * @brief Counters for this emitting path under an inherited spec.
+			 * @param rule Selected rule (prefix or exact).
+			 * @param path Current component path.
+			 * @return Isolated state. Never null.
+			 */
+			std::shared_ptr<ThrottleRuleState> LeafThrottleState(const ThrottleRule& rule, const std::string& path);
 			const std::string& effective_format() const noexcept;
 
 			template <typename T>

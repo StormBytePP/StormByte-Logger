@@ -49,9 +49,7 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - `~Implementation` no longer first-touches thread-local line state (Valgrind still-reachable TLS at exit).
-- `ThreadedLog::Write(Level)` does not take the line lock when the new level is filtered and no line is open.
-- `reset_line_state` clears the Scope facade path so a later root line on the same thread does not keep `%c`.
-- `Scope` on `ThreadedLog` stays a `ThreadedLog` (shared line lock). Concurrent writes through the scoped facade are covered by test.
+- Inherited throttle rules keep one spec per prefix but one counter set per emitting path. A parent `Scope("Multimedia").Throttle(Debug, …)` no longer lets `Encoder` consume `watermark` tokens or print `watermark dropped N messages` when that leaf had not emitted anything at that level. Drop summaries stay on the leaf that dropped. Tests cover `Log` and `ThreadedLog`.
 
 [1.2.0]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...1.2.0
 
