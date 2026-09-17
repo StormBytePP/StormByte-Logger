@@ -28,6 +28,12 @@ If you landed here from a release link and have not read the tree:
   reported 96 bytes still reachable when a `Log` died at `exit`. Line TLS
   is still cleared when the thread itself exits.
 
+### Changed
+
+- Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0).
+  The declared requirement stays [1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0)
+  until Logger uses `String::UTF8Encode(std::wstring_view)`.
+
 ### TODO
 
 - [ ] `operator<<(std::string_view)` / `operator<<(std::wstring_view)` with the same early-out as `string`/`wstring`.
