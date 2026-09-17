@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, and hex dumps (`hex` / `nohex`).
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64).
 
 If you landed here from a release link and have not read the tree:
 
@@ -24,13 +24,14 @@ If you landed here from a release link and have not read the tree:
 
 - `Log::Enabled(Level)`: print-floor query (Warning/Error/Fatal always true). Does not open a line and does not consult throttle.
 - `operator<<(std::string_view)` and `operator<<(std::wstring_view)` on `Log` and `ThreadedLog`, with the same filtered early-out as other payloads. `std::string` / `std::wstring` convert to the views.
-- `hex` / `hex(N)` / `nohex`: dump subsequent payloads as spaced `0xAA` bytes. `N` is bytes per row (default 16); wrap uses a raw newline without a new header and without ending the logical line. `hex(0)` is `nohex`. Applies to text, wide text (after UTF-8) and numbers (`42` → bytes of `"42"`). Hex runs before redaction.
+- `hex` / `hex(N)` / `nohex`: dump subsequent payloads as spaced `0xAA` bytes. `N` is bytes per row (default 16); wrap uses a raw newline without a new header and without ending the logical line. `hex(0)` is `nohex`. Applies to text, wide text (after UTF-8), numbers (`42` → bytes of `"42"`) and binary spans. Hex runs before redaction.
+- `operator<<(std::span<const std::byte>)` on `Log` and `ThreadedLog`. Default output is Base64 (`StormByte::Base64Encode`). `std::vector<std::byte>` converts to the span. With `hex` the dump is the raw bytes, not the Base64 text. Empty spans emit an empty payload. `ThreadedLog` formats the payload before taking the line lock (`FormatBinary` + `WritePrepared`).
 
 ### Changed
 
 - Dropped the dedicated `operator<<(const std::string&)` / `operator<<(const std::wstring&)` overloads. Call sites that pass `std::string` still compile.
 - `ThreadedLog` wide payloads encode with `String::UTF8Encode(std::wstring_view)` before taking the line lock.
-- Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` requires Base 1.2.0 or newer.
+- Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` and `Base64Encode(std::span<const std::byte>)` requires Base 1.2.0 or newer.
 
 ### Fixed
 

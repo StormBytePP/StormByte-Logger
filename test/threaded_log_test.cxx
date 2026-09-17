@@ -17,6 +17,7 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
+#include <StormByte/base64.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
@@ -25,6 +26,7 @@
 #include <chrono>
 #include <future>
 #include <regex>
+#include <span>
 #include <sstream>
 #include <string_view>
 #include <thread>
@@ -89,6 +91,52 @@ int test_threadedlog_enabled_and_views() {
 	log << Level::Debug << std::string_view{owned} << std::endl;
 	ASSERT_EQUAL("test_threadedlog_enabled_and_views", "Info    : owned wide\n", output.str());
 	RETURN_TEST("test_threadedlog_enabled_and_views", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Binary span: encode before the line lock
+// ---------------------------------------------------------------------------
+
+int test_threadedlog_span_default_is_base64() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	const std::vector<std::byte> raw{
+		std::byte{'H'}, std::byte{'e'}, std::byte{'l'}, std::byte{'l'}, std::byte{'o'}
+	};
+	log << Level::Info << std::span<const std::byte>{raw} << std::endl;
+	ASSERT_EQUAL("test_threadedlog_span_default_is_base64",
+		"Info    : " + StormByte::Base64Encode(raw) + "\n", output.str());
+	RETURN_TEST("test_threadedlog_span_default_is_base64", 0);
+}
+
+int test_threadedlog_span_vector_converts() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0x02}};
+	log << Level::Info << raw << std::endl;
+	ASSERT_EQUAL("test_threadedlog_span_vector_converts",
+		"Info    : " + StormByte::Base64Encode(raw) + "\n", output.str());
+	RETURN_TEST("test_threadedlog_span_vector_converts", 0);
+}
+
+int test_threadedlog_span_hex() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0xAB}};
+	log << Level::Info << hex << raw << std::endl;
+	ASSERT_EQUAL("test_threadedlog_span_hex", "Info    : 0x01 0xAB\n", output.str());
+	RETURN_TEST("test_threadedlog_span_hex", 0);
+}
+
+int test_threadedlog_span_filtered() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	const std::vector<std::byte> raw{std::byte{0xFF}};
+	log << Level::Debug << raw << std::endl;
+	ASSERT_EQUAL("test_threadedlog_span_filtered", std::string{}, output.str());
+	log << Level::Info << "after" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_span_filtered (after)", "Info    : after\n", output.str());
+	RETURN_TEST("test_threadedlog_span_filtered", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -568,19 +616,37 @@ int test_threadedlog_flush_mid_line_preserves_lock_owner() {
 
 int main() {
 	int result = 0;
+
+	// Basic emit
 	result += test_threadedlog_basic();
 	result += test_smart_pointer_usage();
+
+	// Floor / Enabled / views
 	result += test_threadedlog_critical_levels_are_never_filtered();
 	result += test_threadedlog_enabled_and_views();
+
+	// Binary span
+	result += test_threadedlog_span_default_is_base64();
+	result += test_threadedlog_span_vector_converts();
+	result += test_threadedlog_span_hex();
+	result += test_threadedlog_span_filtered();
+
+	// Line lock / concurrency
 	result += test_threadedlog_multithreaded_ordering();
 	result += test_threadedlog_no_endl_sharing();
 	result += test_threadedlog_deterministic_ordering();
 	result += test_threadedlog_level_switch_flush();
+
+	// Filtered path must not leak the lock
 	result += test_threadedlog_filtered_endl_no_deadlock();
 	result += test_threadedlog_filtered_multithreaded_then_info();
 	result += test_threadedlog_filtered_hot_path();
+
+	// Wide / UTF-8
 	result += test_threadedlog_invalid_wide_releases_line_lock();
 	result += test_threadedlog_filtered_wide_skips_conversion();
+
+	// Color / format / group / component
 	result += test_threadedlog_colored_lines_do_not_mix();
 	result += test_threadedlog_push_pop_format_is_line_safe();
 	result += test_threadedlog_groups_do_not_mix();
@@ -588,9 +654,12 @@ int main() {
 	result += test_threadedlog_components_are_thread_local();
 	result += test_threadedlog_component_does_not_hold_line_lock();
 	result += test_threadedlog_component_formats_do_not_mix();
+
+	// Throttle
 	result += test_threadedlog_throttle_drops_without_deadlock();
 	result += test_threadedlog_flush_throttle_releases_lock();
 	result += test_threadedlog_flush_mid_line_preserves_lock_owner();
+
 	if (result == 0) {
 		std::cout << "All tests passed!" << std::endl;
 	} else {

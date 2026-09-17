@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <StormByte/base64.hxx>
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/string.hxx>
@@ -26,10 +27,12 @@
 
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <ostream>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -88,31 +91,15 @@ namespace StormByte::Logger {
 			 */
 			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			/**
-			 * @brief Copy constructor (deleted).
-			 */
+			/** @brief Copy constructor (deleted). */
 			Implementation(const Implementation&) = delete;
-
-			/**
-			 * @brief Move constructor (deleted).
-			 */
+			/** @brief Move constructor (deleted). */
 			Implementation(Implementation&&) noexcept = delete;
-
-			/**
-			 * @brief Copy assignment operator (deleted).
-			 * @return Reference to this object.
-			 */
+			/** @brief Copy assignment operator (deleted). */
 			Implementation& operator=(const Implementation&) = delete;
-
-			/**
-			 * @brief Move assignment operator (deleted).
-			 * @return Reference to this object.
-			 */
+			/** @brief Move assignment operator (deleted). */
 			Implementation& operator=(Implementation&&) noexcept = delete;
-
-			/**
-			 * @brief Destructor.
-			 */
+			/** @brief Destructor. */
 			~Implementation() noexcept;
 
 			/**
@@ -157,6 +144,35 @@ namespace StormByte::Logger {
 			void SetHex(bool active, std::size_t columns) noexcept {
 				m_hex_active = active && columns != 0;
 				m_hex_columns = columns;
+			}
+
+			/**
+			 * @brief Format raw bytes for a payload (hex or Base64). Does not write.
+			 * @param v Contiguous bytes.
+			 * @return Display string. Hex wraps with raw newlines; Base64 is one line.
+			 * @note Used by ThreadedLog so encoding happens before the line lock.
+			 */
+			std::string FormatBinary(std::span<const std::byte> v) const {
+				if (m_hex_active) {
+					const auto* data = reinterpret_cast<const char*>(v.data());
+					return FormatHex(std::string_view{data, v.size()}, m_hex_columns);
+				}
+				return StormByte::Base64Encode(v);
+			}
+
+			/**
+			 * @brief Write an already-formatted payload (no second hex pass).
+			 * @param text Prepared text (Base64 or hex dump).
+			 */
+			void WritePrepared(std::string_view text) noexcept {
+				ensure_header();
+				if (!LineAdmitted())
+					return;
+				sync_content_color();
+				if (m_redact_active)
+					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
+				else
+					m_out << text;
 			}
 
 			/**
@@ -350,6 +366,9 @@ namespace StormByte::Logger {
 				else if constexpr (StormByte::Type::SameAs<DecayedT, wchar_t>) {
 					print_message(value);
 				}
+				else if constexpr (StormByte::Type::SameAs<DecayedT, std::span<const std::byte>>) {
+					WritePrepared(FormatBinary(value));
+				}
 				else if constexpr (StormByte::Type::Arithmetic<DecayedT>) {
 					std::string message;
 					if (m_human_readable_format == String::Format::Raw) {
@@ -449,7 +468,7 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Format payload bytes as spaced hex, wrapping every @p columns bytes.
-			 * @param in Payload bytes (already converted to text/UTF-8).
+			 * @param in Payload bytes.
 			 * @param columns Bytes per row; 0 means a single line.
 			 * @return Hex dump. Continuation rows use a raw newline (no new header).
 			 */
@@ -503,72 +522,21 @@ namespace StormByte::Logger {
 				write_text(std::string_view{text});
 			}
 
-			/**
-			 * @brief Print the current timestamp.
-			 */
 			void print_time() const noexcept;
-
-			/**
-			 * @brief Get the current time as a formatted string.
-			 * @return Formatted time string.
-			 */
 			std::string CurrentTime() const noexcept;
-
-			/**
-			 * @brief Print the current level name (padded).
-			 */
 			void print_level() const noexcept;
-
-			/**
-			 * @brief Print the current thread id.
-			 */
 			void print_thread_id() const noexcept;
-
-			/**
-			 * @brief Print the configured header.
-			 */
 			void print_header() noexcept;
-
-			/**
-			 * @brief Synchronize the stream color with the current content mode.
-			 */
 			void sync_content_color() noexcept;
-
-			/**
-			 * @brief Emit a color transition when needed.
-			 * @param color Desired ANSI color.
-			 */
 			void emit_color(StormByte::Logger::Color color) noexcept;
-
-			/**
-			 * @brief Reset any ANSI color currently emitted to the stream.
-			 */
 			void reset_color() noexcept;
-			/** @brief Close a previous partial line before opening this one. */
 			void close_deferred_line() noexcept;
-
-			/** @brief Reset all line-local throttle and snapshot state. */
 			void reset_line_state() noexcept;
-
-			/** @brief Write the pending dropped summary without throttling it. */
 			void write_drop_summary() noexcept;
-
-			/** @brief Load the immutable throttle table atomically. */
 			std::shared_ptr<const ThrottleTable> LoadThrottleTable() const noexcept;
-			/** @brief Publish the immutable throttle table atomically. */
 			void StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept;
-
-			/**
-			 * @brief Resolve the format selected by the current component and stack.
-			 * @return Effective header format.
-			 */
 			const std::string& effective_format() const noexcept;
 
-			/**
-			 * @brief Helper to print an arithmetic value (with optional human-readable formatting).
-			 * @tparam T Arithmetic type.
-			 * @param value Value to print.
-			 */
 			template <typename T>
 			requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 			void print_message(const T& value) noexcept {
@@ -580,44 +548,20 @@ namespace StormByte::Logger {
 				print_message(message);
 			}
 
-			/**
-			 * @brief Print a string message.
-			 * @param message Message to print.
-			 */
 			void print_message(const std::string& message) noexcept;
-
-			/**
-			 * @brief Print a wide character.
-			 * @param value Wide character to print.
-			 */
 			void print_message(const wchar_t& value);
 	};
 
-	/**
-	 * @brief Enable human-readable number formatting.
-	 * @param logger Implementation to modify.
-	 * @return Reference to the same Implementation.
-	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept {
 		logger.m_human_readable_format = String::Format::HumanReadableNumber;
 		return logger;
 	}
 
-	/**
-	 * @brief Enable human-readable byte formatting.
-	 * @param logger Implementation to modify.
-	 * @return Reference to the same Implementation.
-	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept {
 		logger.m_human_readable_format = String::Format::HumanReadableBytes;
 		return logger;
 	}
 
-	/**
-	 * @brief Disable human-readable formatting.
-	 * @param logger Implementation to modify.
-	 * @return Reference to the same Implementation.
-	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept {
 		logger.m_human_readable_format = String::Format::Raw;
 		return logger;
@@ -645,15 +589,8 @@ namespace StormByte::Logger {
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string_view>(const std::string_view& value);
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
 
-	/**
-	 * @brief Stream a value into a smart pointer to Implementation.
-	 * @tparam Ptr Smart pointer type.
-	 * @tparam T Value type.
-	 * @param logger Smart pointer to Implementation.
-	 * @param value Value to stream.
-	 * @return Reference to the smart pointer.
-	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value)
 		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
@@ -662,13 +599,6 @@ namespace StormByte::Logger {
 		return logger;
 	}
 
-	/**
-	 * @brief Stream a Level into a smart pointer to Implementation.
-	 * @tparam Ptr Smart pointer type.
-	 * @param logger Smart pointer to Implementation.
-	 * @param level Level to set.
-	 * @return Reference to the smart pointer.
-	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
 		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
@@ -677,13 +607,6 @@ namespace StormByte::Logger {
 		return logger;
 	}
 
-	/**
-	 * @brief Stream a stream manipulator into a smart pointer to Implementation.
-	 * @tparam Ptr Smart pointer type.
-	 * @param logger Smart pointer to Implementation.
-	 * @param manip Stream manipulator.
-	 * @return Reference to the smart pointer.
-	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
 		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {

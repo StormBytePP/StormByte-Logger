@@ -23,8 +23,10 @@
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/type_traits.hxx>
 
+#include <cstddef>
 #include <memory>
 #include <ostream>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -46,6 +48,9 @@ namespace StormByte::Logger {
 	 * Text payloads use @c std::string_view / @c std::wstring_view.
 	 * @c std::string and @c std::wstring convert to those views (no extra copy
 	 * of the input). There is no separate @c operator<<(const std::string&).
+	 *
+	 * Binary payloads use @c std::span<const std::byte>. A @c std::vector<std::byte>
+	 * converts to that span. Default formatting is Base64; @c hex dumps the bytes.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Log {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
@@ -288,6 +293,17 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
+			/**
+			 * @brief Stream raw bytes.
+			 * @param v Contiguous bytes. @c std::vector<std::byte> converts to this span.
+			 * @return Reference to this logger.
+			 * @note Default formatting is Base64. @c hex dumps @c 0xHH rows instead.
+			 */
+			inline Log& operator<<(std::span<const std::byte> v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
 			inline Log& operator<<(const Level& level) {
 				Write(level);
 				return *this;
@@ -443,6 +459,11 @@ namespace StormByte::Logger {
 			virtual void Write(const char* v);
 			virtual void Write(std::wstring_view v);
 			virtual void Write(const wchar_t* v);
+			/**
+			 * @brief Forward raw bytes to the implementation.
+			 * @param v Contiguous bytes to format as Base64 or hex.
+			 */
+			virtual void Write(std::span<const std::byte> v);
 			virtual void Write(const Level& level);
 			virtual void Write(std::ostream& (*manip)(std::ostream&));
 			virtual void Write(Log& (*manip)(Log&) noexcept);

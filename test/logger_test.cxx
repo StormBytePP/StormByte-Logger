@@ -17,6 +17,7 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
+#include <StormByte/base64.hxx>
 #include <StormByte/exception.hxx>
 #include <StormByte/logger/exception.hxx>
 #include <StormByte/logger/log.hxx>
@@ -25,6 +26,7 @@
 
 #include <clocale>
 #include <cstdio>
+#include <span>
 #include <sstream>
 #include <string_view>
 #include <thread>
@@ -187,6 +189,75 @@ int test_string_view_and_wstring_view_payloads() {
 	log << Level::Debug << sv << wv << std::endl;
 	ASSERT_EQUAL("test_string_view_and_wstring_view_payloads", "Info    : owned wide\n", output.str());
 	RETURN_TEST("test_string_view_and_wstring_view_payloads", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Binary span: default Base64; hex dumps raw bytes
+// ---------------------------------------------------------------------------
+
+int test_span_default_is_base64() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::vector<std::byte> raw{
+		std::byte{'H'}, std::byte{'e'}, std::byte{'l'}, std::byte{'l'}, std::byte{'o'}
+	};
+	log << Level::Info << std::span<const std::byte>{raw} << std::endl;
+	ASSERT_EQUAL("test_span_default_is_base64",
+		"Info    : " + StormByte::Base64Encode(raw) + "\n", output.str());
+	RETURN_TEST("test_span_default_is_base64", 0);
+}
+
+int test_span_vector_converts_to_span() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0x02}};
+	log << Level::Info << raw << std::endl;
+	ASSERT_EQUAL("test_span_vector_converts_to_span",
+		"Info    : " + StormByte::Base64Encode(raw) + "\n", output.str());
+	RETURN_TEST("test_span_vector_converts_to_span", 0);
+}
+
+int test_span_empty() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << std::span<const std::byte>{} << std::endl;
+	ASSERT_EQUAL("test_span_empty", "Info    : \n", output.str());
+	RETURN_TEST("test_span_empty", 0);
+}
+
+int test_span_hex_dumps_raw_bytes() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0xAB}};
+	log << Level::Info << hex << raw << std::endl;
+	ASSERT_EQUAL("test_span_hex_dumps_raw_bytes", "Info    : 0x01 0xAB\n", output.str());
+	RETURN_TEST("test_span_hex_dumps_raw_bytes", 0);
+}
+
+int test_span_hex_then_nohex_restores_base64() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::vector<std::byte> raw{std::byte{'A'}};
+	log << Level::Info << hex << raw << std::endl;
+	log << Level::Info << nohex << raw << std::endl;
+	ASSERT_EQUAL("test_span_hex_then_nohex_restores_base64",
+		"Info    : 0x41\nInfo    : " + StormByte::Base64Encode(raw) + "\n", output.str());
+	RETURN_TEST("test_span_hex_then_nohex_restores_base64", 0);
+}
+
+int test_span_filtered_produces_no_output() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::vector<std::byte> raw{std::byte{0xFF}};
+	log << Level::Debug << raw << std::endl;
+	ASSERT_EQUAL("test_span_filtered_produces_no_output", std::string{}, output.str());
+	RETURN_TEST("test_span_filtered_produces_no_output", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -856,35 +927,57 @@ int test_throttle_rejects_invalid_specs() {
 
 int main() {
 	int result = 0;
+
+	// Basic emit
 	result += test_basic_logging();
 	result += test_log_data();
 	result += log_to_stdout();
 	result += test_log_with_std_endl();
 	result += test_smart_pointer_usage();
+
+	// Floor / Enabled / views
 	result += test_log_level_filtering();
 	result += test_log_critical_levels_are_never_filtered();
 	result += test_filtered_produces_empty_output();
 	result += test_filtered_then_enabled_message();
 	result += test_enabled_is_floor_not_throttle();
 	result += test_string_view_and_wstring_view_payloads();
+
+	// Binary span
+	result += test_span_default_is_base64();
+	result += test_span_vector_converts_to_span();
+	result += test_span_empty();
+	result += test_span_hex_dumps_raw_bytes();
+	result += test_span_hex_then_nohex_restores_base64();
+	result += test_span_filtered_produces_no_output();
+
+	// Human-readable / format tokens
 	result += test_humanreadable_number();
 	result += test_humanreadable_bytes();
 	result += test_nohumanreadable();
 	result += test_humanreadable_enable_and_disable();
 	result += test_escaped_percent_in_format();
+
+	// Color
 	result += test_color_manipulators_and_line_reset();
 	result += test_default_color_emits_no_ansi();
 	result += test_all_configured_colors_emit_expected_ansi();
 	result += test_filtered_color_has_no_side_effects();
 	result += test_color_and_temporary_format_interoperate();
 	result += test_colored_logger_destructor_resets_stream();
+
+	// Format stack
 	result += test_push_pop_format_stack();
 	result += test_push_format_empty_and_partial_line_reset();
+
+	// Groups
 	result += test_group_header_and_line_reset();
 	result += test_group_without_token_and_empty_group();
 	result += test_group_change_closes_partial_line();
 	result += test_filtered_group_has_no_side_effects();
 	result += test_group_and_color_share_the_header();
+
+	// Components
 	result += test_component_header_is_sticky_and_resettable();
 	result += test_component_without_token_preserves_legacy_output();
 	result += test_component_color_override_has_priority();
@@ -892,8 +985,12 @@ int main() {
 	result += test_component_format_priority_and_fallback();
 	result += test_push_format_overrides_component_and_restores_resolution();
 	result += test_format_change_redecides_throttle_line();
+
+	// Wide / UTF-8
 	result += test_wide_string_logging_is_locale_independent();
 	result += test_invalid_wide_string_propagates_without_termination();
+
+	// Throttle
 	result += test_throttle_off_preserves_output();
 	result += test_throttle_drop_burst();
 	result += test_throttle_sample_and_window();

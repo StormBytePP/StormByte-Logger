@@ -22,7 +22,9 @@
 #include <StormByte/logger/log.hxx>
 #include <StormByte/thread_lock.hxx>
 
+#include <cstddef>
 #include <memory>
+#include <span>
 #include <string_view>
 
 /**
@@ -37,6 +39,7 @@ namespace StormByte::Logger {
 	 * Serializes logical lines (until a newline manipulator) so concurrent
 	 * writers do not interleave. Filtered messages do not hold the line lock.
 	 * Text payloads use @c std::string_view / @c std::wstring_view like @c Log.
+	 * Binary payloads use @c std::span<const std::byte> (Base64 by default).
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
@@ -249,6 +252,16 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
+			/**
+			 * @brief Stream raw bytes. Default output is Base64; @c hex dumps @c 0xHH.
+			 * @param v Contiguous bytes. @c std::vector<std::byte> converts to this span.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(std::span<const std::byte> v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(v);
+				return *this;
+			}
 			inline Log& operator<<(const Level& level) {
 				Write(level);
 				return *this;
@@ -365,6 +378,11 @@ namespace StormByte::Logger {
 			void Write(const char* v) override;
 			void Write(std::wstring_view v) override;
 			void Write(const wchar_t* v) override;
+			/**
+			 * @brief Forward raw bytes under the line lock after formatting.
+			 * @param v Contiguous bytes to format as Base64 or hex.
+			 */
+			void Write(std::span<const std::byte> v) override;
 			void Write(const Level& level) override;
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;

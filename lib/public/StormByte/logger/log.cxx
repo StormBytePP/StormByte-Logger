@@ -73,6 +73,7 @@ void Log::Write(std::string_view v) { m_impl << v; }
 void Log::Write(const char* v) { m_impl << v; }
 void Log::Write(std::wstring_view v) { m_impl << v; }
 void Log::Write(const wchar_t* v) { m_impl << v; }
+void Log::Write(std::span<const std::byte> v) { m_impl << v; }
 void Log::Write(const Level& level) { m_impl << level; }
 void Log::Write(std::ostream& (*manip)(std::ostream&)) { m_impl << manip; }
 void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }

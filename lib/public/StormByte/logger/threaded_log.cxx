@@ -17,6 +17,7 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
+#include <StormByte/logger/implementation.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/string.hxx>
 #include <sstream>
@@ -270,6 +271,13 @@ void ThreadedLog::Write(const wchar_t* v) {
 	const std::string encoded = v ? StormByte::String::UTF8Encode(std::wstring_view{v}) : std::string{};
 	claim_line(m_lock);
 	Log::Write(std::string_view{encoded});
+}
+
+void ThreadedLog::Write(std::span<const std::byte> v) {
+	if (!WillWrite() || !PrepareLine()) return;
+	const std::string formatted = m_impl->FormatBinary(v);
+	claim_line(m_lock);
+	m_impl->WritePrepared(formatted);
 }
 
 void ThreadedLog::Write(const Level& level) {
