@@ -179,14 +179,14 @@ namespace StormByte::Logger {
 	 * - keep_first == true: first `count` characters stay readable.
 	 *
 	 * Applies to both text and numbers (numbers are converted to string first).
-	 * Remains active until @ref no_redact.
+	 * Remains active until @ref noredact.
 	 *
 	 * Usage:
 	 * @code
 	 * log << redact << secret << std::endl;              // full mask
 	 * log << redact(4) << token << std::endl;            // keep last 4
 	 * log << redact_first(4) << token << std::endl;      // keep first 4
-	 * log << no_redact << plain << std::endl;
+	 * log << noredact << plain << std::endl;
 	 * @endcode
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC RedactManip {
@@ -292,5 +292,5 @@ namespace StormByte::Logger {
 	 * @param log The Log instance to modify.
 	 * @return Reference to the same Log.
 	 */
-	STORMBYTE_LOGGER_PUBLIC Log& no_redact(Log& log) noexcept;
+	STORMBYTE_LOGGER_PUBLIC Log& noredact(Log& log) noexcept;
 }

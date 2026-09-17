@@ -49,7 +49,7 @@ namespace StormByte::Logger {
 		return log;
 	}
 
-	STORMBYTE_LOGGER_PUBLIC Log& no_redact(Log& log) noexcept {
+	STORMBYTE_LOGGER_PUBLIC Log& noredact(Log& log) noexcept {
 		log.m_impl->SetRedact(false, 0, false);
 		return log;
 	}

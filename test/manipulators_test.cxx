@@ -119,13 +119,13 @@ int test_manip_redact_const_char_ptr() {
 	RETURN_TEST("test_manip_redact_const_char_ptr", 0);
 }
 
-int test_manip_no_redact_restores_plain() {
+int test_manip_noredact_restores_plain() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact << "hidden" << std::endl;
-	log << Level::Info << no_redact << "visible" << std::endl;
-	ASSERT_EQUAL("test_manip_no_redact_restores_plain", "Info    : ******\nInfo    : visible\n", output.str());
-	RETURN_TEST("test_manip_no_redact_restores_plain", 0);
+	log << Level::Info << noredact << "visible" << std::endl;
+	ASSERT_EQUAL("test_manip_noredact_restores_plain", "Info    : ******\nInfo    : visible\n", output.str());
+	RETURN_TEST("test_manip_noredact_restores_plain", 0);
 }
 
 int test_manip_redact_stays_active() {
@@ -133,7 +133,7 @@ int test_manip_redact_stays_active() {
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact(2) << "one" << " " << "two" << std::endl;
 	log << Level::Info << "three" << std::endl;
-	log << Level::Info << no_redact << "four" << std::endl;
+	log << Level::Info << noredact << "four" << std::endl;
 	ASSERT_EQUAL("test_manip_redact_stays_active", "Info    : *ne *wo\nInfo    : ***ee\nInfo    : four\n", output.str());
 	RETURN_TEST("test_manip_redact_stays_active", 0);
 }
@@ -160,7 +160,7 @@ int test_manip_redact_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
 	tlog << Level::Info << redact(4) << "super-secret" << std::endl;
-	tlog << Level::Info << no_redact << "ok" << std::endl;
+	tlog << Level::Info << noredact << "ok" << std::endl;
 	ASSERT_EQUAL("test_manip_redact_threadedlog", "Info    : ********cret\nInfo    : ok\n", output.str());
 	RETURN_TEST("test_manip_redact_threadedlog", 0);
 }
@@ -169,7 +169,7 @@ int test_manip_redact_with_humanreadable_independent() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << humanreadable_number << redact << 1000 << " token" << std::endl;
-	log << Level::Info << no_redact << nohumanreadable << 1000 << std::endl;
+	log << Level::Info << noredact << nohumanreadable << 1000 << std::endl;
 	ASSERT_EQUAL("test_manip_redact_with_humanreadable_independent", "Info    : ***********\nInfo    : 1000\n", output.str());
 	RETURN_TEST("test_manip_redact_with_humanreadable_independent", 0);
 }
@@ -220,7 +220,7 @@ int test_manip_redact_first_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
 	tlog << Level::Info << redact_first(4) << "super-secret" << std::endl;
-	tlog << Level::Info << no_redact << "ok" << std::endl;
+	tlog << Level::Info << noredact << "ok" << std::endl;
 	ASSERT_EQUAL("test_manip_redact_first_threadedlog", "Info    : supe********\nInfo    : ok\n", output.str());
 	RETURN_TEST("test_manip_redact_first_threadedlog", 0);
 }
@@ -420,7 +420,7 @@ int main() {
 	result += test_manip_redact_keep_last_ge_length();
 	result += test_manip_redact_empty_string();
 	result += test_manip_redact_const_char_ptr();
-	result += test_manip_no_redact_restores_plain();
+	result += test_manip_noredact_restores_plain();
 	result += test_manip_redact_stays_active();
 	result += test_manip_redact_affects_numbers();
 	result += test_manip_redact_then_change_keep();

@@ -32,6 +32,7 @@ If you landed here from a release link and have not read the tree:
 - Dropped the dedicated `operator<<(const std::string&)` / `operator<<(const std::wstring&)` overloads. Call sites that pass `std::string` still compile.
 - `ThreadedLog` wide payloads encode with `String::UTF8Encode(std::wstring_view)` before taking the line lock.
 - Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` and `Base64Encode(std::span<const std::byte>)` requires Base 1.2.0 or newer.
+- **Breaking:** `noredact` is now `noredact`, same shape as `nocolor`, `nohex` and `nohumanreadable`. There is no compatibility alias.
 
 ### Fixed
 

@@ -56,7 +56,7 @@ namespace StormByte::Logger {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
-		friend STORMBYTE_LOGGER_PUBLIC Log& no_redact(Log& log) noexcept;
+		friend STORMBYTE_LOGGER_PUBLIC Log& noredact(Log& log) noexcept;
 
 		public:
 			/**
@@ -317,7 +317,7 @@ namespace StormByte::Logger {
 				return *this;
 			}
 			/**
-			 * @brief Apply redaction policy (full or keep-last-N). State remains until no_redact.
+			 * @brief Apply redaction policy (full or keep-last-N). State remains until noredact.
 			 */
 			inline Log& operator<<(RedactManip m) {
 				Write(m);

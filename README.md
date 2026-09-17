@@ -23,7 +23,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
 - **Colors** — ANSI colors configured by level or component, with `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
 - **Formats** — persistent general/component formats plus nested temporary `push_format("...")` / `pop_format` with an idempotent empty pop.
 - **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable` (state sticks until the next one).
-- **Redaction** — text **and** numbers: `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `no_redact`.
+- **Redaction** — text **and** numbers: `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `noredact`.
 - **ThreadedLog** — one lock per logical line (held until a newline manipulator). Messages below the print floor do not take the lock on payload writes.
 - **Not thread-safe** — plain `Log` is single-threaded. Share a logger across threads only via `ThreadedLog`.
 
@@ -212,14 +212,14 @@ log << Level::Info << nohumanreadable << 1000 << std::endl;
 
 ### Redaction
 
-Applies to strings **and** numbers (numbers are converted first). Stays on until `no_redact`.
+Applies to strings **and** numbers (numbers are converted first). Stays on until `noredact`.
 
 | Manipulator | Effect |
 | --- | --- |
 | `redact` / `redact(0)` | Every character becomes `*` |
 | `redact(N)` | Keep the **last** N characters |
 | `redact_first(N)` | Keep the **first** N characters |
-| `no_redact` | Disable |
+| `noredact` | Disable |
 
 ```cpp
 log << Level::Info << redact << "super-secret" << std::endl;
@@ -231,7 +231,7 @@ log << Level::Info << redact(4) << "super-secret" << std::endl;
 log << Level::Info << redact_first(4) << "super-secret" << std::endl;
 // supe********
 
-log << Level::Info << no_redact << "visible again" << std::endl;
+log << Level::Info << noredact << "visible again" << std::endl;
 ```
 
 Same contract on `ThreadedLog`.
