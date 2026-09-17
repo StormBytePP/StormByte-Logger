@@ -318,6 +318,7 @@ int test_manip_color_threadedlog() {
 int test_manip_group_component_reset() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g");
+	log << reset_component;
 	log << component("Module") << group("line") << Level::Info << "first" << std::endl;
 	log << Level::Info << "second" << std::endl;
 	log << reset_component << Level::Info << "root" << std::endl;

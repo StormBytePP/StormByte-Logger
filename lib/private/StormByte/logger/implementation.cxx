@@ -24,13 +24,16 @@
 #include <chrono>
 #include <cmath>
 #include <limits>
+#include <sstream>
 #include <thread>
 #include <utility>
+#include <vector>
 
 using namespace StormByte::Logger;
 
 namespace {
-	thread_local std::string t_component;
+	thread_local std::vector<std::string> t_component_stack;
+	thread_local std::string t_facade_path;
 	thread_local std::string t_group;
 	thread_local std::optional<Level> t_level;
 	struct LineState {
@@ -51,6 +54,39 @@ namespace {
 
 	std::size_t ColorIndex(const Level level) noexcept {
 		return static_cast<std::size_t>(level);
+	}
+
+	std::string JoinStack(const std::vector<std::string>& stack) {
+		std::string path;
+		for (const auto& segment : stack) {
+			if (segment.empty())
+				continue;
+			if (!path.empty())
+				path += '/';
+			path += segment;
+		}
+		return path;
+	}
+
+	std::string CurrentPath() {
+		if (!t_facade_path.empty())
+			return t_facade_path;
+		return JoinStack(t_component_stack);
+	}
+
+	std::string ParentPath(const std::string& path) {
+		const auto slash = path.rfind('/');
+		if (slash == std::string::npos)
+			return {};
+		return path.substr(0, slash);
+	}
+
+	bool PathMatchesPrefix(const std::string& path, const std::string& prefix) {
+		if (prefix.empty())
+			return path.empty();
+		if (path == prefix)
+			return true;
+		return path.size() > prefix.size() && path.compare(0, prefix.size(), prefix) == 0 && path[prefix.size()] == '/';
 	}
 
 	const char* AnsiColor(const StormByte::Logger::Color color) noexcept {
@@ -92,14 +128,17 @@ namespace {
 		const bool component = spec.Component.has_value();
 		const bool level = spec.Level.has_value();
 		const bool group = spec.Group.has_value();
-		if (component && level && group) return 7;
-		if (component && group) return 6;
-		if (component && level) return 5;
-		if (component) return 4;
-		if (level && group) return 3;
-		if (group) return 2;
-		if (level) return 1;
-		return 0;
+		int score = 0;
+		if (component && level && group) score = 7;
+		else if (component && group) score = 6;
+		else if (component && level) score = 5;
+		else if (component) score = 4;
+		else if (level && group) score = 3;
+		else if (group) score = 2;
+		else if (level) score = 1;
+		if (component)
+			score = score * 1000 + static_cast<int>(spec.Component->size());
+		return score;
 	}
 
 	bool SameSelectors(const ThrottleSpec& left, const ThrottleSpec& right) noexcept {
@@ -107,9 +146,13 @@ namespace {
 	}
 
 	bool Matches(const ThrottleSpec& spec, const std::string& component, const Level level, const std::string& group) {
-		return (!spec.Component || *spec.Component == component) &&
-			(!spec.Level || *spec.Level == level) &&
-			(!spec.Group || *spec.Group == group);
+		if (spec.Level && *spec.Level != level)
+			return false;
+		if (spec.Group && *spec.Group != group)
+			return false;
+		if (!spec.Component)
+			return true;
+		return PathMatchesPrefix(component, *spec.Component);
 	}
 
 	bool Selects(const ThrottleSpec& filter, const ThrottleSpec& rule) {
@@ -201,6 +244,10 @@ Implementation::~Implementation() noexcept {
 	reset_color();
 }
 
+void Implementation::SetFacadePath(std::string path) noexcept {
+	t_facade_path = std::move(path);
+}
+
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
 #if defined(WINDOWS) || defined(__GLIBCXX__)
 	return m_throttle_table.load(std::memory_order_acquire);
@@ -244,17 +291,21 @@ StormByte::Logger::Color Implementation::Color(const Level& level) const noexcep
 }
 
 StormByte::Logger::Color Implementation::Color(const std::string& component, const Level& level) const noexcept {
-	if (const auto found = m_component_colors.find(component); found != m_component_colors.end())
-		return found->second[ColorIndex(level)];
+	for (std::string path = component; !path.empty(); path = ParentPath(path)) {
+		if (const auto found = m_component_colors.find(path); found != m_component_colors.end())
+			return found->second[ColorIndex(level)];
+	}
 	return Color(level);
 }
 
 const std::string& Implementation::effective_format() const noexcept {
 	if (!m_format_stack.empty())
 		return m_format_stack.back();
-	const auto& component = t_line.decided ? t_line.component : t_component;
-	if (const auto found = m_component_formats.find(component); found != m_component_formats.end())
-		return found->second;
+	const auto& component = t_line.decided ? t_line.component : CurrentPath();
+	for (std::string path = component; !path.empty(); path = ParentPath(path)) {
+		if (const auto found = m_component_formats.find(path); found != m_component_formats.end())
+			return found->second;
+	}
 	return m_format;
 }
 
@@ -263,8 +314,10 @@ const std::string& Implementation::Format() const noexcept {
 }
 
 const std::string& Implementation::Format(const std::string& component) const noexcept {
-	if (const auto found = m_component_formats.find(component); found != m_component_formats.end())
-		return found->second;
+	for (std::string path = component; !path.empty(); path = ParentPath(path)) {
+		if (const auto found = m_component_formats.find(path); found != m_component_formats.end())
+			return found->second;
+	}
 	return m_format;
 }
 
@@ -376,7 +429,7 @@ bool Implementation::PrepareLine() {
 		return t_line.admitted;
 	t_line.decided = true;
 	t_line.level = t_level.value_or(m_print_level);
-	t_line.component = t_component;
+	t_line.component = CurrentPath();
 	t_line.group = t_group;
 	t_line.admitted = true;
 	t_line.dropped = 0;
@@ -572,12 +625,19 @@ Implementation& Implementation::operator<<(GroupManip manip) {
 }
 
 Implementation& Implementation::operator<<(ComponentManip manip) {
-	t_component = std::move(manip.name);
+	if (!manip.name.empty())
+		t_component_stack.push_back(std::move(manip.name));
+	return *this;
+}
+
+Implementation& Implementation::operator<<(PopComponentManip) {
+	if (!t_component_stack.empty())
+		t_component_stack.pop_back();
 	return *this;
 }
 
 Implementation& Implementation::operator<<(ResetComponentManip) {
-	t_component.clear();
+	t_component_stack.clear();
 	return *this;
 }
 
@@ -600,7 +660,7 @@ void Implementation::print_thread_id() const noexcept {
 void Implementation::print_header() noexcept {
 	const std::string& fmt = effective_format();
 	constexpr std::size_t fixed_width = 8;
-	const auto& component = t_line.decided ? t_line.component : t_component;
+	const auto component = t_line.decided ? t_line.component : CurrentPath();
 	emit_color(Color(component, t_line.level));
 	for (std::size_t i = 0; i < fmt.size(); ++i) {
 		if (fmt[i] == '%' && (i + 1) < fmt.size()) {
@@ -650,7 +710,7 @@ void Implementation::print_header() noexcept {
 
 void Implementation::sync_content_color() noexcept {
 	const auto level = t_line.decided ? t_line.level : t_level.value_or(m_print_level);
-	const auto& component = t_line.decided ? t_line.component : t_component;
+	const auto component = t_line.decided ? t_line.component : CurrentPath();
 	const auto configured = Color(component, level);
 	if (m_content_nocolor)
 		emit_color(StormByte::Logger::Color::Default);

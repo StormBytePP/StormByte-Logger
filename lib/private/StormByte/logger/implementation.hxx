@@ -65,6 +65,7 @@ namespace StormByte::Logger {
 	struct PopFormatManip;
 	struct GroupManip;
 	struct ComponentManip;
+	struct PopComponentManip;
 	struct ResetComponentManip;
 
 	/**
@@ -76,6 +77,9 @@ namespace StormByte::Logger {
 	 * emission still requires `ThreadedLog` (line lock around actual writes).
 	 * Throttle rules use atomic shared-pointer publication; Logger does not promise
 	 * that the standard library implementation is physically lock-free.
+	 *
+	 * Component emission path is the facade path (@ref SetFacadePath) when set,
+	 * otherwise the thread-local stack joined with `/`.
 	 */
 	class STORMBYTE_LOGGER_PRIVATE Implementation final {
 		friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
@@ -147,10 +151,15 @@ namespace StormByte::Logger {
 			}
 
 			/**
+			 * @brief Set the emitting facade's sticky component path for the next line.
+			 * @param path Sticky path from Log::Scope; empty uses the thread-local stack.
+			 */
+			void SetFacadePath(std::string path) noexcept;
+
+			/**
 			 * @brief Format raw bytes for a payload (hex or Base64). Does not write.
 			 * @param v Contiguous bytes.
 			 * @return Display string. Hex wraps with raw newlines; Base64 is one line.
-			 * @note Used by ThreadedLog so encoding happens before the line lock.
 			 */
 			std::string FormatBinary(std::span<const std::byte> v) const {
 				if (m_hex_active) {
@@ -190,16 +199,16 @@ namespace StormByte::Logger {
 			StormByte::Logger::Color Color(const Level& level) const noexcept;
 
 			/**
-			 * @brief Set a color override for a component and level.
-			 * @param component Component name.
+			 * @brief Set a color override for a component path and level.
+			 * @param component Component path.
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that component and level.
 			 */
 			void Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color);
 
 			/**
-			 * @brief Get a component color, falling back to the general color.
-			 * @param component Component name.
+			 * @brief Get a component color, falling back along the path then to the general color.
+			 * @param component Component path.
 			 * @param level Level whose color is requested.
 			 * @return Component override or general color.
 			 */
@@ -219,14 +228,14 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Set or remove a component-specific header format.
-			 * @param component Component name; empty selects the general format.
+			 * @param component Component path; empty selects the general format.
 			 * @param format Format, or empty to remove the component override.
 			 */
 			void Format(const std::string& component, const std::string& format);
 
 			/**
-			 * @brief Get a component-specific format, falling back to the general format.
-			 * @param component Component name.
+			 * @brief Get a component-specific format, falling back along the path then to general.
+			 * @param component Component path.
 			 * @return Component format or general format.
 			 */
 			const std::string& Format(const std::string& component) const noexcept;
@@ -323,14 +332,21 @@ namespace StormByte::Logger {
 			Implementation& operator<<(GroupManip manip);
 
 			/**
-			 * @brief Select the current thread's component.
+			 * @brief Push a component segment onto the current thread's stack.
 			 * @param manip Component manipulator.
 			 * @return Reference to this Implementation.
 			 */
 			Implementation& operator<<(ComponentManip manip);
 
 			/**
-			 * @brief Clear the current thread's component.
+			 * @brief Pop one component segment from the current thread's stack.
+			 * @param manip Pop-component manipulator.
+			 * @return Reference to this Implementation.
+			 */
+			Implementation& operator<<(PopComponentManip manip);
+
+			/**
+			 * @brief Clear the current thread's component stack.
 			 * @param manip Reset-component manipulator.
 			 * @return Reference to this Implementation.
 			 */

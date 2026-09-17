@@ -9,22 +9,25 @@
 
 This repository is **StormByte Logger**: stream logging for the StormByte C++ suite.
 
-It depends on [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, components, groups, colors, temporary formats, human-readable numbers and redaction.
+It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, hierarchical components, `Scope` facades, groups, colors, temporary formats, human-readable numbers, redaction, hex dumps and binary payloads.
 
 The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network and System are **other repositories**. This one does not implement them.
 
 ## What this module does
 
-- **Log** — `operator<<` facade with a minimum print `Level`. Copies share the same backend.
+- **Log** — `operator<<` facade with a minimum print `Level`. Copies and `Scope` facades share the same backend.
 - **Levels** — ordered from least to most severe: `LowLevel`, `Debug`, `Warning`, `Notice`, `Info`, `Error`, `Fatal`. `Warning`, `Error` and `Fatal` are always emitted.
-- **Headers** — `%L` level, `%T` timestamp, `%i` thread id, `%c` component, `%g` group, `%%` literal `%`.
-- **Components** — sticky per-thread `component("name")` and `reset_component`; component-specific color rules can override general level rules.
+- **Headers** — `%L` level, `%T` timestamp, `%i` thread id, `%c` component path, `%g` group, `%%` literal `%`.
+- **Components** — thread-local stack. `component("A")` pushes a segment; nested calls join with `/` (`Multimedia/Decoder`). `pop_component` pops one segment. `reset_component` clears the stack. `component("")` does not push.
+- **Scope** — `log.Scope("Multimedia/Decoder")` returns a `std::shared_ptr<Log>` facade with a sticky path. Nested `Scope("Encoder")` joins relative to the parent. Config methods without a component argument bind to that sticky path (root facade = global). The facade shares the backend and, on `ThreadedLog`, the line lock.
 - **Groups** — line-scoped `group("name")` labels, cleared by a newline.
-- **Colors** — ANSI colors configured by level or component, with `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
-- **Formats** — persistent general/component formats plus nested temporary `push_format("...")` / `pop_format` with an idempotent empty pop.
-- **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable` (state sticks until the next one).
-- **Redaction** — text **and** numbers: `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `noredact`.
-- **ThreadedLog** — one lock per logical line (held until a newline manipulator). Messages below the print floor do not take the lock on payload writes.
+- **Colors** — ANSI colors configured by level or component path (longest prefix wins). `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
+- **Formats** — persistent general / component-path formats (longest prefix wins) plus nested temporary `push_format("...")` / `pop_format`.
+- **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`.
+- **Redaction** — `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `noredact`.
+- **Hex** — `hex` / `hex(N)` dumps payload bytes as `0xAA` with N bytes per row (default 16). `nohex` restores the default. Applies to every subsequent payload, including numbers (text bytes, not numeric hex).
+- **Binary** — `std::span<const std::byte>` (and `std::vector<std::byte>`) print as Base64 by default, or as a hex dump when `hex` is active.
+- **ThreadedLog** — one lock per logical line. Binary encoding (Base64 / hex) runs before the lock. Filtered writes do not take the lock.
 - **Not thread-safe** — plain `Log` is single-threaded. Share a logger across threads only via `ThreadedLog`.
 
 ## The rest of the suite
@@ -54,9 +57,11 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
   - [Sharing a logger](#sharing-a-logger)
   - [Human-readable numbers](#human-readable-numbers)
   - [Redaction](#redaction)
+  - [Hex and binary payloads](#hex-and-binary-payloads)
   - [Colors](#colors)
   - [Temporary formats](#temporary-formats)
   - [Groups and components](#groups-and-components)
+  - [Scope](#scope)
   - [Throttle](#throttle)
   - [Use from other suite modules](#use-from-other-suite-modules)
 - [ThreadedLog contract](#threadedlog-contract)
@@ -107,6 +112,7 @@ Payload `operator<<` for ordinary filtered levels returns immediately below the 
 if (log.Enabled(Level::Debug)) {
     log << Level::Debug << std::string_view{detail} << std::endl;
 }
+```
 
 ## Headers
 
@@ -117,24 +123,19 @@ Third constructor argument. Specifiers:
 | `%L` | Current message level, padded to 8 characters |
 | `%T` | Local timestamp `dd/mm/YYYY HH:MM:SS` |
 | `%i` | `std::this_thread::get_id()` |
-| `%c` | Sticky component for the current thread, if any |
+| `%c` | Component path for the current line (stack join or Scope sticky path) |
 | `%g` | Group for the current line, if any |
 | `%%` | A literal `%` |
 
 Default format is `"[%L] %T"`. A typical multi-thread format is `"[%L] %T"` or `"[%L %i] %T"`. Components and groups are opt-in: use `"[%L] %T %c %g"` when you want them.
 
-Example with floor `Debug` and format `"[%L] %T"`:
-
-```
-[Notice  ] 12/09/2026 06:48:47 STMM Remuxer: created
-[Debug   ] 12/09/2026 06:48:47 STMM Demuxer: bind remuxer t=1
-```
-
 The logger writes the header once per line, then the payload, then the newline manipulator.
+
+A component format override can introduce `%c` / `%g` even when the general format does not contain them. Longest matching path wins; then the general format.
 
 ## Installation
 
-Needs a C++26 compiler, CMake 3.28 or newer, and [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer.
+Needs a C++26 compiler, CMake 3.28 or newer, and [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer.
 
 ```sh
 git clone --recursive https://github.com/StormBytePP/StormByte-Logger.git
@@ -164,13 +165,15 @@ Log log(std::cout, Level::Info, "[%L] %T");
 log << Level::Info << "hello" << std::endl;
 
 auto tlog = std::make_shared<ThreadedLog>(std::cout, Level::Debug, "[%L] %T");
-*tlog << Level::Notice << "opened source /tmp/in.mkv" << std::endl;
-*tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
+tlog << Level::Notice << "opened source /tmp/in.mkv" << std::endl;
+tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
 ```
+
+`operator<<` unpacks `std::shared_ptr` / `std::unique_ptr` whose element type derives from `Log` (`Log` and `ThreadedLog`). `*tlog <<` still works.
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
-Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view` and `std::wstring_view`. `std::string` and `std::wstring` convert to those views (no extra copy of the input). There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or string.
+Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or string.
 
 ### A line
 
@@ -198,7 +201,7 @@ Demuxer demux(log);
 Muxer   mux(log, container);
 ```
 
-The objects store `std::shared_ptr<Log>`. `ThreadedLog` *is-a* `Log`, so the same pointer type works.
+The objects store `std::shared_ptr<Log>`. `ThreadedLog` *is-a* `Log`, so the same pointer type works. `Scope` facades also share that backend.
 
 ### Human-readable numbers
 
@@ -234,70 +237,80 @@ log << Level::Info << redact_first(4) << "super-secret" << std::endl;
 log << Level::Info << noredact << "visible again" << std::endl;
 ```
 
-Same contract on `ThreadedLog`.
+Same contract on `ThreadedLog`. Hex encoding runs **before** redaction.
+
+### Hex and binary payloads
+
+`hex` dumps every subsequent payload as space-separated `0xHH` bytes. `hex(N)` wraps every N bytes with a raw newline (no new header, line stays open). Default N is 16. `hex(0)` is the same as `nohex`.
+
+```cpp
+log << Level::Info << hex << "AB" << std::endl;
+// 0x41 0x42
+
+log << Level::Info << hex(2) << "ABCD" << std::endl;
+// 0x41 0x42
+// 0x43 0x44
+
+log << Level::Info << nohex << "plain" << std::endl;
+```
+
+Numbers are converted to text first, then those text bytes are dumped. It is not a numeric hex printer.
+
+`std::span<const std::byte>` (and `std::vector<std::byte>`) is Base64 by default:
+
+```cpp
+const std::vector<std::byte> raw{std::byte{'H'}, std::byte{'i'}};
+log << Level::Info << raw << std::endl;          // Base64
+log << Level::Info << hex << raw << std::endl;   // 0x48 0x69
+```
+
+On `ThreadedLog` the Base64 / hex string is built **before** the line lock, then written as a prepared payload.
 
 ### Colors
 
 ANSI color output is disabled by default. Configure a general color per level
-with `Color(level, color)`. A component-specific rule has priority while that
-component is active:
+with `Color(level, color)`. A component-path rule has priority while that
+path (or a child of it) is active. Longest matching prefix wins; then the
+general level color.
 
 ```cpp
-log.Color(Level::Warning, Color::Yellow);                         // general rule
-log.Color("Media", Level::Warning, Color::BrightYellow);          // component override
+log.Color(Level::Warning, Color::Yellow);
+log.Color("Multimedia", Level::Warning, Color::BrightYellow);
 
-log << component("Media") << Level::Warning << "recoverable" << std::endl;
+log << component("Multimedia") << Level::Warning << "recoverable" << std::endl;
 log << reset_component << Level::Warning << "general warning" << std::endl;
 ```
-
-The `Color` enum contains standard and bright ANSI foreground colors, plus
-`Color::Default`. The logger only emits ANSI; terminal color support is the
-application's responsibility.
 
 `color` re-enables the configured color for the current level. `color(Color::X)`
 temporarily selects an explicit content color, and `nocolor` suppresses color
 for subsequent content. The header remains configured and every line ends with
-an ANSI reset when a color was active:
-
-```cpp
-log.Color(Level::Notice, Color::Yellow);
-log << Level::Notice
-  << nocolor << "plain "
-  << color(Color::Green) << "green"
-  << color << " configured again"
-  << std::endl;
-```
+an ANSI reset when a color was active.
 
 ### Temporary formats
 
 `push_format` saves the current format and activates a temporary one. Calls
 nest, and `pop_format` restores the most recent saved format. An empty pop is
-a no-op, and the stack persists across lines until explicitly popped:
-
-```cpp
-Log log(std::cout, Level::Info, "[%L] %T");
-log << push_format("[%L] %T %i")
-  << Level::Info << "with thread id" << std::endl;
-log << pop_format << Level::Info << "back to the original format" << std::endl;
-```
+a no-op, and the stack persists across lines until explicitly popped.
 
 Changing the format while a line is active closes that line before the new
 format is used.
 
-Formats can also be configured persistently per component:
+Formats can also be configured persistently per component path:
 
 ```cpp
-log.Format("[%L] %T");                         // general format
-log.Format("Media", "[%L] %T %c %g");         // component override
+log.Format("[%L] %T");
+log.Format("Multimedia", "[%L] %T %c");
 
-log << component("Media") << Level::Info << "component format" << std::endl;
-log << reset_component << Level::Info << "general format" << std::endl;
+log << component("Multimedia") << component("Decoder")
+    << Level::Info << "inherits Multimedia format" << std::endl;
+log.Format("Multimedia/Decoder", "[DEC] %c %L:");
 ```
 
-The effective precedence is `push_format` first, then the active component's
-format, then the general format. `Format("Component", "")` removes that
-component override. Persistent component formats are configuration; establish
-them before starting concurrent writers.
+Effective precedence: `push_format` first, then the longest matching component
+path, then the general format. `Format("Path", "")` removes that override.
+
+On a `Scope` facade, `Format("mask")` with no path argument binds to the
+facade's sticky path. On the root logger it changes the global format.
 
 ### Groups and components
 
@@ -305,34 +318,77 @@ them before starting concurrent writers.
 group automatically; `group("")` also selects no group. Without `%g`, the group
 is intentionally not added to the payload.
 
-`component("name")` selects a sticky component for the current thread and is
-rendered by `%c`. It is not cleared by `endl`, so a shared logger can keep the
-same library identity across lines. `reset_component` is the canonical way to
-return to the root component; `component("")` is allowed for compatibility but
-is not recommended. The component is thread-local rather than tied to a `Log`
-object, so two `Log` instances used by one thread observe the same component.
+`component("name")` **pushes** a segment onto a thread-local stack. Nested
+pushes join with `/` for `%c` and for config lookup:
 
 ```cpp
-auto log = std::make_shared<ThreadedLog>(std::cout, Level::Notice, "[%L] %c %g");
+log << component("Multimedia") << component("Decoder")
+    << Level::Notice << "open" << std::endl;
+// %c is Multimedia/Decoder
 
-*log << component("Media")
-   << group("Decoder")
-   << Level::Notice << "open" << std::endl;
-*log << Level::Info << "still in the same component" << std::endl;
-*log << reset_component << Level::Info << "back at root" << std::endl;
+log << pop_component << Level::Info << "parent" << std::endl;
+// %c is Multimedia
+
+log << reset_component << Level::Info << "root" << std::endl;
 ```
 
-`ThreadedLog` protects group changes and line output with the same line lock.
-Components are thread-local, so one thread cannot overwrite another thread's
-component.
+`component("")` does **not** push. Use `reset_component` to return to root, or
+`pop_component` to drop one segment. The stack is not cleared by `endl`.
+
+The stack is thread-local, not tied to a `Log` instance. Two `Log` objects used
+by the same thread share it. Start tests and job boundaries with
+`reset_component` if a previous caller may have left segments.
+
+To switch to a sibling path, reset (or pop) first. Otherwise
+`component("Media")` then `component("Other")` becomes `Media/Other`.
+
+### Scope
+
+`Scope` is the API intended for libraries that should not touch the TLS stack.
+
+```cpp
+auto log = std::make_shared<ThreadedLog>(std::cout, Level::Info, "[%L] %c");
+auto mm  = log->Scope("Multimedia");
+auto dec = mm->Scope("Decoder");          // Multimedia/Decoder
+auto enc = log->Scope("Multimedia/Encoder");
+
+dec << Level::Notice << "open" << std::endl;
+log << Level::Info << "root still has an empty %c" << std::endl;
+```
+
+Rules:
+
+- Never returns `nullptr`.
+- Nested `Scope("Child")` joins onto the parent's sticky path. A path that
+  already contains `/` is joined as given.
+- A Scope line uses the sticky path, not the TLS stack. Pushing `component`
+  on the original logger does not change a Scope facade, and a Scope write
+  does not push onto the TLS stack.
+- Copies share the backend (`std::out`, file, throttle table, formats, colors).
+- `ThreadedLog` facades share the same line lock.
+- `Format`, `Color` and `Throttle` **without** a component argument bind to
+  the facade path. On the root logger (empty path) they remain global.
+- `Format("Multimedia/Decoder", mask)` on any logger still sets that path
+  explicitly.
+
+```cpp
+auto dec = log->Scope("Multimedia/Decoder");
+dec->Format("[%L] %c:");          // format for Multimedia/Decoder
+dec->Throttle(0.0, 1);            // throttle only that leaf
+dec->Color(Level::Info, Color::Cyan);
+```
+
+Child rules win over parent rules. If the leaf has no format/color, the
+longest matching ancestor is used, then the general setting.
 
 ### Throttle
 
 Throttle is disabled by default. It limits complete logical lines, not payload
-fragments, and is configured through `Log` methods so a shared `Log` or
-`ThreadedLog` can be configured once for several library consumers.
+fragments.
 
-Rules are selected by the most specific matching key:
+Rules are selected by the most specific matching key. Component matching uses
+path prefixes (`Multimedia` matches `Multimedia/Decoder`). When two rules
+match, the longer component string wins.
 
 ```text
 (component, level, group) > (component, group) > (component, level)
@@ -340,21 +396,22 @@ Rules are selected by the most specific matching key:
 ```
 
 `Error` and `Fatal` are never throttled. `Warning` can be throttled even though
-it is always visible with respect to the print floor. The throttle is a
-separate layer from level filtering.
+it is always visible with respect to the print floor.
 
 ```cpp
 ThrottleSpec spec;
-spec.Component = "Media";
+spec.Component = "Multimedia/Decoder";
 spec.Level = Level::LowLevel;
-spec.Group = "Decoder";
 spec.Policy = ThrottlePolicy::Window;
 spec.WindowKeep = 20;
 spec.WindowPeriod = 500;
 log.Throttle(spec);
 
-log.Throttle(100.0, 20); // global token bucket: rate and burst
-log.NoThrottle(spec);   // remove exactly this rule
+log.Throttle(100.0, 20);
+log.NoThrottle(spec);
+
+auto dec = log.Scope("Multimedia/Decoder");
+dec->Throttle(0.0, 20);   // same leaf binding, no Component field needed
 ```
 
 Policies are `Drop`, `Sample` and `Window`. `Sample(n)` admits the first line
@@ -366,35 +423,24 @@ that initial burst with no refill.
 
 When lines are dropped, the next admitted line is preceded by `dropped N
 messages` using the same level, component, group, effective format and color.
-The summary does not consume throttle credit. A discarded line is decided
-before output and before `ThreadedLog` claims its line lock.
+Call `FlushThrottle()` at a job boundary to emit pending summaries.
+`FlushThrottle(spec)` limits the flush to matching selectors.
 
-Call `FlushThrottle()` at a job boundary to emit pending `dropped N messages`
-summaries even when no later line is admitted. `FlushThrottle(spec)` limits the
-flush to rules matching the same selectors; flushing does not remove rules.
-
-Throttle configuration is intended to be installed before concurrent writers
-start. Rules are published as immutable snapshots through atomic shared-pointer
-operations; the logger does not promise physical lock-free behavior from the
-standard library implementation.
+Install rules before concurrent writers start.
 
 ### Use from other suite modules
 
 Other suite modules log through this module. A useful convention is:
 
-- Prefix the payload with a module tag, then the producer when the application needs that distinction.
+- Identify the module with `Scope("Multimedia")` (or a nested `Scope("Decoder")`), not by repeating `component(...)` on every line.
 - `LowLevel` — per-packet / per-frame / wait-wake. Sparse-sample if the volume would drown the log.
 - `Debug` — binds, reserves, work `n/min/max`.
 - `Notice` — created, open path, eof, closed. Must stay low-noise.
 - `Info` — job close or other application-level completion events.
 
-When a shared logger is passed through suite modules, the module can identify
-itself without changing the application's logger instance:
-
 ```cpp
-*log << component("Media")
-  << group("Decoder")
-  << Level::Notice << "open" << std::endl;
+auto decoderLog = appLog->Scope("Multimedia/Decoder");
+decoderLog << Level::Notice << "open" << std::endl;
 ```
 
 The application chooses the floor. A user who sets `LowLevel` is asking for noise and the cost that comes with it.
@@ -406,14 +452,15 @@ The application chooses the floor. A user who sets `LowLevel` is asking for nois
 - The line lock is taken when a write that will be printed starts (or when `<< Level` starts a line).
 - The lock is dropped when a stream manipulator that writes a newline is applied (`std::endl`).
 - Filtered payload writes do not take the lock.
+- Binary payloads (Base64 / hex) are formatted before the lock is taken.
 - `<< Level` always updates the current message level. If that level is an ordinary filtered level below the floor, the lock is released immediately after the update; Warning, Error and Fatal remain enabled.
+- `Scope` facades of a `ThreadedLog` share that same lock.
 
 `endl` must drop the lock even if another thread just changed the current level. That is required so a filtered `LowLevel` line cannot leave the lock held and stall every other writer.
 
 `Implementation` current-level / enabled flags are still process-wide, not `thread_local`. Do not interleave two unfinished lines on the same logger from two threads without finishing each line with a newline. The supported pattern is: one thread writes a complete line (`Level` … `endl`) at a time; `ThreadedLog` only prevents those complete lines from mixing characters.
 
-The `component` selection is the exception: it is thread-local and sticky until
-`component(...)` or `reset_component` changes it. `group` remains line-scoped.
+The component **stack** is thread-local. `Scope` paths are per-facade and do not use that stack. `group` remains line-scoped.
 
 ## Contributing
 
@@ -422,3 +469,10 @@ Issues only on this repository. Fork and open a pull request against `master`.
 ## License
 
 GNU Lesser General Public License version 3 or later. See [LICENSE](LICENSE) and <https://www.gnu.org/licenses/lgpl-3.0.html>.
+
+## Support
+
+StormByte is developed in spare time. Sponsorship is optional and does not buy features, priority or support.
+
+- [GitHub Sponsors](https://github.com/sponsors/StormBytePP)
+- [PayPal](https://paypal.me/StormBytePP)

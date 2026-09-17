@@ -21,6 +21,7 @@
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/implementation.hxx>
 #include <utility>
+
 namespace StormByte::Logger {
 	STORMBYTE_LOGGER_PUBLIC ComponentManip component(std::string name) {
 		return ComponentManip{std::move(name)};

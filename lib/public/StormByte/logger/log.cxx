@@ -44,10 +44,37 @@ namespace {
 	bool AlwaysVisible(const Level level) noexcept {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
 	}
+
+	std::string JoinPath(const std::string& base, std::string add) {
+		if (add.empty())
+			return base;
+		if (base.empty())
+			return add;
+		return base + "/" + add;
+	}
+
+	void BindStickyComponent(ThrottleSpec& spec, const std::string& path) {
+		if (!spec.Component && !path.empty())
+			spec.Component = path;
+	}
 }
 
 Log::Log(std::ostream& out, const Level& level, const std::string& format) {
 	m_impl = std::make_shared<Implementation>(out, level, format);
+}
+
+Log::PointerType Log::Clone() const {
+	return std::make_shared<Log>(*this);
+}
+
+Log::PointerType Log::Move() {
+	return std::make_shared<Log>(*this);
+}
+
+Log::PointerType Log::Scope(std::string path) {
+	auto facade = Clone();
+	facade->m_scope_path = JoinPath(m_scope_path, std::move(path));
+	return facade;
 }
 
 bool Log::Enabled(const Level& level) const noexcept {
@@ -74,7 +101,10 @@ void Log::Write(const char* v) { m_impl << v; }
 void Log::Write(std::wstring_view v) { m_impl << v; }
 void Log::Write(const wchar_t* v) { m_impl << v; }
 void Log::Write(std::span<const std::byte> v) { m_impl << v; }
-void Log::Write(const Level& level) { m_impl << level; }
+void Log::Write(const Level& level) {
+	m_impl->SetFacadePath(m_scope_path);
+	m_impl << level;
+}
 void Log::Write(std::ostream& (*manip)(std::ostream&)) { m_impl << manip; }
 void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
 void Log::Write(RedactManip m) {
@@ -88,12 +118,17 @@ void Log::Write(NoHexManip) {
 }
 
 Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
-	m_impl->Color(level, color);
+	if (m_scope_path.empty())
+		m_impl->Color(level, color);
+	else
+		m_impl->Color(m_scope_path, level, color);
 	return *this;
 }
 
 StormByte::Logger::Color Log::Color(const Level& level) const {
-	return m_impl->Color(level);
+	if (m_scope_path.empty())
+		return m_impl->Color(level);
+	return m_impl->Color(m_scope_path, level);
 }
 
 Log& Log::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
@@ -106,12 +141,17 @@ StormByte::Logger::Color Log::Color(const std::string& component, const Level& l
 }
 
 Log& Log::Format(const std::string& format) {
-	m_impl->Format(format);
+	if (m_scope_path.empty())
+		m_impl->Format(format);
+	else
+		m_impl->Format(m_scope_path, format);
 	return *this;
 }
 
 const std::string& Log::Format() const {
-	return m_impl->Format();
+	if (m_scope_path.empty())
+		return m_impl->Format();
+	return static_cast<const Implementation&>(*m_impl).Format(m_scope_path);
 }
 
 Log& Log::Format(const std::string& component, const std::string& format) {
@@ -124,12 +164,16 @@ const std::string& Log::Format(const std::string& component) const {
 }
 
 Log& Log::Throttle(const ThrottleSpec& spec) {
-	m_impl->Throttle(spec);
+	ThrottleSpec bound = spec;
+	BindStickyComponent(bound, m_scope_path);
+	m_impl->Throttle(bound);
 	return *this;
 }
 
 Log& Log::NoThrottle(const ThrottleSpec& spec) {
-	m_impl->NoThrottle(spec);
+	ThrottleSpec bound = spec;
+	BindStickyComponent(bound, m_scope_path);
+	m_impl->NoThrottle(bound);
 	return *this;
 }
 
@@ -214,7 +258,9 @@ void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
 void Log::Write(PopFormatManip manip) { *m_impl << manip; }
 void Log::Write(GroupManip manip) { *m_impl << std::move(manip); }
 void Log::Write(ComponentManip manip) { *m_impl << std::move(manip); }
+void Log::Write(PopComponentManip manip) { *m_impl << manip; }
 void Log::Write(ResetComponentManip manip) { *m_impl << manip; }
+
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
 }

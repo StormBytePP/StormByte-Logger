@@ -34,6 +34,13 @@
 
 using namespace StormByte::Logger;
 
+namespace {
+	void IsolateLine(Log& log) {
+		if (!log.Enabled(Level::LowLevel))
+			log << Level::LowLevel << std::endl;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Basic emit
 // ---------------------------------------------------------------------------
@@ -372,7 +379,7 @@ int test_threadedlog_filtered_wide_skips_conversion() {
 }
 
 // ---------------------------------------------------------------------------
-// Color / format / group / component
+// Color / format / group
 // ---------------------------------------------------------------------------
 
 int test_threadedlog_colored_lines_do_not_mix() {
@@ -478,6 +485,111 @@ int test_threadedlog_filtered_group_releases_lock() {
 	RETURN_TEST("test_threadedlog_filtered_group_releases_lock", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------
+
+int test_threadedlog_component_header_is_sticky_and_resettable() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("Multimedia") << Level::Info << "first" << std::endl;
+	log << Level::Info << "second" << std::endl;
+	log << reset_component << Level::Info << "third" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_component_header_is_sticky_and_resettable",
+		"Multimedia[Info    ] first\nMultimedia[Info    ] second\n[Info    ] third\n", output.str());
+	RETURN_TEST("test_threadedlog_component_header_is_sticky_and_resettable", 0);
+}
+
+int test_threadedlog_component_without_token_preserves_legacy_output() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("Hidden") << Level::Info << "message" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_component_without_token_preserves_legacy_output", "Info    : message\n", output.str());
+	RETURN_TEST("test_threadedlog_component_without_token_preserves_legacy_output", 0);
+}
+
+int test_threadedlog_component_color_override_has_priority() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log.Color(Level::Info, Color::Blue);
+	log.Color("Multimedia", Level::Info, Color::Red);
+	log << component("Multimedia") << Level::Info << "red" << std::endl;
+	log << reset_component << Level::Info << "blue" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_component_color_override_has_priority",
+		"\033[31mMultimedia[Info    ] red\033[0m\n\033[34m[Info    ] blue\033[0m\n", output.str());
+	RETURN_TEST("test_threadedlog_component_color_override_has_priority", 0);
+}
+
+int test_threadedlog_empty_component_does_not_push() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("Multimedia") << Level::Info << "named" << std::endl;
+	log << component("") << Level::Info << "still named" << std::endl;
+	log << reset_component << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_empty_component_does_not_push",
+		"Multimedia[Info    ] named\nMultimedia[Info    ] still named\n[Info    ] root\n", output.str());
+	RETURN_TEST("test_threadedlog_empty_component_does_not_push", 0);
+}
+
+int test_threadedlog_component_format_priority_and_fallback() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "GENERAL[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log.Format("Media", "MEDIA[%L]");
+	log << component("Media") << Level::Info << "media" << std::endl;
+	log << reset_component << component("Other") << Level::Info << "fallback" << std::endl;
+	log.Format("Media", "");
+	log << reset_component << component("Media") << Level::Info << "general again" << std::endl;
+	const std::string expected =
+		"MEDIA[Info    ] media\n"
+		"GENERAL[Info    ] fallback\n"
+		"GENERAL[Info    ] general again\n";
+	ASSERT_EQUAL("test_threadedlog_component_format_priority_and_fallback", expected, output.str());
+	RETURN_TEST("test_threadedlog_component_format_priority_and_fallback", 0);
+}
+
+int test_threadedlog_push_format_overrides_component_and_restores_resolution() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "GENERAL[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log.Format("Media", "MEDIA[%L]");
+	log << component("Media") << push_format("TEMP[%L]") << Level::Info << "temporary" << std::endl;
+	log << pop_format << Level::Info << "component again" << std::endl;
+	log << reset_component << component("Other") << push_format("TEMP[%L]") << Level::Info << "other temporary" << std::endl;
+	log << pop_format;
+	log << reset_component << component("Media") << Level::Info << "media after component switch" << std::endl;
+	const std::string expected =
+		"TEMP[Info    ] temporary\n"
+		"MEDIA[Info    ] component again\n"
+		"TEMP[Info    ] other temporary\n"
+		"MEDIA[Info    ] media after component switch\n";
+	ASSERT_EQUAL("test_threadedlog_push_format_overrides_component_and_restores_resolution", expected, output.str());
+	RETURN_TEST("test_threadedlog_push_format_overrides_component_and_restores_resolution", 0);
+}
+
+int test_threadedlog_format_change_redecides_throttle_line() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "A[%L]");
+	log << reset_component;
+	IsolateLine(log);
+	log.Throttle(0.0, 1);
+	log << Level::Info << "first";
+	log.Format("B[%L]");
+	log << Level::Info << "second" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_format_change_redecides_throttle_line", "A[Info    ] first\n", output.str());
+	RETURN_TEST("test_threadedlog_format_change_redecides_throttle_line", 0);
+}
+
 int test_threadedlog_components_are_thread_local() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%c[%L]");
@@ -487,7 +599,7 @@ int test_threadedlog_components_are_thread_local() {
 	pool.reserve(threads);
 	for (int id = 0; id < threads; ++id) {
 		pool.emplace_back([&, id] {
-			tlog << component("C" + std::to_string(id));
+			tlog << reset_component << component("C" + std::to_string(id));
 			for (int i = 0; i < repeats; ++i)
 				tlog << Level::Info << "message" << std::endl;
 		});
@@ -510,6 +622,7 @@ int test_threadedlog_components_are_thread_local() {
 int test_threadedlog_component_does_not_hold_line_lock() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%c[%L]");
+	tlog << reset_component;
 	tlog << component("Filtered") << Level::Debug << "hidden" << std::endl;
 	tlog << Level::Info << "visible" << std::endl;
 	ASSERT_EQUAL("test_threadedlog_component_does_not_hold_line_lock", "Filtered[Info    ] visible\n", output.str());
@@ -528,7 +641,7 @@ int test_threadedlog_component_formats_do_not_mix() {
 	for (int id = 0; id < threads; ++id) {
 		pool.emplace_back([&, id] {
 			const std::string name(1, static_cast<char>('A' + id));
-			tlog << component(name);
+			tlog << reset_component << component(name);
 			for (int i = 0; i < repeats; ++i)
 				tlog << Level::Info << "message" << std::endl;
 		});
@@ -546,6 +659,102 @@ int test_threadedlog_component_formats_do_not_mix() {
 
 	ASSERT_EQUAL("test_threadedlog_component_formats_do_not_mix (count)", threads * repeats, count);
 	RETURN_TEST("test_threadedlog_component_formats_do_not_mix", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Scope / component stack
+// ---------------------------------------------------------------------------
+
+int test_threadedlog_component_stack_push_pop_and_join() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("Multimedia") << component("Decoder") << Level::Info << "nested" << std::endl;
+	log << pop_component << Level::Info << "parent" << std::endl;
+	log << reset_component << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_component_stack_push_pop_and_join",
+		"Multimedia/Decoder Info    : nested\nMultimedia Info    : parent\n Info    : root\n",
+		output.str());
+	RETURN_TEST("test_threadedlog_component_stack_push_pop_and_join", 0);
+}
+
+int test_threadedlog_scope_path_and_nested_scope() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	auto mm = log.Scope("Multimedia");
+	auto dec = mm->Scope("Decoder");
+	auto abs = log.Scope("Multimedia/Encoder");
+	log << Level::Info << "root" << std::endl;
+	mm << Level::Info << "mm" << std::endl;
+	dec << Level::Info << "dec" << std::endl;
+	abs << Level::Info << "enc" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_scope_path_and_nested_scope",
+		" Info    : root\nMultimedia Info    : mm\nMultimedia/Decoder Info    : dec\nMultimedia/Encoder Info    : enc\n",
+		output.str());
+	RETURN_TEST("test_threadedlog_scope_path_and_nested_scope", 0);
+}
+
+int test_threadedlog_scope_does_not_use_tls_stack() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("TLS");
+	auto scoped = log.Scope("Multimedia");
+	scoped << Level::Info << "scoped" << std::endl;
+	log << Level::Info << "stack" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_scope_does_not_use_tls_stack",
+		"Multimedia Info    : scoped\nTLS Info    : stack\n", output.str());
+	log << reset_component;
+	RETURN_TEST("test_threadedlog_scope_does_not_use_tls_stack", 0);
+}
+
+int test_threadedlog_scope_format_inherits_parent_and_leaf_wins() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "ROOT %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log.Format("Multimedia", "MM %c %L:");
+	auto dec = log.Scope("Multimedia/Decoder");
+	dec << Level::Info << "inherited" << std::endl;
+	dec->Format("DEC %c %L:");
+	dec << Level::Info << "leaf" << std::endl;
+	log << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_scope_format_inherits_parent_and_leaf_wins",
+		"MM Multimedia/Decoder Info    : inherited\nDEC Multimedia/Decoder Info    : leaf\nROOT Info    : root\n",
+		output.str());
+	RETURN_TEST("test_threadedlog_scope_format_inherits_parent_and_leaf_wins", 0);
+}
+
+int test_threadedlog_scope_shares_lock_and_path() {
+	std::ostringstream output;
+	auto log = std::make_shared<ThreadedLog>(output, Level::Info, "%c %L:");
+	*log << reset_component;
+	IsolateLine(*log);
+	auto dec = log->Scope("Multimedia/Decoder");
+	dec << Level::Info << "dec" << std::endl;
+	log << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_scope_shares_lock_and_path",
+		"Multimedia/Decoder Info    : dec\n Info    : root\n", output.str());
+	RETURN_TEST("test_threadedlog_scope_shares_lock_and_path", 0);
+}
+
+int test_threadedlog_scope_throttle_is_leaf() {
+	std::ostringstream output;
+	auto log = std::make_shared<ThreadedLog>(output, Level::Info, "%c %L:");
+	*log << reset_component;
+	IsolateLine(*log);
+	auto dec = log->Scope("Multimedia/Decoder");
+	dec->Throttle(0.0, 1);
+	dec << Level::Info << "one" << std::endl;
+	dec << Level::Info << "two" << std::endl;
+	log << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_threadedlog_scope_throttle_is_leaf",
+		"Multimedia/Decoder Info    : one\n Info    : root\n", output.str());
+	RETURN_TEST("test_threadedlog_scope_throttle_is_leaf", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -646,14 +855,31 @@ int main() {
 	result += test_threadedlog_invalid_wide_releases_line_lock();
 	result += test_threadedlog_filtered_wide_skips_conversion();
 
-	// Color / format / group / component
+	// Color / format / group
 	result += test_threadedlog_colored_lines_do_not_mix();
 	result += test_threadedlog_push_pop_format_is_line_safe();
 	result += test_threadedlog_groups_do_not_mix();
 	result += test_threadedlog_filtered_group_releases_lock();
+
+	// Components
+	result += test_threadedlog_component_header_is_sticky_and_resettable();
+	result += test_threadedlog_component_without_token_preserves_legacy_output();
+	result += test_threadedlog_component_color_override_has_priority();
+	result += test_threadedlog_empty_component_does_not_push();
+	result += test_threadedlog_component_format_priority_and_fallback();
+	result += test_threadedlog_push_format_overrides_component_and_restores_resolution();
+	result += test_threadedlog_format_change_redecides_throttle_line();
 	result += test_threadedlog_components_are_thread_local();
 	result += test_threadedlog_component_does_not_hold_line_lock();
 	result += test_threadedlog_component_formats_do_not_mix();
+
+	// Scope / component stack
+	result += test_threadedlog_component_stack_push_pop_and_join();
+	result += test_threadedlog_scope_path_and_nested_scope();
+	result += test_threadedlog_scope_does_not_use_tls_stack();
+	result += test_threadedlog_scope_format_inherits_parent_and_leaf_wins();
+	result += test_threadedlog_scope_shares_lock_and_path();
+	result += test_threadedlog_scope_throttle_is_leaf();
 
 	// Throttle
 	result += test_threadedlog_throttle_drops_without_deadlock();

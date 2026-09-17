@@ -40,6 +40,9 @@ namespace StormByte::Logger {
 	 * writers do not interleave. Filtered messages do not hold the line lock.
 	 * Text payloads use @c std::string_view / @c std::wstring_view like @c Log.
 	 * Binary payloads use @c std::span<const std::byte> (Base64 by default).
+	 *
+	 * @c Scope clones this type and shares both the Implementation and the
+	 * line lock. The sticky component path is copied onto the clone.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
@@ -51,15 +54,33 @@ namespace StormByte::Logger {
 			 */
 			ThreadedLog(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			/** @brief Copy constructor. Shares the line lock. */
+			/**
+			 * @brief Copy constructor.
+			 * @note Shares the Implementation and the line lock. Copies the sticky path.
+			 */
 			ThreadedLog(const ThreadedLog&) = default;
-			/** @brief Move constructor. */
+
+			/**
+			 * @brief Move constructor.
+			 */
 			ThreadedLog(ThreadedLog&&) noexcept = default;
-			/** @brief Destructor. */
-			~ThreadedLog() noexcept = default;
-			/** @brief Copy assignment. Shares the line lock. */
+
+			/**
+			 * @brief Destructor.
+			 */
+			~ThreadedLog() noexcept override = default;
+
+			/**
+			 * @brief Copy assignment.
+			 * @return Reference to this logger.
+			 * @note Shares the Implementation and the line lock.
+			 */
 			ThreadedLog& operator=(const ThreadedLog&) = default;
-			/** @brief Move assignment. */
+
+			/**
+			 * @brief Move assignment.
+			 * @return Reference to this logger.
+			 */
 			ThreadedLog& operator=(ThreadedLog&&) noexcept = default;
 
 			/**
@@ -67,6 +88,7 @@ namespace StormByte::Logger {
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that level.
 			 * @return Reference to this logger.
+			 * @note On a scoped facade this stores a component override for the sticky path.
 			 */
 			Log& Color(const Level& level, const StormByte::Logger::Color& color) override;
 
@@ -76,74 +98,173 @@ namespace StormByte::Logger {
 			 * @return Configured color.
 			 */
 			StormByte::Logger::Color Color(const Level& level) const override;
+
 			/**
 			 * @brief Set a component color override under the line lock.
-			 * @param component Component name.
+			 * @param component Component path.
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that component and level.
 			 * @return Reference to this logger.
 			 */
 			Log& Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) override;
+
 			/**
-			 * @brief Get a component color, falling back to the general color.
-			 * @param component Component name.
+			 * @brief Get a component color, falling back along the path then to the general color.
+			 * @param component Component path.
 			 * @param level Level whose color is requested.
 			 * @return Component override or general color.
 			 */
 			StormByte::Logger::Color Color(const std::string& component, const Level& level) const override;
+
 			/**
-			 * @brief Set the general header format under the line lock.
-			 * @param format Format used by default.
+			 * @brief Set the header format under the line lock.
+			 * @param format Format used by default, or for the sticky path on a scoped facade.
 			 * @return Reference to this logger.
 			 */
 			Log& Format(const std::string& format) override;
+
 			/**
 			 * @brief Get the effective current header format.
 			 * @return Temporary, component-specific or general format.
 			 */
 			const std::string& Format() const override;
+
 			/**
 			 * @brief Set or remove a component-specific header format under the line lock.
-			 * @param component Component name.
+			 * @param component Component path.
 			 * @param format Format, or empty to remove the override.
 			 * @return Reference to this logger.
 			 */
 			Log& Format(const std::string& component, const std::string& format) override;
+
 			/**
-			 * @brief Get a component-specific format, falling back to the general format.
-			 * @param component Component name.
+			 * @brief Get a component-specific format, falling back along the path then to general.
+			 * @param component Component path.
 			 * @return Component format or general format.
 			 */
 			const std::string& Format(const std::string& component) const override;
-			/** @brief Install a throttle rule under the line lock. */
+
+			/**
+			 * @brief Install a throttle rule under the line lock.
+			 * @param spec Rule to install. An absent Component uses the sticky path when scoped.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(const ThrottleSpec& spec) override;
-			/** @brief Remove a throttle rule under the line lock. */
+
+			/**
+			 * @brief Remove a throttle rule under the line lock.
+			 * @param spec Selectors of the rule to remove.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle(const ThrottleSpec& spec) override;
-			/** @brief Install a global Drop rule. */
+
+			/**
+			 * @brief Install a Drop rule (global, or sticky path if scoped).
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(double rate, std::size_t burst) override;
-			/** @brief Install a global policy rule. */
+
+			/**
+			 * @brief Install a Sample or Window rule (global, or sticky path if scoped).
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @param policy Sample or Window.
+			 * @param value SampleN or WindowKeep.
+			 * @param period WindowPeriod when @p policy is Window.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period = 0) override;
-			/** @brief Install a level-scoped rule. */
+
+			/**
+			 * @brief Install a level-scoped Drop rule.
+			 * @param level Level selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(const Level& level, double rate, std::size_t burst) override;
-			/** @brief Install a group-scoped rule. */
+
+			/**
+			 * @brief Install a group-scoped Drop rule.
+			 * @param group Group selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(GroupManip group, double rate, std::size_t burst) override;
-			/** @brief Install a component-scoped rule. */
+
+			/**
+			 * @brief Install a component-scoped Drop rule. The manipulator path is used as-is.
+			 * @param component Component path.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(ComponentManip component, double rate, std::size_t burst) override;
-			/** @brief Install an exact component/level/group rule. */
+
+			/**
+			 * @brief Install an exact component/level/group rule.
+			 * @param component Component path used as-is.
+			 * @param level Level selector.
+			 * @param group Group selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @param policy Count policy.
+			 * @param value SampleN or WindowKeep.
+			 * @param period WindowPeriod when @p policy is Window.
+			 * @return Reference to this logger.
+			 */
 			Log& Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy = ThrottlePolicy::Drop, std::size_t value = 0, std::size_t period = 0) override;
-			/** @brief Remove all throttle rules. */
+
+			/**
+			 * @brief Remove all throttle rules.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle() override;
-			/** @brief Remove a level-scoped rule. */
+
+			/**
+			 * @brief Remove a level-scoped rule.
+			 * @param level Level selector.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle(const Level& level) override;
-			/** @brief Remove a group-scoped rule. */
+
+			/**
+			 * @brief Remove a group-scoped rule.
+			 * @param group Group selector.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle(GroupManip group) override;
-			/** @brief Remove a component-scoped rule. */
+
+			/**
+			 * @brief Remove a component-scoped rule. The manipulator path is used as-is.
+			 * @param component Component path.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle(ComponentManip component) override;
-			/** @brief Remove an exact component/level/group rule. */
+
+			/**
+			 * @brief Remove an exact component/level/group rule.
+			 * @param component Component path used as-is.
+			 * @param level Level selector.
+			 * @param group Group selector.
+			 * @return Reference to this logger.
+			 */
 			Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group) override;
-			/** @brief Flush all dropped summaries under the line lock. */
+
+			/**
+			 * @brief Flush all dropped summaries under the line lock.
+			 * @return Reference to this logger.
+			 */
 			Log& FlushThrottle() override;
-			/** @brief Flush matching dropped summaries under the line lock. */
+
+			/**
+			 * @brief Flush matching dropped summaries under the line lock.
+			 * @param spec Selectors of the rules to flush.
+			 * @return Reference to this logger.
+			 */
 			Log& FlushThrottle(const ThrottleSpec& spec) override;
 
 			/**
@@ -228,6 +349,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Stream UTF-8 text. @c std::string converts to this view.
+			 * @param v Text to write.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(std::string_view v) {
 				if (!WillWrite()) [[likely]] return *this;
@@ -241,6 +364,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Stream wide text. @c std::wstring converts to this view.
+			 * @param v Wide text to write.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(std::wstring_view v) {
 				if (!WillWrite()) [[likely]] return *this;
@@ -274,14 +399,29 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+			/**
+			 * @brief Apply redaction policy. State remains until noredact.
+			 * @param m Redaction manipulator.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(RedactManip m) {
 				Write(m);
 				return *this;
 			}
+			/**
+			 * @brief Dump subsequent payloads as hex bytes until nohex.
+			 * @param m Hex manipulator.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(HexManip m) {
 				Write(m);
 				return *this;
 			}
+			/**
+			 * @brief Disable hex dumps and restore default payload formatting.
+			 * @param m No-hex manipulator.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(NoHexManip m) {
 				Write(m);
 				return *this;
@@ -332,7 +472,7 @@ namespace StormByte::Logger {
 				return *this;
 			}
 			/**
-			 * @brief Select the sticky component for the current thread.
+			 * @brief Push a component segment onto the current thread's stack.
 			 * @param manip Component manipulator.
 			 * @return Reference to this logger.
 			 */
@@ -341,7 +481,16 @@ namespace StormByte::Logger {
 				return *this;
 			}
 			/**
-			 * @brief Clear the sticky component for the current thread.
+			 * @brief Pop one component segment from the current thread's stack.
+			 * @param manip Pop-component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(PopComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Clear the current thread's component stack.
 			 * @param manip Reset-component manipulator.
 			 * @return Reference to this logger.
 			 */
@@ -351,8 +500,22 @@ namespace StormByte::Logger {
 			}
 			//@}
 
+		protected:
+			/**
+			 * @brief Deep-copy this facade into a shared_ptr.
+			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
+			 */
+			PointerType Clone() const override;
+
+			/**
+			 * @brief Move this facade into a shared_ptr.
+			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
+			 * @note This object is not emptied; the Implementation stays shared.
+			 */
+			PointerType Move() override;
+
 		private:
-			std::shared_ptr<ThreadLock> m_lock;	///< Shared line lock (copy shares it)
+			std::shared_ptr<ThreadLock> m_lock;	///< Shared line lock (copy and Scope share it)
 
 			/**
 			 * @name Write
@@ -386,8 +549,20 @@ namespace StormByte::Logger {
 			void Write(const Level& level) override;
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;
+			/**
+			 * @brief Apply redaction state under the line lock.
+			 * @param m Redaction manipulator.
+			 */
 			void Write(RedactManip m) override;
+			/**
+			 * @brief Apply hex-dump state under the line lock.
+			 * @param m Hex manipulator.
+			 */
 			void Write(HexManip m) override;
+			/**
+			 * @brief Disable hex dumps under the line lock.
+			 * @param m No-hex manipulator.
+			 */
 			void Write(NoHexManip m) override;
 			/**
 			 * @brief Apply a color manipulator under the line lock.
@@ -415,12 +590,17 @@ namespace StormByte::Logger {
 			 */
 			void Write(GroupManip manip) override;
 			/**
-			 * @brief Apply a component manipulator under the line lock.
+			 * @brief Apply a component push manipulator.
 			 * @param manip Component manipulator.
 			 */
 			void Write(ComponentManip manip) override;
 			/**
-			 * @brief Apply a reset-component manipulator under the line lock.
+			 * @brief Apply a component pop manipulator.
+			 * @param manip Pop-component manipulator.
+			 */
+			void Write(PopComponentManip manip) override;
+			/**
+			 * @brief Apply a reset-component manipulator.
 			 * @param manip Reset-component manipulator.
 			 */
 			void Write(ResetComponentManip manip) override;

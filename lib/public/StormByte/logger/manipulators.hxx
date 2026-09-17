@@ -113,6 +113,20 @@ namespace StormByte::Logger {
 	inline constexpr ResetComponentManip reset_component{};
 
 	/**
+	 * @struct PopComponentManip
+	 * @brief Pops one segment from the current thread's component stack.
+	 *
+	 * Does nothing when the stack is empty. Does not affect a Scope facade path.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC PopComponentManip {};
+
+	/**
+	 * @brief Pop one component segment from the current thread's stack.
+	 * @note Thread-local; does not affect other threads or Scope facades.
+	 */
+	inline constexpr PopComponentManip pop_component{};
+
+	/**
 	 * @struct FormatManip
 	 * @brief Temporarily replaces the logger format and saves the previous one.
 	 */

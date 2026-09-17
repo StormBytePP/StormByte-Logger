@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <StormByte/clonable.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/type_traits.hxx>
@@ -51,14 +52,28 @@ namespace StormByte::Logger {
 	 *
 	 * Binary payloads use @c std::span<const std::byte>. A @c std::vector<std::byte>
 	 * converts to that span. Default formatting is Base64; @c hex dumps the bytes.
+	 *
+	 * @c Scope returns another facade that shares the Implementation (and, on
+	 * ThreadedLog, the line lock) and carries a sticky component path. Format,
+	 * Color and Throttle calls without an explicit component use that path.
+	 * The root facade (empty path) still installs global rules.
+	 *
+	 * The thread-local component stack (@c component / @c pop_component /
+	 * @c reset_component) is independent of @c Scope. It only affects emission
+	 * on the root facade.
 	 */
-	class STORMBYTE_LOGGER_PUBLIC Log {
+	class STORMBYTE_LOGGER_PUBLIC Log : protected StormByte::Clonable<Log, std::shared_ptr<Log>> {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& noredact(Log& log) noexcept;
 
 		public:
+			/**
+			 * @brief Smart pointer returned by @c Clone, @c Move and @c Scope.
+			 */
+			using PointerType = StormByte::Clonable<Log, std::shared_ptr<Log>>::PointerType;
+
 			/**
 			 * @brief Construct a Log writing to @p out.
 			 * @param out Output stream (e.g. std::cout).
@@ -67,16 +82,43 @@ namespace StormByte::Logger {
 			 */
 			Log(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			/** @brief Copy constructor. Shares the Implementation. */
+			/**
+			 * @brief Copy constructor.
+			 * @note Shares the Implementation. Copies the sticky component path.
+			 */
 			Log(const Log&) = default;
-			/** @brief Move constructor. */
+
+			/**
+			 * @brief Move constructor.
+			 */
 			Log(Log&&) noexcept = default;
-			/** @brief Destructor. */
-			~Log() noexcept = default;
-			/** @brief Copy assignment. Shares the Implementation. */
+
+			/**
+			 * @brief Destructor.
+			 */
+			~Log() noexcept override = default;
+
+			/**
+			 * @brief Copy assignment.
+			 * @return Reference to this logger.
+			 * @note Shares the Implementation. Copies the sticky component path.
+			 */
 			Log& operator=(const Log&) = default;
-			/** @brief Move assignment. */
+
+			/**
+			 * @brief Move assignment.
+			 * @return Reference to this logger.
+			 */
 			Log& operator=(Log&&) noexcept = default;
+
+			/**
+			 * @brief Another facade on the same backend, with a sticky component path.
+			 * @param path Segment relative to this facade, or a `/`-separated path.
+			 * @return Shared pointer to a Log (ThreadedLog if *this is one). Never null.
+			 * @note Does not register the component and does not preconfigure Format, Color or Throttle.
+			 *       An empty @p path returns a clone of this facade.
+			 */
+			PointerType Scope(std::string path);
 
 			/**
 			 * @brief Whether @p level would be emitted given the print floor.
@@ -91,19 +133,20 @@ namespace StormByte::Logger {
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that level.
 			 * @return Reference to this logger.
+			 * @note On a scoped facade this stores a component override for the sticky path.
 			 */
 			virtual Log& Color(const Level& level, const StormByte::Logger::Color& color);
 
 			/**
 			 * @brief Get the configured color for a logging level.
 			 * @param level Level whose color is requested.
-			 * @return Configured color.
+			 * @return Configured color. On a scoped facade this uses prefix lookup from the sticky path.
 			 */
 			virtual StormByte::Logger::Color Color(const Level& level) const;
 
 			/**
-			 * @brief Set a color override for a component and level.
-			 * @param component Component name.
+			 * @brief Set a color override for a component path and level.
+			 * @param component Component path (`Multimedia` or `Multimedia/Decoder`).
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that component and level.
 			 * @return Reference to this logger.
@@ -111,16 +154,16 @@ namespace StormByte::Logger {
 			virtual Log& Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color);
 
 			/**
-			 * @brief Get a component color, falling back to the general color.
-			 * @param component Component name.
+			 * @brief Get a component color, falling back along the path then to the general color.
+			 * @param component Component path.
 			 * @param level Level whose color is requested.
 			 * @return Component override or general color.
 			 */
 			virtual StormByte::Logger::Color Color(const std::string& component, const Level& level) const;
 
 			/**
-			 * @brief Set the general header format.
-			 * @param format Format used by default.
+			 * @brief Set the header format.
+			 * @param format Format used by default, or for the sticky path on a scoped facade.
 			 * @return Reference to this logger.
 			 */
 			virtual Log& Format(const std::string& format);
@@ -133,56 +176,146 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Set or remove a component-specific header format.
-			 * @param component Component name; empty selects the general format.
+			 * @param component Component path; empty selects the general format.
 			 * @param format Format, or empty to remove the override.
 			 * @return Reference to this logger.
 			 */
 			virtual Log& Format(const std::string& component, const std::string& format);
 
 			/**
-			 * @brief Get a component-specific format, falling back to the general format.
-			 * @param component Component name.
+			 * @brief Get a component-specific format, falling back along the path then to general.
+			 * @param component Component path.
 			 * @return Component format or general format.
 			 */
 			virtual const std::string& Format(const std::string& component) const;
 
 			/**
 			 * @brief Install a throttle rule.
-			 * @param spec Rule to install.
+			 * @param spec Rule to install. An absent Component uses the sticky path when this facade is scoped.
 			 * @return Reference to this logger.
 			 */
 			virtual Log& Throttle(const ThrottleSpec& spec);
+
 			/**
 			 * @brief Remove a throttle rule with the same selectors.
-			 * @param spec Selectors of the rule to remove.
+			 * @param spec Selectors of the rule to remove. An absent Component uses the sticky path when scoped.
 			 * @return Reference to this logger.
 			 */
 			virtual Log& NoThrottle(const ThrottleSpec& spec);
-			/** @brief Install a global Drop rule. */
+
+			/**
+			 * @brief Install a Drop rule.
+			 * @param rate Lines per second; zero disables refill.
+			 * @param burst Initial and maximum token capacity.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& Throttle(double rate, std::size_t burst);
-			/** @brief Install a global Sample or Window rule. */
+
+			/**
+			 * @brief Install a Sample or Window rule.
+			 * @param rate Lines per second; zero disables refill.
+			 * @param burst Initial and maximum token capacity.
+			 * @param policy Sample or Window.
+			 * @param value SampleN or WindowKeep.
+			 * @param period WindowPeriod when @p policy is Window.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period = 0);
-			/** @brief Install a level-scoped Drop rule. */
+
+			/**
+			 * @brief Install a level-scoped Drop rule.
+			 * @param level Level selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& Throttle(const Level& level, double rate, std::size_t burst);
-			/** @brief Install a group-scoped Drop rule. */
+
+			/**
+			 * @brief Install a group-scoped Drop rule.
+			 * @param group Group selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& Throttle(GroupManip group, double rate, std::size_t burst);
-			/** @brief Install a component-scoped Drop rule. */
+
+			/**
+			 * @brief Install a component-scoped Drop rule.
+			 * @param component Component path used as-is (does not use the sticky path).
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& Throttle(ComponentManip component, double rate, std::size_t burst);
-			/** @brief Install an exact component/level/group rule. */
+
+			/**
+			 * @brief Install an exact component/level/group rule.
+			 * @param component Component path used as-is.
+			 * @param level Level selector.
+			 * @param group Group selector.
+			 * @param rate Lines per second.
+			 * @param burst Token capacity.
+			 * @param policy Count policy.
+			 * @param value SampleN or WindowKeep.
+			 * @param period WindowPeriod when @p policy is Window.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy = ThrottlePolicy::Drop, std::size_t value = 0, std::size_t period = 0);
-			/** @brief Remove all throttle rules. */
+
+			/**
+			 * @brief Remove all throttle rules.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& NoThrottle();
-			/** @brief Remove a level-scoped rule. */
+
+			/**
+			 * @brief Remove a level-scoped rule.
+			 * @param level Level selector.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& NoThrottle(const Level& level);
-			/** @brief Remove a group-scoped rule. */
+
+			/**
+			 * @brief Remove a group-scoped rule.
+			 * @param group Group selector.
+			 * @return Reference to this logger.
+			 * @note Global on the root facade; bound to the sticky path on a scoped facade.
+			 */
 			virtual Log& NoThrottle(GroupManip group);
-			/** @brief Remove a component-scoped rule. */
+
+			/**
+			 * @brief Remove a component-scoped rule.
+			 * @param component Component path used as-is.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& NoThrottle(ComponentManip component);
-			/** @brief Remove an exact component/level/group rule. */
+
+			/**
+			 * @brief Remove an exact component/level/group rule.
+			 * @param component Component path used as-is.
+			 * @param level Level selector.
+			 * @param group Group selector.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& NoThrottle(ComponentManip component, const Level& level, GroupManip group);
-			/** @brief Flush dropped summaries for all throttle rules. */
+
+			/**
+			 * @brief Flush dropped summaries for all throttle rules.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& FlushThrottle();
-			/** @brief Flush dropped summaries for matching throttle rules. */
+
+			/**
+			 * @brief Flush dropped summaries for matching throttle rules.
+			 * @param spec Selectors of the rules to flush.
+			 * @return Reference to this logger.
+			 */
 			virtual Log& FlushThrottle(const ThrottleSpec& spec);
 
 			/**
@@ -269,6 +402,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Stream UTF-8 text. @c std::string converts to this view.
+			 * @param v Text to write.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(std::string_view v) {
 				if (!WillWrite()) [[likely]] return *this;
@@ -282,6 +417,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Stream wide text. @c std::wstring converts to this view.
+			 * @param v Wide text to write.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(std::wstring_view v) {
 				if (!WillWrite()) [[likely]] return *this;
@@ -318,6 +455,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Apply redaction policy (full or keep-last-N). State remains until noredact.
+			 * @param m Redaction manipulator.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(RedactManip m) {
 				Write(m);
@@ -325,6 +464,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Dump subsequent payloads as hex bytes until nohex.
+			 * @param m Hex manipulator.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(HexManip m) {
 				Write(m);
@@ -332,6 +473,8 @@ namespace StormByte::Logger {
 			}
 			/**
 			 * @brief Disable hex dumps and restore default payload formatting.
+			 * @param m No-hex manipulator.
+			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(NoHexManip m) {
 				Write(m);
@@ -383,7 +526,7 @@ namespace StormByte::Logger {
 				return *this;
 			}
 			/**
-			 * @brief Select the sticky component for the current thread.
+			 * @brief Push a component segment onto the current thread's stack.
 			 * @param manip Component manipulator.
 			 * @return Reference to this logger.
 			 */
@@ -392,7 +535,16 @@ namespace StormByte::Logger {
 				return *this;
 			}
 			/**
-			 * @brief Clear the sticky component for the current thread.
+			 * @brief Pop one component segment from the current thread's stack.
+			 * @param manip Pop-component manipulator.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(PopComponentManip manip) {
+				Write(manip);
+				return *this;
+			}
+			/**
+			 * @brief Clear the current thread's component stack.
 			 * @param manip Reset-component manipulator.
 			 * @return Reference to this logger.
 			 */
@@ -404,6 +556,7 @@ namespace StormByte::Logger {
 
 		protected:
 			std::shared_ptr<Implementation> m_impl; ///< Shared backend (copies of Log share it)
+			std::string m_scope_path;               ///< Sticky component path; empty = root facade
 
 			/**
 			 * @brief Whether the current line level will be written.
@@ -434,6 +587,18 @@ namespace StormByte::Logger {
 			 * @return true when payload output is allowed.
 			 */
 			bool LineAdmitted() const noexcept;
+
+			/**
+			 * @brief Deep-copy this facade into a shared_ptr.
+			 * @return Pointer to the clone. Shares the Implementation.
+			 */
+			PointerType Clone() const override;
+
+			/**
+			 * @brief Move this facade into a shared_ptr.
+			 * @return Pointer to the new facade. The Implementation stays shared; this object is not emptied.
+			 */
+			PointerType Move() override;
 
 			/**
 			 * @name Write
@@ -469,14 +634,17 @@ namespace StormByte::Logger {
 			virtual void Write(Log& (*manip)(Log&) noexcept);
 			/**
 			 * @brief Forward redaction state to the implementation.
+			 * @param m Redaction manipulator.
 			 */
 			virtual void Write(RedactManip m);
 			/**
 			 * @brief Forward hex-dump state to the implementation.
+			 * @param m Hex manipulator.
 			 */
 			virtual void Write(HexManip m);
 			/**
 			 * @brief Forward hex-dump disable to the implementation.
+			 * @param m No-hex manipulator.
 			 */
 			virtual void Write(NoHexManip m);
 			/**
@@ -505,10 +673,15 @@ namespace StormByte::Logger {
 			 */
 			virtual void Write(GroupManip manip);
 			/**
-			 * @brief Forward a component manipulator.
+			 * @brief Forward a component push manipulator.
 			 * @param manip Component manipulator.
 			 */
 			virtual void Write(ComponentManip manip);
+			/**
+			 * @brief Forward a component pop manipulator.
+			 * @param manip Pop-component manipulator.
+			 */
+			virtual void Write(PopComponentManip manip);
 			/**
 			 * @brief Forward a reset-component manipulator.
 			 * @param manip Reset-component manipulator.
@@ -518,46 +691,46 @@ namespace StormByte::Logger {
 	};
 
 	/**
-	 * @brief Stream a value into a smart pointer to Log.
-	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
+	 * @brief Stream a value into a smart pointer to Log or a derived logger.
+	 * @tparam Ptr std::shared_ptr or std::unique_ptr whose element type derives from Log.
 	 * @tparam T Value type.
-	 * @param logger Smart pointer to Log.
+	 * @param logger Smart pointer to the logger.
 	 * @param value Value to stream.
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value) noexcept
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
 		if (logger)
 			*logger << value;
 		return logger;
 	}
 
 	/**
-	 * @brief Stream a Level into a smart pointer to Log.
-	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
-	 * @param logger Smart pointer to Log.
+	 * @brief Stream a Level into a smart pointer to Log or a derived logger.
+	 * @tparam Ptr std::shared_ptr or std::unique_ptr whose element type derives from Log.
+	 * @param logger Smart pointer to the logger.
 	 * @param level Level to set.
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
 		if (logger)
 			*logger << level;
 		return logger;
 	}
 
 	/**
-	 * @brief Stream a stream manipulator into a smart pointer to Log.
-	 * @tparam Ptr std::shared_ptr<Log> or std::unique_ptr<Log>.
-	 * @param logger Smart pointer to Log.
+	 * @brief Stream a stream manipulator into a smart pointer to Log or a derived logger.
+	 * @tparam Ptr std::shared_ptr or std::unique_ptr whose element type derives from Log.
+	 * @param logger Smart pointer to the logger.
 	 * @param manip Stream manipulator (e.g. std::endl).
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Log>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Log>> {
+		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
 		if (logger)
 			*logger << manip;
 		return logger;

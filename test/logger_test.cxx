@@ -541,6 +541,7 @@ int test_group_and_color_share_the_header() {
 int test_component_header_is_sticky_and_resettable() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log << component("Multimedia") << Level::Info << "first" << std::endl;
 	log << Level::Info << "second" << std::endl;
@@ -553,6 +554,7 @@ int test_component_header_is_sticky_and_resettable() {
 int test_component_without_token_preserves_legacy_output() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	log << reset_component;
 	IsolateLine(log);
 	log << component("Hidden") << Level::Info << "message" << std::endl;
 	ASSERT_EQUAL("test_component_without_token_preserves_legacy_output", "Info    : message\n", output.str());
@@ -562,6 +564,7 @@ int test_component_without_token_preserves_legacy_output() {
 int test_component_color_override_has_priority() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log.Color(Level::Info, Color::Blue);
 	log.Color("Multimedia", Level::Info, Color::Red);
@@ -572,25 +575,29 @@ int test_component_color_override_has_priority() {
 	RETURN_TEST("test_component_color_override_has_priority", 0);
 }
 
-int test_empty_component_selects_root() {
+int test_empty_component_does_not_push() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log << component("Multimedia") << Level::Info << "named" << std::endl;
-	log << component("") << Level::Info << "root" << std::endl;
-	ASSERT_EQUAL("test_empty_component_selects_root", "Multimedia[Info    ] named\n[Info    ] root\n", output.str());
-	RETURN_TEST("test_empty_component_selects_root", 0);
+	log << component("") << Level::Info << "still named" << std::endl;
+	log << reset_component << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_empty_component_does_not_push",
+		"Multimedia[Info    ] named\nMultimedia[Info    ] still named\n[Info    ] root\n", output.str());
+	RETURN_TEST("test_empty_component_does_not_push", 0);
 }
 
 int test_component_format_priority_and_fallback() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "GENERAL[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log.Format("Media", "MEDIA[%L]");
 	log << component("Media") << Level::Info << "media" << std::endl;
-	log << component("Other") << Level::Info << "fallback" << std::endl;
+	log << reset_component << component("Other") << Level::Info << "fallback" << std::endl;
 	log.Format("Media", "");
-	log << component("Media") << Level::Info << "general again" << std::endl;
+	log << reset_component << component("Media") << Level::Info << "general again" << std::endl;
 	const std::string expected =
 		"MEDIA[Info    ] media\n"
 		"GENERAL[Info    ] fallback\n"
@@ -602,13 +609,14 @@ int test_component_format_priority_and_fallback() {
 int test_push_format_overrides_component_and_restores_resolution() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "GENERAL[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log.Format("Media", "MEDIA[%L]");
 	log << component("Media") << push_format("TEMP[%L]") << Level::Info << "temporary" << std::endl;
 	log << pop_format << Level::Info << "component again" << std::endl;
-	log << component("Other") << push_format("TEMP[%L]") << Level::Info << "other temporary" << std::endl;
+	log << reset_component << component("Other") << push_format("TEMP[%L]") << Level::Info << "other temporary" << std::endl;
 	log << pop_format;
-	log << component("Media") << Level::Info << "media after component switch" << std::endl;
+	log << reset_component << component("Media") << Level::Info << "media after component switch" << std::endl;
 	const std::string expected =
 		"TEMP[Info    ] temporary\n"
 		"MEDIA[Info    ] component again\n"
@@ -621,6 +629,7 @@ int test_push_format_overrides_component_and_restores_resolution() {
 int test_format_change_redecides_throttle_line() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "A[%L]");
+	log << reset_component;
 	IsolateLine(log);
 	log.Throttle(0.0, 1);
 	log << Level::Info << "first";
@@ -628,6 +637,89 @@ int test_format_change_redecides_throttle_line() {
 	log << Level::Info << "second" << std::endl;
 	ASSERT_EQUAL("test_format_change_redecides_throttle_line", "A[Info    ] first\n", output.str());
 	RETURN_TEST("test_format_change_redecides_throttle_line", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Scope / component stack
+// ---------------------------------------------------------------------------
+
+int test_component_stack_push_pop_and_join() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("Multimedia") << component("Decoder") << Level::Info << "nested" << std::endl;
+	log << pop_component << Level::Info << "parent" << std::endl;
+	log << reset_component << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_component_stack_push_pop_and_join",
+		"Multimedia/Decoder Info    : nested\nMultimedia Info    : parent\n Info    : root\n",
+		output.str());
+	RETURN_TEST("test_component_stack_push_pop_and_join", 0);
+}
+
+int test_scope_path_and_nested_scope() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	auto mm = log.Scope("Multimedia");
+	auto dec = mm->Scope("Decoder");
+	auto abs = log.Scope("Multimedia/Encoder");
+	log << Level::Info << "root" << std::endl;
+	mm << Level::Info << "mm" << std::endl;
+	dec << Level::Info << "dec" << std::endl;
+	abs << Level::Info << "enc" << std::endl;
+	ASSERT_EQUAL("test_scope_path_and_nested_scope",
+		" Info    : root\nMultimedia Info    : mm\nMultimedia/Decoder Info    : dec\nMultimedia/Encoder Info    : enc\n",
+		output.str());
+	RETURN_TEST("test_scope_path_and_nested_scope", 0);
+}
+
+int test_scope_does_not_use_tls_stack() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log << component("TLS");
+	auto scoped = log.Scope("Multimedia");
+	scoped << Level::Info << "scoped" << std::endl;
+	log << Level::Info << "stack" << std::endl;
+	ASSERT_EQUAL("test_scope_does_not_use_tls_stack",
+		"Multimedia Info    : scoped\nTLS Info    : stack\n", output.str());
+	log << reset_component;
+	RETURN_TEST("test_scope_does_not_use_tls_stack", 0);
+}
+
+int test_scope_format_inherits_parent_and_leaf_wins() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "ROOT %L:");
+	log << reset_component;
+	IsolateLine(log);
+	log.Format("Multimedia", "MM %c %L:");
+	auto dec = log.Scope("Multimedia/Decoder");
+	dec << Level::Info << "inherited" << std::endl;
+	dec->Format("DEC %c %L:");
+	dec << Level::Info << "leaf" << std::endl;
+	log << Level::Info << "root" << std::endl;
+	ASSERT_EQUAL("test_scope_format_inherits_parent_and_leaf_wins",
+		"MM Multimedia/Decoder Info    : inherited\nDEC Multimedia/Decoder Info    : leaf\nROOT Info    : root\n",
+		output.str());
+	RETURN_TEST("test_scope_format_inherits_parent_and_leaf_wins", 0);
+}
+
+int test_scope_throttle_binds_to_leaf() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%c %L:");
+	log << reset_component;
+	IsolateLine(log);
+	auto dec = log.Scope("Multimedia/Decoder");
+	dec->Throttle(0.0, 1);
+	dec << Level::Info << "one" << std::endl;
+	dec << Level::Info << "two" << std::endl;
+	log << Level::Info << "root still free" << std::endl;
+	ASSERT_EQUAL("test_scope_throttle_binds_to_leaf",
+		"Multimedia/Decoder Info    : one\n Info    : root still free\n", output.str());
+	RETURN_TEST("test_scope_throttle_binds_to_leaf", 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -727,6 +819,7 @@ int test_throttle_sample_and_window() {
 int test_throttle_precedence_and_no_throttle() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g:");
+	log << reset_component;
 	IsolateLine(log);
 	ThrottleSpec global;
 	global.Burst = 10;
@@ -739,10 +832,10 @@ int test_throttle_precedence_and_no_throttle() {
 	other_rule.Component = "B";
 	other_rule.Burst = 1;
 	log.Throttle(other_rule);
-	log << component("A") << group("x") << Level::Info << "a0" << std::endl;
+	log << reset_component << component("A") << group("x") << Level::Info << "a0" << std::endl;
 	log << Level::Info << "a1" << std::endl;
 	log << Level::Info << "a2" << std::endl;
-	log << component("B") << group("x") << Level::Info << "b0" << std::endl;
+	log << reset_component << component("B") << group("x") << Level::Info << "b0" << std::endl;
 	log << Level::Info << "b1" << std::endl;
 	log.NoThrottle(component("B"));
 	log << Level::Info << "b2" << std::endl;
@@ -772,6 +865,7 @@ int test_throttle_warning_but_not_error_or_fatal() {
 int test_throttle_summary_preserves_context() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g ");
+	log << reset_component;
 	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Component = "A";
@@ -792,14 +886,15 @@ int test_throttle_summary_preserves_context() {
 int test_throttle_component_and_group_isolation() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g ");
+	log << reset_component;
 	IsolateLine(log);
 	ThrottleSpec component_rule;
 	component_rule.Component = "A";
 	component_rule.Burst = 1;
 	log.Throttle(component_rule);
-	log << component("A") << Level::Info << "a0" << std::endl;
-	log << component("A") << Level::Info << "a1" << std::endl;
-	log << component("B") << Level::Info << "b0" << std::endl;
+	log << reset_component << component("A") << Level::Info << "a0" << std::endl;
+	log << Level::Info << "a1" << std::endl;
+	log << reset_component << component("B") << Level::Info << "b0" << std::endl;
 	log << Level::Info << "b1" << std::endl;
 	ThrottleSpec group_rule;
 	group_rule.Group = "x";
@@ -863,6 +958,7 @@ int test_flush_throttle_emits_orphaned_summary() {
 int test_flush_throttle_selects_component_only() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]:");
+	log << reset_component;
 	IsolateLine(log);
 	ThrottleSpec a;
 	a.Component = "A";
@@ -871,9 +967,9 @@ int test_flush_throttle_selects_component_only() {
 	b.Component = "B";
 	log.Throttle(a);
 	log.Throttle(b);
-	log << component("A") << Level::Info << "a0" << std::endl;
+	log << reset_component << component("A") << Level::Info << "a0" << std::endl;
 	log << Level::Info << "a1" << std::endl;
-	log << component("B") << Level::Info << "b0" << std::endl;
+	log << reset_component << component("B") << Level::Info << "b0" << std::endl;
 	log << Level::Info << "b1" << std::endl;
 	ThrottleSpec filter;
 	filter.Component = "A";
@@ -981,10 +1077,17 @@ int main() {
 	result += test_component_header_is_sticky_and_resettable();
 	result += test_component_without_token_preserves_legacy_output();
 	result += test_component_color_override_has_priority();
-	result += test_empty_component_selects_root();
+	result += test_empty_component_does_not_push();
 	result += test_component_format_priority_and_fallback();
 	result += test_push_format_overrides_component_and_restores_resolution();
 	result += test_format_change_redecides_throttle_line();
+
+	// Scope / component stack
+	result += test_component_stack_push_pop_and_join();
+	result += test_scope_path_and_nested_scope();
+	result += test_scope_does_not_use_tls_stack();
+	result += test_scope_format_inherits_parent_and_leaf_wins();
+	result += test_scope_throttle_binds_to_leaf();
 
 	// Wide / UTF-8
 	result += test_wide_string_logging_is_locale_independent();

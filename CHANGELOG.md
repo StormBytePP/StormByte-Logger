@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64).
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64).
 
 If you landed here from a release link and have not read the tree:
 
@@ -26,6 +26,10 @@ If you landed here from a release link and have not read the tree:
 - `operator<<(std::string_view)` and `operator<<(std::wstring_view)` on `Log` and `ThreadedLog`, with the same filtered early-out as other payloads. `std::string` / `std::wstring` convert to the views.
 - `hex` / `hex(N)` / `nohex`: dump subsequent payloads as spaced `0xAA` bytes. `N` is bytes per row (default 16); wrap uses a raw newline without a new header and without ending the logical line. `hex(0)` is `nohex`. Applies to text, wide text (after UTF-8), numbers (`42` → bytes of `"42"`) and binary spans. Hex runs before redaction.
 - `operator<<(std::span<const std::byte>)` on `Log` and `ThreadedLog`. Default output is Base64 (`StormByte::Base64Encode`). `std::vector<std::byte>` converts to the span. With `hex` the dump is the raw bytes, not the Base64 text. Empty spans emit an empty payload. `ThreadedLog` formats the payload before taking the line lock (`FormatBinary` + `WritePrepared`).
+- Hierarchical components: `component("A")` pushes a thread-local segment; nested pushes join with `/` for `%c` and config lookup. `pop_component` pops one segment. `reset_component` still clears the stack. `component("")` does not push.
+- `Log::Scope(path)` returns a `std::shared_ptr<Log>` facade with a sticky component path. Nested `Scope` joins relative to the parent. Never returns `nullptr`. Facades share the backend and, on `ThreadedLog`, the line lock. A Scope line uses the sticky path, not the TLS stack.
+- Protected `Clonable<Log, std::shared_ptr<Log>>` on `Log` (`Clone` / `Move`) so `Scope` can copy the facade without exposing cloning in the public API.
+- Pointer `operator<<` accepts `shared_ptr` / `unique_ptr` whose element type `Type::DerivedFrom` `Log` (`Log` and `ThreadedLog`).
 
 ### Changed
 
@@ -33,10 +37,16 @@ If you landed here from a release link and have not read the tree:
 - `ThreadedLog` wide payloads encode with `String::UTF8Encode(std::wstring_view)` before taking the line lock.
 - Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` and `Base64Encode(std::span<const std::byte>)` requires Base 1.2.0 or newer.
 - **Breaking:** `noredact` is now `noredact`, same shape as `nocolor`, `nohex` and `nohumanreadable`. There is no compatibility alias.
+- **Breaking:** `component("name")` pushes onto the thread-local stack instead of replacing the current name. Sibling switches must `reset_component` or `pop_component` first, otherwise `component("Media")` then `component("Other")` becomes `Media/Other`.
+- Format and color lookup use the longest matching component-path prefix, then the general setting. A child format may introduce `%c` / `%g` even when the parent format does not.
+- Throttle still picks the most specific rule; component matching is by path prefix and longer paths win. `Format` / `Color` / `Throttle` without a component argument bind to the current facade path (`Scope` leaf, or global on the root logger).
+- README documents the component stack, `Scope`, hex dumps and binary payloads.
 
 ### Fixed
 
 - `~Implementation` no longer first-touches thread-local line state (Valgrind still-reachable TLS at exit).
+
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...HEAD
 
 ## [1.1.1] - 2026-09-15
 

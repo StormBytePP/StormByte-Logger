@@ -59,6 +59,14 @@ namespace {
 ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, const std::string& format):
 	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
 
+Log::PointerType ThreadedLog::Clone() const {
+	return std::make_shared<ThreadedLog>(*this);
+}
+
+Log::PointerType ThreadedLog::Move() {
+	return std::make_shared<ThreadedLog>(*this);
+}
+
 Log& ThreadedLog::Color(const Level& level, const StormByte::Logger::Color& color) {
 	const bool already_held = t_line_held;
 	claim_line(m_lock);
@@ -407,6 +415,10 @@ void ThreadedLog::Write(GroupManip m) {
 
 void ThreadedLog::Write(ComponentManip m) {
 	Log::Write(std::move(m));
+}
+
+void ThreadedLog::Write(PopComponentManip m) {
+	Log::Write(m);
 }
 
 void ThreadedLog::Write(ResetComponentManip m) {
