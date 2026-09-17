@@ -26,7 +26,9 @@
 #include <limits>
 #include <thread>
 #include <utility>
+
 using namespace StormByte::Logger;
+
 namespace {
 	thread_local std::string t_component;
 	thread_local std::string t_group;
@@ -195,7 +197,6 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 
 Implementation::~Implementation() noexcept {
 	reset_color();
-	reset_line_state();
 }
 
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {

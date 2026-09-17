@@ -20,9 +20,17 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+### Fixed
+
+- `Implementation` destructor no longer calls `reset_line_state()`. That
+  assigned the per-thread `LineState` and, on a thread that had not logged,
+  registered `__cxa_thread_atexit` during process teardown. Valgrind then
+  reported 96 bytes still reachable when a `Log` died at `exit`. Line TLS
+  is still cleared when the thread itself exits.
+
 ### TODO
 
-- [ ]`operator<<(std::string_view)` / `operator<<(std::wstring_view)` with the same early-out as `string`/`wstring`.
+- [ ] `operator<<(std::string_view)` / `operator<<(std::wstring_view)` with the same early-out as `string`/`wstring`.
 - [ ] Public `Enabled(Level) const` (preferred) or `WillWrite()` — floor of a level, does not open a line and is not throttle admission. Do not expose `PrepareLine` / `LineAdmitted`.
 - [ ] Tests and a README Streaming note when the two items above land. Target 1.2.0, not 2.0.0.
 
