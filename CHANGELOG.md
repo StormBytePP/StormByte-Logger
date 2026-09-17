@@ -20,6 +20,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...HEAD
+
+## [1.2.0] - 2026-09-17
+
 ### Added
 
 - `Log::Enabled(Level)`: print-floor query (Warning/Error/Fatal always true). Does not open a line and does not consult throttle.
@@ -36,7 +40,7 @@ If you landed here from a release link and have not read the tree:
 - Dropped the dedicated `operator<<(const std::string&)` / `operator<<(const std::wstring&)` overloads. Call sites that pass `std::string` still compile.
 - `ThreadedLog` wide payloads encode with `String::UTF8Encode(std::wstring_view)` before taking the line lock.
 - Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` and `Base64Encode(std::span<const std::byte>)` requires Base 1.2.0 or newer.
-- **Breaking:** `noredact` is now `noredact`, same shape as `nocolor`, `nohex` and `nohumanreadable`. There is no compatibility alias.
+- **Breaking:** `no_redact` is now `noredact`, same shape as `nocolor`, `nohex` and `nohumanreadable`. There is no compatibility alias.
 - **Breaking:** `component("name")` pushes onto the thread-local stack instead of replacing the current name. Sibling switches must `reset_component` or `pop_component` first, otherwise `component("Media")` then `component("Other")` becomes `Media/Other`.
 - Format and color lookup use the longest matching component-path prefix, then the general setting. A child format may introduce `%c` / `%g` even when the parent format does not.
 - Throttle still picks the most specific rule; component matching is by path prefix and longer paths win. `Format` / `Color` / `Throttle` without a component argument bind to the current facade path (`Scope` leaf, or global on the root logger).
@@ -46,7 +50,7 @@ If you landed here from a release link and have not read the tree:
 
 - `~Implementation` no longer first-touches thread-local line state (Valgrind still-reachable TLS at exit).
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...HEAD
+[1.2.0]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...1.2.0
 
 ## [1.1.1] - 2026-09-15
 
