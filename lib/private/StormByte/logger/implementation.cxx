@@ -192,6 +192,8 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_redact_active(false),
 	m_redact_count(0),
 	m_redact_keep_first(false),
+	m_hex_active(false),
+	m_hex_columns(16),
 	m_throttle_table(std::make_shared<const ThrottleTable>()) {
 }
 

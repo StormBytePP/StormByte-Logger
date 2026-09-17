@@ -79,6 +79,12 @@ void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
 void Log::Write(RedactManip m) {
 	m_impl->SetRedact(true, m.count, m.keep_first);
 }
+void Log::Write(HexManip m) {
+	m_impl->SetHex(true, m.columns);
+}
+void Log::Write(NoHexManip) {
+	m_impl->SetHex(false, 0);
+}
 
 Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
 	m_impl->Color(level, color);

@@ -150,6 +150,16 @@ namespace StormByte::Logger {
 			}
 
 			/**
+			 * @brief Enable or disable hex dumps for subsequent values.
+			 * @param active true to dump payload bytes as hex.
+			 * @param columns Bytes per row; 0 disables hex (same as nohex).
+			 */
+			void SetHex(bool active, std::size_t columns) noexcept {
+				m_hex_active = active && columns != 0;
+				m_hex_columns = columns;
+			}
+
+			/**
 			 * @brief Set the configured color for a logging level.
 			 * @param level Level whose color is changed.
 			 * @param color Color to use for that level.
@@ -385,6 +395,8 @@ namespace StormByte::Logger {
 			bool m_redact_active;                                     ///< When true, text and numbers are redacted
 			std::size_t m_redact_count;                               ///< 0 = all '*'; N = keep N chars
 			bool m_redact_keep_first;                                 ///< true = keep first N, false = keep last N
+			bool m_hex_active;                                        ///< When true, payloads are dumped as hex
+			std::size_t m_hex_columns;                                ///< Bytes per hex row; 0 disables wrapping
 			std::array<StormByte::Logger::Color, 7> m_level_colors{}; ///< Configured color per level
 			std::unordered_map<std::string, std::array<StormByte::Logger::Color, 7>> m_component_colors; ///< Component color overrides
 			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
@@ -436,7 +448,34 @@ namespace StormByte::Logger {
 			}
 
 			/**
-			 * @brief Write text, applying redaction if active.
+			 * @brief Format payload bytes as spaced hex, wrapping every @p columns bytes.
+			 * @param in Payload bytes (already converted to text/UTF-8).
+			 * @param columns Bytes per row; 0 means a single line.
+			 * @return Hex dump. Continuation rows use a raw newline (no new header).
+			 */
+			static std::string FormatHex(std::string_view in, std::size_t columns) {
+				if (in.empty())
+					return {};
+				std::string out;
+				out.reserve(in.size() * 5);
+				static constexpr char kHex[] = "0123456789ABCDEF";
+				for (std::size_t i = 0; i < in.size(); ++i) {
+					if (i != 0) {
+						if (columns != 0 && (i % columns) == 0)
+							out.push_back('\n');
+						else
+							out.push_back(' ');
+					}
+					const auto b = static_cast<unsigned char>(in[i]);
+					out += "0x";
+					out.push_back(kHex[b >> 4]);
+					out.push_back(kHex[b & 0x0F]);
+				}
+				return out;
+			}
+
+			/**
+			 * @brief Write text, applying hex then redaction if active.
 			 * @param text Text to write.
 			 */
 			void write_text(std::string_view text) noexcept {
@@ -444,14 +483,20 @@ namespace StormByte::Logger {
 				if (!LineAdmitted())
 					return;
 				sync_content_color();
+				std::string formatted;
+				std::string_view payload = text;
+				if (m_hex_active) {
+					formatted = FormatHex(text, m_hex_columns);
+					payload = formatted;
+				}
 				if (m_redact_active)
-					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
+					m_out << ApplyRedact(payload, m_redact_count, m_redact_keep_first);
 				else
-					m_out << text;
+					m_out << payload;
 			}
 
 			/**
-			 * @brief Write a std::string, applying redaction if active.
+			 * @brief Write a std::string, applying hex then redaction if active.
 			 * @param text Text to write.
 			 */
 			void write_text(const std::string& text) noexcept {

@@ -265,6 +265,14 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+			inline Log& operator<<(HexManip m) {
+				Write(m);
+				return *this;
+			}
+			inline Log& operator<<(NoHexManip m) {
+				Write(m);
+				return *this;
+			}
 			/**
 			 * @brief Apply a configured or explicit content color.
 			 * @param manip Color manipulator.
@@ -361,6 +369,8 @@ namespace StormByte::Logger {
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
 			void Write(Log& (*manip)(Log&) noexcept) override;
 			void Write(RedactManip m) override;
+			void Write(HexManip m) override;
+			void Write(NoHexManip m) override;
 			/**
 			 * @brief Apply a color manipulator under the line lock.
 			 * @param manip Color manipulator.

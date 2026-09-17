@@ -219,6 +219,54 @@ namespace StormByte::Logger {
 	}
 
 	/**
+	 * @struct HexManip
+	 * @brief Dump subsequent payloads as hex bytes until @ref nohex.
+	 *
+	 * The payload is converted as usual (numbers / bool to text, wide text to
+	 * UTF-8) and then each byte is printed as @c 0xAA separated by spaces.
+	 * @c columns is the number of bytes per continuation row; @c 0 disables
+	 * wrapping. Continuations write a raw newline without a new header and
+	 * without ending the logical line.
+	 *
+	 * Encoding runs before redaction.
+	 *
+	 * Usage:
+	 * @code
+	 * log << hex << "AB" << std::endl;       // 0x41 0x42  (16-byte rows)
+	 * log << hex(2) << "ABCD" << std::endl;  // 0x41 0x42\\n0x43 0x44
+	 * log << nohex << "plain" << std::endl;
+	 * @endcode
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC HexManip {
+		std::size_t columns = 16; ///< Bytes per row; 0 = single line.
+
+		/**
+		 * @brief Build a manipulator with @p n bytes per row.
+		 * @param n Bytes per continuation row; 0 disables wrapping.
+		 * @return A HexManip with the requested width.
+		 */
+		constexpr HexManip operator()(std::size_t n) const noexcept {
+			return HexManip{ n };
+		}
+	};
+
+	/**
+	 * @brief Enable hex dumps with 16 bytes per row.
+	 */
+	inline constexpr HexManip hex{};
+
+	/**
+	 * @struct NoHexManip
+	 * @brief Disable hex dumps and restore default payload formatting.
+	 */
+	struct STORMBYTE_LOGGER_PUBLIC NoHexManip {};
+
+	/**
+	 * @brief Disable hex dumps for subsequent payloads.
+	 */
+	inline constexpr NoHexManip nohex{};
+
+	/**
 	 * @brief Enable human-readable formatting for numeric values.
 	 * @param log The Log instance to modify.
 	 * @return Reference to the same Log.

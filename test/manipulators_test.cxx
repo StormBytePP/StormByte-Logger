@@ -17,20 +17,26 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
-#include <StormByte/logger/log.hxx>
-#include <StormByte/logger/threaded_log.hxx>
-#include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/exception.hxx>
+#include <StormByte/logger/log.hxx>
+#include <StormByte/logger/manipulators.hxx>
+#include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/test_handlers.h>
+
 #include <sstream>
 #include <string>
+
 using namespace StormByte::Logger;
+
+// ---------------------------------------------------------------------------
+// Human-readable number / bytes
+// ---------------------------------------------------------------------------
+
 int test_manip_humanreadable_number_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << humanreadable_number << 1000 << std::endl;
-	std::string expected = "Info    : 1,000\n";
-	ASSERT_EQUAL("test_manip_humanreadable_number_log", expected, output.str());
+	ASSERT_EQUAL("test_manip_humanreadable_number_log", "Info    : 1,000\n", output.str());
 	RETURN_TEST("test_manip_humanreadable_number_log", 0);
 }
 
@@ -38,8 +44,7 @@ int test_manip_humanreadable_bytes_log() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << humanreadable_bytes << 10240 << std::endl;
-	std::string expected = "Info    : 10 KiB\n";
-	ASSERT_EQUAL("test_manip_humanreadable_bytes_log", expected, output.str());
+	ASSERT_EQUAL("test_manip_humanreadable_bytes_log", "Info    : 10 KiB\n", output.str());
 	RETURN_TEST("test_manip_humanreadable_bytes_log", 0);
 }
 
@@ -48,8 +53,7 @@ int test_manip_nohumanreadable_log() {
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << humanreadable_number << 1000 << std::endl;
 	log << Level::Info << nohumanreadable << 1000 << std::endl;
-	std::string expected = "Info    : 1,000\nInfo    : 1000\n";
-	ASSERT_EQUAL("test_manip_nohumanreadable_log", expected, output.str());
+	ASSERT_EQUAL("test_manip_nohumanreadable_log", "Info    : 1,000\nInfo    : 1000\n", output.str());
 	RETURN_TEST("test_manip_nohumanreadable_log", 0);
 }
 
@@ -57,22 +61,20 @@ int test_manip_chainable_threadedlog() {
 	std::ostringstream output;
 	ThreadedLog tlog(output, Level::Info, "%L:");
 	tlog << Level::Info << humanreadable_number << humanreadable_bytes << 10240 << std::endl;
-	std::string expected = "Info    : 10 KiB\n";
-	ASSERT_EQUAL("test_manip_chainable_threadedlog", expected, output.str());
+	ASSERT_EQUAL("test_manip_chainable_threadedlog", "Info    : 10 KiB\n", output.str());
 	RETURN_TEST("test_manip_chainable_threadedlog", 0);
 }
 
 // ---------------------------------------------------------------------------
-// Redact: keep last N characters visible; rest become '*'.
-// redact / redact(0) → mask all.
-// Numbers are also redacted.
+// Redact: keep last N visible; redact / redact(0) masks all.
+// Numbers are converted then redacted. redact_first keeps a prefix.
 // ---------------------------------------------------------------------------
+
 int test_manip_redact_full_string() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact << "secret" << std::endl;
-	std::string expected = "Info    : ******\n";
-	ASSERT_EQUAL("test_manip_redact_full_string", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_full_string", "Info    : ******\n", output.str());
 	RETURN_TEST("test_manip_redact_full_string", 0);
 }
 
@@ -80,9 +82,7 @@ int test_manip_redact_keep_last() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact(4) << "super-secret" << std::endl;
-	// "super-secret" (12) → ********cret
-	std::string expected = "Info    : ********cret\n";
-	ASSERT_EQUAL("test_manip_redact_keep_last", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_keep_last", "Info    : ********cret\n", output.str());
 	RETURN_TEST("test_manip_redact_keep_last", 0);
 }
 
@@ -90,18 +90,15 @@ int test_manip_redact_keep_last_zero_same_as_full() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact(0) << "abc" << std::endl;
-	std::string expected = "Info    : ***\n";
-	ASSERT_EQUAL("test_manip_redact_keep_last_zero_same_as_full", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_keep_last_zero_same_as_full", "Info    : ***\n", output.str());
 	RETURN_TEST("test_manip_redact_keep_last_zero_same_as_full", 0);
 }
 
 int test_manip_redact_keep_last_ge_length() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
-	// N >= length → nothing masked
 	log << Level::Info << redact(10) << "abc" << std::endl;
-	std::string expected = "Info    : abc\n";
-	ASSERT_EQUAL("test_manip_redact_keep_last_ge_length", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_keep_last_ge_length", "Info    : abc\n", output.str());
 	RETURN_TEST("test_manip_redact_keep_last_ge_length", 0);
 }
 
@@ -109,8 +106,7 @@ int test_manip_redact_empty_string() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact << "" << std::endl;
-	std::string expected = "Info    : \n";
-	ASSERT_EQUAL("test_manip_redact_empty_string", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_empty_string", "Info    : \n", output.str());
 	RETURN_TEST("test_manip_redact_empty_string", 0);
 }
 
@@ -119,9 +115,7 @@ int test_manip_redact_const_char_ptr() {
 	Log log(output, Level::Info, "%L:");
 	const char* token = "password123";
 	log << Level::Info << redact(3) << token << std::endl;
-	// "password123" (11) → ********123
-	std::string expected = "Info    : ********123\n";
-	ASSERT_EQUAL("test_manip_redact_const_char_ptr", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_const_char_ptr", "Info    : ********123\n", output.str());
 	RETURN_TEST("test_manip_redact_const_char_ptr", 0);
 }
 
@@ -130,8 +124,7 @@ int test_manip_no_redact_restores_plain() {
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact << "hidden" << std::endl;
 	log << Level::Info << no_redact << "visible" << std::endl;
-	std::string expected = "Info    : ******\nInfo    : visible\n";
-	ASSERT_EQUAL("test_manip_no_redact_restores_plain", expected, output.str());
+	ASSERT_EQUAL("test_manip_no_redact_restores_plain", "Info    : ******\nInfo    : visible\n", output.str());
 	RETURN_TEST("test_manip_no_redact_restores_plain", 0);
 }
 
@@ -141,9 +134,7 @@ int test_manip_redact_stays_active() {
 	log << Level::Info << redact(2) << "one" << " " << "two" << std::endl;
 	log << Level::Info << "three" << std::endl;
 	log << Level::Info << no_redact << "four" << std::endl;
-	// "one" → *ne , " " → * , "two" → *wo , "three" → ***ee
-	std::string expected = "Info    : *ne *wo\nInfo    : ***ee\nInfo    : four\n";
-	ASSERT_EQUAL("test_manip_redact_stays_active", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_stays_active", "Info    : *ne *wo\nInfo    : ***ee\nInfo    : four\n", output.str());
 	RETURN_TEST("test_manip_redact_stays_active", 0);
 }
 
@@ -151,9 +142,7 @@ int test_manip_redact_affects_numbers() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact << 42 << " secret" << std::endl;
-	// "42" → ** , " secret" → *******  → total 9 asterisks
-	std::string expected = "Info    : *********\n";
-	ASSERT_EQUAL("test_manip_redact_affects_numbers", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_affects_numbers", "Info    : *********\n", output.str());
 	RETURN_TEST("test_manip_redact_affects_numbers", 0);
 }
 
@@ -163,9 +152,7 @@ int test_manip_redact_then_change_keep() {
 	log << Level::Info << redact << "abcdef" << std::endl;
 	log << Level::Info << redact(2) << "abcdef" << std::endl;
 	log << Level::Info << redact << "abcdef" << std::endl;
-	// full → ****** , keep 2 → ****ef , full → ******
-	std::string expected = "Info    : ******\nInfo    : ****ef\nInfo    : ******\n";
-	ASSERT_EQUAL("test_manip_redact_then_change_keep", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_then_change_keep", "Info    : ******\nInfo    : ****ef\nInfo    : ******\n", output.str());
 	RETURN_TEST("test_manip_redact_then_change_keep", 0);
 }
 
@@ -174,8 +161,7 @@ int test_manip_redact_threadedlog() {
 	ThreadedLog tlog(output, Level::Info, "%L:");
 	tlog << Level::Info << redact(4) << "super-secret" << std::endl;
 	tlog << Level::Info << no_redact << "ok" << std::endl;
-	std::string expected = "Info    : ********cret\nInfo    : ok\n";
-	ASSERT_EQUAL("test_manip_redact_threadedlog", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_threadedlog", "Info    : ********cret\nInfo    : ok\n", output.str());
 	RETURN_TEST("test_manip_redact_threadedlog", 0);
 }
 
@@ -184,9 +170,7 @@ int test_manip_redact_with_humanreadable_independent() {
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << humanreadable_number << redact << 1000 << " token" << std::endl;
 	log << Level::Info << no_redact << nohumanreadable << 1000 << std::endl;
-	// "1,000" (5) → ***** , " token" (6) → ******  → total 11 asterisks
-	std::string expected = "Info    : ***********\nInfo    : 1000\n";
-	ASSERT_EQUAL("test_manip_redact_with_humanreadable_independent", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_with_humanreadable_independent", "Info    : ***********\nInfo    : 1000\n", output.str());
 	RETURN_TEST("test_manip_redact_with_humanreadable_independent", 0);
 }
 
@@ -195,8 +179,7 @@ int test_manip_redact_wstring() {
 	Log log(output, Level::Info, "%L:");
 	std::wstring wide = L"secret";
 	log << Level::Info << redact << wide << std::endl;
-	std::string expected = "Info    : ******\n";
-	ASSERT_EQUAL("test_manip_redact_wstring", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_wstring", "Info    : ******\n", output.str());
 	RETURN_TEST("test_manip_redact_wstring", 0);
 }
 
@@ -204,9 +187,7 @@ int test_manip_redact_first() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact_first(4) << "super-secret" << std::endl;
-	// "super-secret" (12) → supe********
-	std::string expected = "Info    : supe********\n";
-	ASSERT_EQUAL("test_manip_redact_first", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_first", "Info    : supe********\n", output.str());
 	RETURN_TEST("test_manip_redact_first", 0);
 }
 
@@ -214,8 +195,7 @@ int test_manip_redact_first_zero_same_as_full() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact_first(0) << "abc" << std::endl;
-	std::string expected = "Info    : ***\n";
-	ASSERT_EQUAL("test_manip_redact_first_zero_same_as_full", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_first_zero_same_as_full", "Info    : ***\n", output.str());
 	RETURN_TEST("test_manip_redact_first_zero_same_as_full", 0);
 }
 
@@ -223,8 +203,7 @@ int test_manip_redact_first_ge_length() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
 	log << Level::Info << redact_first(10) << "abc" << std::endl;
-	std::string expected = "Info    : abc\n";
-	ASSERT_EQUAL("test_manip_redact_first_ge_length", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_first_ge_length", "Info    : abc\n", output.str());
 	RETURN_TEST("test_manip_redact_first_ge_length", 0);
 }
 
@@ -233,9 +212,7 @@ int test_manip_redact_first_const_char_ptr() {
 	Log log(output, Level::Info, "%L:");
 	const char* token = "password123";
 	log << Level::Info << redact_first(3) << token << std::endl;
-	// "password123" → pas********
-	std::string expected = "Info    : pas********\n";
-	ASSERT_EQUAL("test_manip_redact_first_const_char_ptr", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_first_const_char_ptr", "Info    : pas********\n", output.str());
 	RETURN_TEST("test_manip_redact_first_const_char_ptr", 0);
 }
 
@@ -244,10 +221,75 @@ int test_manip_redact_first_threadedlog() {
 	ThreadedLog tlog(output, Level::Info, "%L:");
 	tlog << Level::Info << redact_first(4) << "super-secret" << std::endl;
 	tlog << Level::Info << no_redact << "ok" << std::endl;
-	std::string expected = "Info    : supe********\nInfo    : ok\n";
-	ASSERT_EQUAL("test_manip_redact_first_threadedlog", expected, output.str());
+	ASSERT_EQUAL("test_manip_redact_first_threadedlog", "Info    : supe********\nInfo    : ok\n", output.str());
 	RETURN_TEST("test_manip_redact_first_threadedlog", 0);
 }
+
+// ---------------------------------------------------------------------------
+// Hex: dump payload bytes. hex(N) wraps every N bytes without a new header.
+// hex(0) is nohex. Redact runs after hex.
+// ---------------------------------------------------------------------------
+
+int test_manip_hex_string() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex << "AB" << std::endl;
+	ASSERT_EQUAL("test_manip_hex_string", "Info    : 0x41 0x42\n", output.str());
+	RETURN_TEST("test_manip_hex_string", 0);
+}
+
+int test_manip_hex_columns_wrap_without_header() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex(2) << "ABCD" << std::endl;
+	ASSERT_EQUAL("test_manip_hex_columns_wrap_without_header", "Info    : 0x41 0x42\n0x43 0x44\n", output.str());
+	RETURN_TEST("test_manip_hex_columns_wrap_without_header", 0);
+}
+
+int test_manip_hex_zero_is_nohex() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex(0) << "AB" << std::endl;
+	ASSERT_EQUAL("test_manip_hex_zero_is_nohex", "Info    : AB\n", output.str());
+	RETURN_TEST("test_manip_hex_zero_is_nohex", 0);
+}
+
+int test_manip_nohex_restores_plain() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex << "A" << std::endl;
+	log << Level::Info << nohex << "A" << std::endl;
+	ASSERT_EQUAL("test_manip_nohex_restores_plain", "Info    : 0x41\nInfo    : A\n", output.str());
+	RETURN_TEST("test_manip_nohex_restores_plain", 0);
+}
+
+int test_manip_hex_number_uses_text_bytes() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex << 42 << std::endl;
+	ASSERT_EQUAL("test_manip_hex_number_uses_text_bytes", "Info    : 0x34 0x32\n", output.str());
+	RETURN_TEST("test_manip_hex_number_uses_text_bytes", 0);
+}
+
+int test_manip_hex_then_redact() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	log << Level::Info << hex << redact << "A" << std::endl;
+	ASSERT_EQUAL("test_manip_hex_then_redact", "Info    : ****\n", output.str());
+	RETURN_TEST("test_manip_hex_then_redact", 0);
+}
+
+int test_manip_hex_threadedlog() {
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	log << Level::Info << hex(2) << "AB" << std::endl;
+	ASSERT_EQUAL("test_manip_hex_threadedlog", "Info    : 0x41 0x42\n", output.str());
+	RETURN_TEST("test_manip_hex_threadedlog", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Color
+// ---------------------------------------------------------------------------
 
 int test_manip_color_and_nocolor_log() {
 	std::ostringstream output;
@@ -269,6 +311,10 @@ int test_manip_color_threadedlog() {
 	RETURN_TEST("test_manip_color_threadedlog", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Group / component
+// ---------------------------------------------------------------------------
+
 int test_manip_group_component_reset() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g");
@@ -287,6 +333,10 @@ int test_manip_group_component_threadedlog() {
 	ASSERT_EQUAL("test_manip_group_component_threadedlog", "Module[Info    ]line first\n", output.str());
 	RETURN_TEST("test_manip_group_component_threadedlog", 0);
 }
+
+// ---------------------------------------------------------------------------
+// Temporary and component formats
+// ---------------------------------------------------------------------------
 
 int test_manip_push_pop_and_component_format() {
 	std::ostringstream output;
@@ -308,6 +358,10 @@ int test_manip_push_pop_threadedlog() {
 	ASSERT_EQUAL("test_manip_push_pop_threadedlog", "TEMP[Info    ] temp\nBASE[Info    ] base\n", output.str());
 	RETURN_TEST("test_manip_push_pop_threadedlog", 0);
 }
+
+// ---------------------------------------------------------------------------
+// Throttle
+// ---------------------------------------------------------------------------
 
 int test_manip_throttle_policies_log() {
 	std::ostringstream output;
@@ -378,6 +432,13 @@ int main() {
 	result += test_manip_redact_first_ge_length();
 	result += test_manip_redact_first_const_char_ptr();
 	result += test_manip_redact_first_threadedlog();
+	result += test_manip_hex_string();
+	result += test_manip_hex_columns_wrap_without_header();
+	result += test_manip_hex_zero_is_nohex();
+	result += test_manip_nohex_restores_plain();
+	result += test_manip_hex_number_uses_text_bytes();
+	result += test_manip_hex_then_redact();
+	result += test_manip_hex_threadedlog();
 	result += test_manip_color_and_nocolor_log();
 	result += test_manip_color_threadedlog();
 	result += test_manip_group_component_reset();

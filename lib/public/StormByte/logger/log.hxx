@@ -183,8 +183,8 @@ namespace StormByte::Logger {
 			/**
 			 * @name Streaming Operators
 			 * Data overloads early-out when the current message level is filtered.
-			 * Level, stream manipulators, Log manipulators and RedactManip are always
-			 * forwarded so logger state stays consistent.
+			 * Level, stream manipulators, Log manipulators, RedactManip, HexManip
+			 * and NoHexManip are always forwarded so logger state stays consistent.
 			 */
 			//@{
 			inline Log& operator<<(bool v) {
@@ -304,6 +304,20 @@ namespace StormByte::Logger {
 			 * @brief Apply redaction policy (full or keep-last-N). State remains until no_redact.
 			 */
 			inline Log& operator<<(RedactManip m) {
+				Write(m);
+				return *this;
+			}
+			/**
+			 * @brief Dump subsequent payloads as hex bytes until nohex.
+			 */
+			inline Log& operator<<(HexManip m) {
+				Write(m);
+				return *this;
+			}
+			/**
+			 * @brief Disable hex dumps and restore default payload formatting.
+			 */
+			inline Log& operator<<(NoHexManip m) {
 				Write(m);
 				return *this;
 			}
@@ -436,6 +450,14 @@ namespace StormByte::Logger {
 			 * @brief Forward redaction state to the implementation.
 			 */
 			virtual void Write(RedactManip m);
+			/**
+			 * @brief Forward hex-dump state to the implementation.
+			 */
+			virtual void Write(HexManip m);
+			/**
+			 * @brief Forward hex-dump disable to the implementation.
+			 */
+			virtual void Write(NoHexManip m);
 			/**
 			 * @brief Forward a color manipulator.
 			 * @param manip Color manipulator.

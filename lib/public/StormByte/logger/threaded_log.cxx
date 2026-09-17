@@ -41,11 +41,14 @@ namespace {
 	}
 
 	bool manipulator_writes_newline(std::ostream& (*manip)(std::ostream&)) {
+		if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::endl))
+			return true;
+		if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::ends))
+			return false;
 		try {
 			std::ostringstream probe;
-			manip(probe);
-			const auto& s = probe.str();
-			return !s.empty() && s.find('\n') != std::string::npos;
+			probe << manip;
+			return probe.str().find('\n') != std::string::npos;
 		} catch (...) {
 			return false;
 		}
@@ -121,23 +124,12 @@ Log& ThreadedLog::Throttle(double rate, std::size_t burst) { return Log::Throttl
 Log& ThreadedLog::Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
 	return Log::Throttle(rate, burst, policy, value, period);
 }
-
-Log& ThreadedLog::Throttle(const Level& level, double rate, std::size_t burst) {
-	return Log::Throttle(level, rate, burst);
-}
-
-Log& ThreadedLog::Throttle(GroupManip group, double rate, std::size_t burst) {
-	return Log::Throttle(group, rate, burst);
-}
-
-Log& ThreadedLog::Throttle(ComponentManip component, double rate, std::size_t burst) {
-	return Log::Throttle(component, rate, burst);
-}
-
+Log& ThreadedLog::Throttle(const Level& level, double rate, std::size_t burst) { return Log::Throttle(level, rate, burst); }
+Log& ThreadedLog::Throttle(GroupManip group, double rate, std::size_t burst) { return Log::Throttle(group, rate, burst); }
+Log& ThreadedLog::Throttle(ComponentManip component, double rate, std::size_t burst) { return Log::Throttle(component, rate, burst); }
 Log& ThreadedLog::Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
 	return Log::Throttle(component, level, group, rate, burst, policy, value, period);
 }
-
 Log& ThreadedLog::NoThrottle() { return Log::NoThrottle(); }
 Log& ThreadedLog::NoThrottle(const Level& level) { return Log::NoThrottle(level); }
 Log& ThreadedLog::NoThrottle(GroupManip group) { return Log::NoThrottle(group); }
@@ -294,8 +286,6 @@ void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {
 		Log::Write(manip);
 	}
 
-	// A concurrent Level can flip WillWrite() after we claimed the line.
-	// endl must drop the lock even when this message is filtered.
 	if (newline)
 		release_line(m_lock);
 }
@@ -313,7 +303,30 @@ void ThreadedLog::Write(Log& (*manip)(Log&) noexcept) {
 }
 
 void ThreadedLog::Write(RedactManip m) {
-	// State change on Implementation; serialize like other manipulators.
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(m);
+		return;
+	}
+
+	claim_line(m_lock);
+	Log::Write(m);
+	if (!WillWrite())
+		release_line(m_lock);
+}
+
+void ThreadedLog::Write(HexManip m) {
+	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
+		Log::Write(m);
+		return;
+	}
+
+	claim_line(m_lock);
+	Log::Write(m);
+	if (!WillWrite())
+		release_line(m_lock);
+}
+
+void ThreadedLog::Write(NoHexManip m) {
 	if ((LineDecided() && !LineAdmitted()) || !WillWrite()) {
 		Log::Write(m);
 		return;

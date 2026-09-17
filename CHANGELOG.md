@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, and redaction of text and numbers.
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, and hex dumps (`hex` / `nohex`).
 
 If you landed here from a release link and have not read the tree:
 
@@ -24,6 +24,7 @@ If you landed here from a release link and have not read the tree:
 
 - `Log::Enabled(Level)`: print-floor query (Warning/Error/Fatal always true). Does not open a line and does not consult throttle.
 - `operator<<(std::string_view)` and `operator<<(std::wstring_view)` on `Log` and `ThreadedLog`, with the same filtered early-out as other payloads. `std::string` / `std::wstring` convert to the views.
+- `hex` / `hex(N)` / `nohex`: dump subsequent payloads as spaced `0xAA` bytes. `N` is bytes per row (default 16); wrap uses a raw newline without a new header and without ending the logical line. `hex(0)` is `nohex`. Applies to text, wide text (after UTF-8) and numbers (`42` → bytes of `"42"`). Hex runs before redaction.
 
 ### Changed
 
@@ -34,8 +35,6 @@ If you landed here from a release link and have not read the tree:
 ### Fixed
 
 - `~Implementation` no longer first-touches thread-local line state (Valgrind still-reachable TLS at exit).
-
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...HEAD
 
 ## [1.1.1] - 2026-09-15
 
