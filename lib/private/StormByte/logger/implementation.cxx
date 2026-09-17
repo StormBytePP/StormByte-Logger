@@ -506,6 +506,7 @@ void Implementation::close_deferred_line() noexcept {
 
 void Implementation::reset_line_state() noexcept {
 	t_line = {};
+	t_facade_path.clear();
 }
 
 void Implementation::write_drop_summary() noexcept {

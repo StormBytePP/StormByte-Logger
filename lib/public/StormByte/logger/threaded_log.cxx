@@ -289,8 +289,10 @@ void ThreadedLog::Write(std::span<const std::byte> v) {
 }
 
 void ThreadedLog::Write(const Level& level) {
-	claim_line(m_lock);
 	Log::Write(level);
+	if (!WillWrite() && !HasOpenOutputLine())
+		return;
+	claim_line(m_lock);
 }
 
 void ThreadedLog::Write(std::ostream& (*manip)(std::ostream&)) {

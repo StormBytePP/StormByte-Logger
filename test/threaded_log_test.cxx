@@ -742,6 +742,37 @@ int test_threadedlog_scope_shares_lock_and_path() {
 	RETURN_TEST("test_threadedlog_scope_shares_lock_and_path", 0);
 }
 
+int test_threadedlog_scope_is_threadedlog_and_concurrent() {
+	std::ostringstream output;
+	auto root = std::make_shared<ThreadedLog>(output, Level::Info, "%c %L:");
+	auto scoped = root->Scope("Buffer/Pipeline");
+	ASSERT_TRUE("Scope preserves ThreadedLog",
+		std::dynamic_pointer_cast<ThreadedLog>(scoped) != nullptr);
+
+	constexpr int kThreads = 12;
+	constexpr int kLines = 64;
+	std::vector<std::thread> workers;
+	workers.reserve(static_cast<std::size_t>(kThreads));
+	for (int t = 0; t < kThreads; ++t) {
+		workers.emplace_back([scoped]() {
+			for (int i = 0; i < kLines; ++i)
+				scoped << Level::Info << "n" << std::endl;
+		});
+	}
+	for (auto& worker : workers)
+		worker.join();
+
+	const auto text = output.str();
+	std::size_t lines = 0;
+	for (char c : text) {
+		if (c == '\n')
+			++lines;
+	}
+	ASSERT_EQUAL("test_threadedlog_scope_is_threadedlog_and_concurrent",
+		static_cast<std::size_t>(kThreads * kLines), lines);
+	RETURN_TEST("test_threadedlog_scope_is_threadedlog_and_concurrent", 0);
+}
+
 int test_threadedlog_scope_throttle_is_leaf() {
 	std::ostringstream output;
 	auto log = std::make_shared<ThreadedLog>(output, Level::Info, "%c %L:");
@@ -879,6 +910,7 @@ int main() {
 	result += test_threadedlog_scope_does_not_use_tls_stack();
 	result += test_threadedlog_scope_format_inherits_parent_and_leaf_wins();
 	result += test_threadedlog_scope_shares_lock_and_path();
+	result += test_threadedlog_scope_is_threadedlog_and_concurrent();
 	result += test_threadedlog_scope_throttle_is_leaf();
 
 	// Throttle
