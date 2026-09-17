@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
-It depends on [StormByte Base 1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
+It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
 Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), components, groups, ANSI colors, temporary formats, human-readable numbers and bytes, and redaction of text and numbers.
 
