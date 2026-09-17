@@ -21,7 +21,9 @@
 #include <StormByte/string.hxx>
 #include <sstream>
 #include <utility>
+
 using namespace StormByte::Logger;
+
 namespace {
 	thread_local bool t_line_held = false;
 	void claim_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
@@ -252,7 +254,7 @@ void ThreadedLog::Write(long double v) {
 	Log::Write(v);
 }
 
-void ThreadedLog::Write(const std::string& v) {
+void ThreadedLog::Write(std::string_view v) {
 	if (!WillWrite() || !PrepareLine()) return;
 	claim_line(m_lock);
 	Log::Write(v);
@@ -264,18 +266,18 @@ void ThreadedLog::Write(const char* v) {
 	Log::Write(v);
 }
 
-void ThreadedLog::Write(const std::wstring& v) {
+void ThreadedLog::Write(std::wstring_view v) {
 	if (!WillWrite() || !PrepareLine()) return;
 	const std::string encoded = StormByte::String::UTF8Encode(v);
 	claim_line(m_lock);
-	Log::Write(encoded);
+	Log::Write(std::string_view{encoded});
 }
 
 void ThreadedLog::Write(const wchar_t* v) {
 	if (!WillWrite() || !PrepareLine()) return;
-	const std::string encoded = v ? StormByte::String::UTF8Encode(std::wstring(v)) : std::string{};
+	const std::string encoded = v ? StormByte::String::UTF8Encode(std::wstring_view{v}) : std::string{};
 	claim_line(m_lock);
-	Log::Write(encoded);
+	Log::Write(std::string_view{encoded});
 }
 
 void ThreadedLog::Write(const Level& level) {

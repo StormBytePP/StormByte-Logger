@@ -101,6 +101,13 @@ Examples:
 
 Payload `operator<<` for ordinary filtered levels returns immediately below the floor. `Warning`, `Error` and `Fatal` remain enabled. Setting a `Level`, applying a manipulator, or writing `std::endl` is still forwarded so logger state stays consistent.
 
+`Enabled(Level)` asks whether that level would pass the print floor (including the Warning/Error/Fatal exception). It does not open a line and does not consult throttle. Use it to skip building a payload. Throttle still runs later on `PrepareLine` if you do write.
+
+```cpp
+if (log.Enabled(Level::Debug)) {
+    log << Level::Debug << std::string_view{detail} << std::endl;
+}
+
 ## Headers
 
 Third constructor argument. Specifiers:
@@ -163,7 +170,7 @@ auto tlog = std::make_shared<ThreadedLog>(std::cout, Level::Debug, "[%L] %T");
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
-Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string`, `std::wstring`. There is no `std::format` overload on the logger itself; format first, then stream the string.
+Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view` and `std::wstring_view`. `std::string` and `std::wstring` convert to those views (no extra copy of the input). There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or string.
 
 ### A line
 

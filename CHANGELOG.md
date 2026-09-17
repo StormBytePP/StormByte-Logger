@@ -20,25 +20,20 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- `Implementation` destructor no longer calls `reset_line_state()`. That
-  assigned the per-thread `LineState` and, on a thread that had not logged,
-  registered `__cxa_thread_atexit` during process teardown. Valgrind then
-  reported 96 bytes still reachable when a `Log` died at `exit`. Line TLS
-  is still cleared when the thread itself exits.
+- `Log::Enabled(Level)`: print-floor query (Warning/Error/Fatal always true). Does not open a line and does not consult throttle.
+- `operator<<(std::string_view)` and `operator<<(std::wstring_view)` on `Log` and `ThreadedLog`, with the same filtered early-out as other payloads. `std::string` / `std::wstring` convert to the views.
 
 ### Changed
 
-- Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0).
-  The declared requirement stays [1.1.0](https://github.com/StormBytePP/StormByte/releases/tag/1.1.0)
-  until Logger uses `String::UTF8Encode(std::wstring_view)`.
+- Dropped the dedicated `operator<<(const std::string&)` / `operator<<(const std::wstring&)` overloads. Call sites that pass `std::string` still compile.
+- `ThreadedLog` wide payloads encode with `String::UTF8Encode(std::wstring_view)` before taking the line lock.
+- Bundled StormByte Base is [1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0). Using `UTF8Encode(std::wstring_view)` requires Base 1.2.0 or newer.
 
-### TODO
+### Fixed
 
-- [ ] `operator<<(std::string_view)` / `operator<<(std::wstring_view)` with the same early-out as `string`/`wstring`.
-- [ ] Public `Enabled(Level) const` (preferred) or `WillWrite()` — floor of a level, does not open a line and is not throttle admission. Do not expose `PrepareLine` / `LineAdmitted`.
-- [ ] Tests and a README Streaming note when the two items above land. Target 1.2.0, not 2.0.0.
+- `~Implementation` no longer first-touches thread-local line state (Valgrind still-reachable TLS at exit).
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.1.1...HEAD
 

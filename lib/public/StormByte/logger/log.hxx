@@ -26,6 +26,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <string_view>
 
 /**
  * @namespace StormByte::Logger
@@ -41,6 +42,10 @@ namespace StormByte::Logger {
 	 * Owns a shared_ptr to the internal Implementation and exposes operator<<
 	 * overloads similar to std::ostream. Filtered levels early-out without I/O.
 	 * The configured print level does not suppress Warning, Error or Fatal.
+	 *
+	 * Text payloads use @c std::string_view / @c std::wstring_view.
+	 * @c std::string and @c std::wstring convert to those views (no extra copy
+	 * of the input). There is no separate @c operator<<(const std::string&).
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Log {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
@@ -67,6 +72,14 @@ namespace StormByte::Logger {
 			Log& operator=(const Log&) = default;
 			/** @brief Move assignment. */
 			Log& operator=(Log&&) noexcept = default;
+
+			/**
+			 * @brief Whether @p level would be emitted given the print floor.
+			 * @param level Level to test.
+			 * @return true if that level is at or above the floor, or is Warning/Error/Fatal.
+			 * @note Does not open a line and does not consult throttle admission.
+			 */
+			bool Enabled(const Level& level) const noexcept;
 
 			/**
 			 * @brief Set the configured color for a logging level.
@@ -249,7 +262,10 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const std::string& v) {
+			/**
+			 * @brief Stream UTF-8 text. @c std::string converts to this view.
+			 */
+			inline Log& operator<<(std::string_view v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
@@ -259,7 +275,10 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const std::wstring& v) {
+			/**
+			 * @brief Stream wide text. @c std::wstring converts to this view.
+			 */
+			inline Log& operator<<(std::wstring_view v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
@@ -357,8 +376,8 @@ namespace StormByte::Logger {
 			std::shared_ptr<Implementation> m_impl; ///< Shared backend (copies of Log share it)
 
 			/**
-			 * @brief Whether messages at the current level will be written.
-			 * @return true if the current level is at or above the print floor.
+			 * @brief Whether the current line level will be written.
+			 * @return true if the current level is at or above the print floor (or always-visible).
 			 */
 			bool WillWrite() const noexcept;
 
@@ -406,9 +425,9 @@ namespace StormByte::Logger {
 			virtual void Write(float v);
 			virtual void Write(double v);
 			virtual void Write(long double v);
-			virtual void Write(const std::string& v);
+			virtual void Write(std::string_view v);
 			virtual void Write(const char* v);
-			virtual void Write(const std::wstring& v);
+			virtual void Write(std::wstring_view v);
 			virtual void Write(const wchar_t* v);
 			virtual void Write(const Level& level);
 			virtual void Write(std::ostream& (*manip)(std::ostream&));

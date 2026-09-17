@@ -710,4 +710,6 @@ namespace StormByte::Logger {
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value);
 	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string_view>(const std::string_view& value);
+	template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
 }

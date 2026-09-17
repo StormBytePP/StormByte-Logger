@@ -17,20 +17,36 @@
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
  */
 
-#include <StormByte/logger/log.hxx>
-#include <StormByte/logger/exception.hxx>
 #include <StormByte/exception.hxx>
+#include <StormByte/logger/exception.hxx>
+#include <StormByte/logger/log.hxx>
 #include <StormByte/string.hxx>
 #include <StormByte/test_handlers.h>
+
 #include <clocale>
+#include <cstdio>
 #include <sstream>
+#include <string_view>
 #include <thread>
 #include <vector>
-#include <cstdio>
+
 using namespace StormByte::Logger;
+
+namespace {
+	void IsolateLine(Log& log) {
+		if (!log.Enabled(Level::LowLevel))
+			log << Level::LowLevel << std::endl;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Basic emit
+// ---------------------------------------------------------------------------
+
 int test_basic_logging() {
 	std::ostringstream output;
 	Log log(output, Level::Debug, "%L:");
+	IsolateLine(log);
 	log << Level::Info << "Info message" << std::endl;
 	log << Level::Debug << "Debug message" << std::endl;
 	log << Level::Error << "Error message" << std::endl;
@@ -39,9 +55,58 @@ int test_basic_logging() {
 	RETURN_TEST("test_basic_logging", 0);
 }
 
+int test_log_data() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	int i = 42;
+	bool b = true;
+	double d = 3.141596;
+	log << Level::Info << "Info message with sample integer " << i << ", a bool " << b << " and a double " << d << std::endl;
+	std::string expected = "Info    : Info message with sample integer 42, a bool true and a double 3.141596\n";
+	ASSERT_EQUAL("test_log_data", expected, output.str());
+	RETURN_TEST("test_log_data", 0);
+}
+
+int log_to_stdout() {
+	Log log(std::cout, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << "Info message" << std::endl;
+	log << Level::Debug << "Debug message" << std::endl;
+	log << Level::Error << "Error message" << std::endl;
+	RETURN_TEST("log_to_stdout", 0);
+}
+
+int test_log_with_std_endl() {
+	std::ostringstream output;
+	Log log(output, Level::Debug, "%L:");
+	IsolateLine(log);
+	log << Level::Info << "Info message" << std::endl;
+	log << Level::Debug << "Debug message" << std::endl;
+	log << Level::Error << "Error message" << std::endl;
+	std::string expected = "Info    : Info message\nDebug   : Debug message\nError   : Error message\n";
+	ASSERT_EQUAL("test_log_with_std_endl", expected, output.str());
+	RETURN_TEST("test_log_with_std_endl", 0);
+}
+
+int test_smart_pointer_usage() {
+	std::ostringstream output;
+	auto log = std::make_shared<StormByte::Logger::Log>(output, Level::Info, "%L:");
+	IsolateLine(*log);
+	log << Level::Info << "Smart pointer log message" << std::endl;
+	std::string expected = "Info    : Smart pointer log message\n";
+	ASSERT_EQUAL("test_smart_pointer_usage", expected, output.str());
+	RETURN_TEST("test_smart_pointer_usage", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Floor / Enabled / views
+// ---------------------------------------------------------------------------
+
 int test_log_level_filtering() {
 	std::ostringstream output;
 	Log log(output, Level::Error, "%L:");
+	IsolateLine(log);
 	log << Level::Info << "Info message" << std::endl;
 	log << Level::Warning << "Warning message" << std::endl;
 	log << Level::Error << "Error message" << std::endl;
@@ -53,6 +118,7 @@ int test_log_level_filtering() {
 int test_log_critical_levels_are_never_filtered() {
 	std::ostringstream output;
 	Log log(output, Level::Fatal, "%L:");
+	IsolateLine(log);
 	log << Level::LowLevel << "hidden low level" << std::endl;
 	log << Level::Debug << "hidden debug" << std::endl;
 	log << Level::Warning << "visible warning" << std::endl;
@@ -68,91 +134,10 @@ int test_log_critical_levels_are_never_filtered() {
 	RETURN_TEST("test_log_critical_levels_are_never_filtered", 0);
 }
 
-int test_log_data() {
-	std::ostringstream output;
-	Log log(output, Level::Info, "%L:");
-	int i = 42;
-	bool b = true;
-	double d = 3.141596;
-	log << Level::Info << "Info message with sample integer " << i << ", a bool " << b << " and a double " << d << std::endl;
-	std::string expected = "Info    : Info message with sample integer 42, a bool true and a double 3.141596\n";
-	ASSERT_EQUAL("test_log_data", expected, output.str());
-	RETURN_TEST("test_log_data", 0);
-}
-
-int log_to_stdout() {
-	Log log(std::cout, Level::Info, "%L:");
-	log << Level::Info << "Info message" << std::endl;
-	log << Level::Debug << "Debug message" << std::endl;
-	log << Level::Error << "Error message" << std::endl;
-	RETURN_TEST("log_to_stdout", 0);
-}
-
-int test_log_with_std_endl() {
-	std::ostringstream output;
-	Log log(output, Level::Debug, "%L:");
-	log << Level::Info << "Info message" << std::endl;
-	log << Level::Debug << "Debug message" << std::endl;
-	log << Level::Error << "Error message" << std::endl;
-	std::string expected = "Info    : Info message\nDebug   : Debug message\nError   : Error message\n";
-	ASSERT_EQUAL("test_log_with_std_endl", expected, output.str());
-	RETURN_TEST("test_log_with_std_endl", 0);
-}
-
-int test_humanreadable_number() {
-	std::ostringstream output;
-	Log log(output, Level::Info, "%L:");
-	log << Level::Info << humanreadable_number << 1000 << std::endl;
-	std::string expected = "Info    : 1,000\n";
-	ASSERT_EQUAL("test_humanreadable_number", expected, output.str());
-	RETURN_TEST("test_humanreadable_number", 0);
-}
-
-int test_humanreadable_bytes() {
-	std::ostringstream output;
-	Log log(output, Level::Info, "%L:");
-	log << Level::Info << humanreadable_bytes << 10240 << std::endl;
-	std::string expected = "Info    : 10 KiB\n";
-	ASSERT_EQUAL("test_humanreadable_bytes", expected, output.str());
-	RETURN_TEST("test_humanreadable_bytes", 0);
-}
-
-int test_nohumanreadable() {
-	std::ostringstream output;
-	Log log(output, Level::Info, "%L:");
-	log << Level::Info << humanreadable_number << 1000 << " " << nohumanreadable << 1000 << std::endl;
-	std::string expected = "Info    : 1,000 1000\n";
-	ASSERT_EQUAL("test_nohumanreadable", expected, output.str());
-	RETURN_TEST("test_nohumanreadable", 0);
-}
-
-int test_humanreadable_enable_and_disable() {
-	std::ostringstream output;
-	Log log(output, Level::Info, "%L:");
-	log << Level::Info << humanreadable_number << 1000 << std::endl;
-	std::string expected_enable = "Info    : 1,000\n";
-	ASSERT_EQUAL("test_humanreadable_enable_and_disable (enable)", expected_enable, output.str());
-	output.str("");
-	output.clear();
-	log << Level::Info << nohumanreadable << 1000 << std::endl;
-	std::string expected_disable = "Info    : 1000\n";
-	ASSERT_EQUAL("test_humanreadable_enable_and_disable (disable)", expected_disable, output.str());
-	RETURN_TEST("test_humanreadable_enable_and_disable", 0);
-}
-
-int test_smart_pointer_usage() {
-	std::ostringstream output;
-	auto log = std::make_shared<StormByte::Logger::Log>(output, Level::Info, "%L:");
-	log << Level::Info << "Smart pointer log message" << std::endl;
-	std::string expected = "Info    : Smart pointer log message\n";
-	ASSERT_EQUAL("test_smart_pointer_usage", expected, output.str());
-	RETURN_TEST("test_smart_pointer_usage", 0);
-}
-
-// --- New: filtered fast-path ---
 int test_filtered_produces_empty_output() {
 	std::ostringstream output;
 	Log log(output, Level::Error, "%L:");
+	IsolateLine(log);
 	for (int i = 0; i < 100; ++i) {
 		log << Level::Debug << "debug " << i << " " << true << " " << 3.14 << std::endl;
 		log << Level::Info << "info " << i << std::endl;
@@ -165,6 +150,7 @@ int test_filtered_produces_empty_output() {
 int test_filtered_then_enabled_message() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log << Level::Debug << "should not appear " << 123 << std::endl;
 	log << Level::Info << "visible" << std::endl;
 	log << Level::Debug << "still hidden" << std::endl;
@@ -174,9 +160,88 @@ int test_filtered_then_enabled_message() {
 	RETURN_TEST("test_filtered_then_enabled_message", 0);
 }
 
+int test_enabled_is_floor_not_throttle() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	ASSERT_TRUE("test_enabled_is_floor_not_throttle (Info)", log.Enabled(Level::Info));
+	ASSERT_TRUE("test_enabled_is_floor_not_throttle (Error)", log.Enabled(Level::Error));
+	ASSERT_TRUE("test_enabled_is_floor_not_throttle (Warning below floor)", log.Enabled(Level::Warning));
+	ASSERT_TRUE("test_enabled_is_floor_not_throttle (Fatal)", log.Enabled(Level::Fatal));
+	ASSERT_FALSE("test_enabled_is_floor_not_throttle (Debug)", log.Enabled(Level::Debug));
+	ASSERT_FALSE("test_enabled_is_floor_not_throttle (LowLevel)", log.Enabled(Level::LowLevel));
+	ASSERT_FALSE("test_enabled_is_floor_not_throttle (Notice below Info)", log.Enabled(Level::Notice));
+	ASSERT_EQUAL("test_enabled_is_floor_not_throttle (no I/O)", std::string(""), output.str());
+	RETURN_TEST("test_enabled_is_floor_not_throttle", 0);
+}
+
+int test_string_view_and_wstring_view_payloads() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const std::string owned = "owned";
+	const std::string_view sv = owned;
+	const std::wstring wowned = L"wide";
+	const std::wstring_view wv = wowned;
+	log << Level::Info << sv << " " << wv << std::endl;
+	log << Level::Debug << sv << wv << std::endl;
+	ASSERT_EQUAL("test_string_view_and_wstring_view_payloads", "Info    : owned wide\n", output.str());
+	RETURN_TEST("test_string_view_and_wstring_view_payloads", 0);
+}
+
+// ---------------------------------------------------------------------------
+// Human-readable / format tokens
+// ---------------------------------------------------------------------------
+
+int test_humanreadable_number() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << humanreadable_number << 1000 << std::endl;
+	std::string expected = "Info    : 1,000\n";
+	ASSERT_EQUAL("test_humanreadable_number", expected, output.str());
+	RETURN_TEST("test_humanreadable_number", 0);
+}
+
+int test_humanreadable_bytes() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << humanreadable_bytes << 10240 << std::endl;
+	std::string expected = "Info    : 10 KiB\n";
+	ASSERT_EQUAL("test_humanreadable_bytes", expected, output.str());
+	RETURN_TEST("test_humanreadable_bytes", 0);
+}
+
+int test_nohumanreadable() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << humanreadable_number << 1000 << " " << nohumanreadable << 1000 << std::endl;
+	std::string expected = "Info    : 1,000 1000\n";
+	ASSERT_EQUAL("test_nohumanreadable", expected, output.str());
+	RETURN_TEST("test_nohumanreadable", 0);
+}
+
+int test_humanreadable_enable_and_disable() {
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	log << Level::Info << humanreadable_number << 1000 << std::endl;
+	std::string expected_enable = "Info    : 1,000\n";
+	ASSERT_EQUAL("test_humanreadable_enable_and_disable (enable)", expected_enable, output.str());
+	output.str("");
+	output.clear();
+	log << Level::Info << nohumanreadable << 1000 << std::endl;
+	std::string expected_disable = "Info    : 1000\n";
+	ASSERT_EQUAL("test_humanreadable_enable_and_disable (disable)", expected_disable, output.str());
+	RETURN_TEST("test_humanreadable_enable_and_disable", 0);
+}
+
 int test_escaped_percent_in_format() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "[%%] [%L]:");
+	IsolateLine(log);
 	log << Level::Info << "ok" << std::endl;
 	std::string out = output.str();
 	if (out.find("%L") != std::string::npos) {
@@ -185,7 +250,6 @@ int test_escaped_percent_in_format() {
 	}
 
 	if (out.find("[%]") == std::string::npos && out.find("[% ]") == std::string::npos) {
-		// Expect literal % then space-padded level region; at least "[%]" or "[% Info..."
 		if (out.find("[%") == std::string::npos) {
 			ASSERT_EQUAL("test_escaped_percent_in_format (missing literal %)", std::string("found"), out);
 			RETURN_TEST("test_escaped_percent_in_format", 1);
@@ -197,7 +261,6 @@ int test_escaped_percent_in_format() {
 		RETURN_TEST("test_escaped_percent_in_format", 1);
 	}
 
-	// Must contain a literal percent sign from %%
 	if (out.find('%') == std::string::npos) {
 		ASSERT_EQUAL("test_escaped_percent_in_format (no percent char)", std::string("has %"), out);
 		RETURN_TEST("test_escaped_percent_in_format", 1);
@@ -205,6 +268,10 @@ int test_escaped_percent_in_format() {
 
 	RETURN_TEST("test_escaped_percent_in_format", 0);
 }
+
+// ---------------------------------------------------------------------------
+// Color
+// ---------------------------------------------------------------------------
 
 int test_color_manipulators_and_line_reset() {
 	std::ostringstream output;
@@ -222,6 +289,7 @@ int test_color_manipulators_and_line_reset() {
 int test_default_color_emits_no_ansi() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log << Level::Info << color << "plain" << nocolor << " text" << std::endl;
 	ASSERT_EQUAL("test_default_color_emits_no_ansi", "Info    : plain text\n", output.str());
 	RETURN_TEST("test_default_color_emits_no_ansi", 0);
@@ -251,6 +319,7 @@ int test_all_configured_colors_emit_expected_ansi() {
 	for (const auto& [configured, ansi] : colors) {
 		std::ostringstream output;
 		Log log(output, Level::Info, "%L:");
+		IsolateLine(log);
 		log.Color(Level::Info, configured);
 		ASSERT_EQUAL("test_all_configured_colors_emit_expected_ansi (getter)", configured, log.Color(Level::Info));
 		log << Level::Info << "value" << std::endl;
@@ -264,6 +333,7 @@ int test_all_configured_colors_emit_expected_ansi() {
 int test_filtered_color_has_no_side_effects() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log.Color(Level::Debug, Color::Red);
 	log << Level::Debug << color(Color::Green) << "hidden" << std::endl;
 	log << Level::Info << "visible" << std::endl;
@@ -274,6 +344,7 @@ int test_filtered_color_has_no_side_effects() {
 int test_color_and_temporary_format_interoperate() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "BASE[%L]");
+	IsolateLine(log);
 	log.Color(Level::Info, Color::Blue);
 	log << push_format("TEMP[%L]") << Level::Info << nocolor << "plain" << color << " blue" << std::endl;
 	log << pop_format << Level::Info << "base" << std::endl;
@@ -288,6 +359,7 @@ int test_colored_logger_destructor_resets_stream() {
 	std::ostringstream output;
 	{
 		Log log(output, Level::Info, "%L:");
+		IsolateLine(log);
 		log.Color(Level::Info, Color::Red);
 		log << Level::Info << "unterminated";
 	}
@@ -296,9 +368,14 @@ int test_colored_logger_destructor_resets_stream() {
 	RETURN_TEST("test_colored_logger_destructor_resets_stream", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Format stack
+// ---------------------------------------------------------------------------
+
 int test_push_pop_format_stack() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "BASE[%L]");
+	IsolateLine(log);
 	log << Level::Info << "base" << std::endl;
 	log << push_format("TEMP[%L]") << Level::Info << "temp" << std::endl;
 	log << push_format("INNER[%L]") << Level::Info << "inner" << std::endl;
@@ -319,6 +396,7 @@ int test_push_pop_format_stack() {
 int test_push_format_empty_and_partial_line_reset() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "BASE[%L]");
+	IsolateLine(log);
 	log << Level::Info << "before" << push_format("NEXT[%L]") << "after" << std::endl;
 	log << push_format("") << Level::Info << "empty" << std::endl;
 	log << pop_format << Level::Info << "next" << std::endl;
@@ -331,9 +409,14 @@ int test_push_format_empty_and_partial_line_reset() {
 	RETURN_TEST("test_push_format_empty_and_partial_line_reset", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Groups
+// ---------------------------------------------------------------------------
+
 int test_group_header_and_line_reset() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:%g");
+	IsolateLine(log);
 	log << group("Decoder") << Level::Info << "open" << std::endl;
 	log << Level::Info << "plain" << std::endl;
 	ASSERT_EQUAL("test_group_header_and_line_reset", "Info    :Decoder open\nInfo    : plain\n", output.str());
@@ -343,6 +426,7 @@ int test_group_header_and_line_reset() {
 int test_group_without_token_and_empty_group() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log << group("Decoder") << Level::Info << "open" << std::endl;
 	log << group("") << Level::Info << "plain" << std::endl;
 	ASSERT_EQUAL("test_group_without_token_and_empty_group", "Info    : open\nInfo    : plain\n", output.str());
@@ -352,6 +436,7 @@ int test_group_without_token_and_empty_group() {
 int test_group_change_closes_partial_line() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:%g");
+	IsolateLine(log);
 	log << group("Decoder") << Level::Info << "before";
 	log << group("Encoder") << "after" << std::endl;
 	ASSERT_EQUAL("test_group_change_closes_partial_line", "Info    :Decoder before\nInfo    :Encoder after\n", output.str());
@@ -361,6 +446,7 @@ int test_group_change_closes_partial_line() {
 int test_filtered_group_has_no_side_effects() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:%g");
+	IsolateLine(log);
 	log << group("Hidden") << Level::Debug << "hidden" << std::endl;
 	log << Level::Info << "visible" << std::endl;
 	ASSERT_EQUAL("test_filtered_group_has_no_side_effects", "Info    : visible\n", output.str());
@@ -370,15 +456,21 @@ int test_filtered_group_has_no_side_effects() {
 int test_group_and_color_share_the_header() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:%g");
+	IsolateLine(log);
 	log.Color(Level::Info, Color::Yellow);
 	log << group("Decoder") << Level::Info << "open" << std::endl;
 	ASSERT_EQUAL("test_group_and_color_share_the_header", "\033[33mInfo    :Decoder open\033[0m\n", output.str());
 	RETURN_TEST("test_group_and_color_share_the_header", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------
+
 int test_component_header_is_sticky_and_resettable() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	IsolateLine(log);
 	log << component("Multimedia") << Level::Info << "first" << std::endl;
 	log << Level::Info << "second" << std::endl;
 	log << reset_component << Level::Info << "third" << std::endl;
@@ -390,6 +482,7 @@ int test_component_header_is_sticky_and_resettable() {
 int test_component_without_token_preserves_legacy_output() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log << component("Hidden") << Level::Info << "message" << std::endl;
 	ASSERT_EQUAL("test_component_without_token_preserves_legacy_output", "Info    : message\n", output.str());
 	RETURN_TEST("test_component_without_token_preserves_legacy_output", 0);
@@ -398,6 +491,7 @@ int test_component_without_token_preserves_legacy_output() {
 int test_component_color_override_has_priority() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	IsolateLine(log);
 	log.Color(Level::Info, Color::Blue);
 	log.Color("Multimedia", Level::Info, Color::Red);
 	log << component("Multimedia") << Level::Info << "red" << std::endl;
@@ -410,6 +504,7 @@ int test_component_color_override_has_priority() {
 int test_empty_component_selects_root() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]");
+	IsolateLine(log);
 	log << component("Multimedia") << Level::Info << "named" << std::endl;
 	log << component("") << Level::Info << "root" << std::endl;
 	ASSERT_EQUAL("test_empty_component_selects_root", "Multimedia[Info    ] named\n[Info    ] root\n", output.str());
@@ -419,6 +514,7 @@ int test_empty_component_selects_root() {
 int test_component_format_priority_and_fallback() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "GENERAL[%L]");
+	IsolateLine(log);
 	log.Format("Media", "MEDIA[%L]");
 	log << component("Media") << Level::Info << "media" << std::endl;
 	log << component("Other") << Level::Info << "fallback" << std::endl;
@@ -435,6 +531,7 @@ int test_component_format_priority_and_fallback() {
 int test_push_format_overrides_component_and_restores_resolution() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "GENERAL[%L]");
+	IsolateLine(log);
 	log.Format("Media", "MEDIA[%L]");
 	log << component("Media") << push_format("TEMP[%L]") << Level::Info << "temporary" << std::endl;
 	log << pop_format << Level::Info << "component again" << std::endl;
@@ -453,6 +550,7 @@ int test_push_format_overrides_component_and_restores_resolution() {
 int test_format_change_redecides_throttle_line() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "A[%L]");
+	IsolateLine(log);
 	log.Throttle(0.0, 1);
 	log << Level::Info << "first";
 	log.Format("B[%L]");
@@ -460,6 +558,10 @@ int test_format_change_redecides_throttle_line() {
 	ASSERT_EQUAL("test_format_change_redecides_throttle_line", "A[Info    ] first\n", output.str());
 	RETURN_TEST("test_format_change_redecides_throttle_line", 0);
 }
+
+// ---------------------------------------------------------------------------
+// Wide / UTF-8
+// ---------------------------------------------------------------------------
 
 int test_wide_string_logging_is_locale_independent() {
 	int result = 0;
@@ -469,6 +571,7 @@ int test_wide_string_logging_is_locale_independent() {
 	try {
 		std::ostringstream output;
 		Log log(output, Level::Info, "%L:");
+		IsolateLine(log);
 		log << Level::Info << std::wstring{L"caf\u00e9 \U0001F600"} << std::endl;
 		ASSERT_EQUAL("test_wide_string_logging_is_locale_independent", "Info    : caf\xC3\xA9 \xF0\x9F\x98\x80\n", output.str());
 	} catch (const std::exception& ex) {
@@ -483,6 +586,7 @@ int test_wide_string_logging_is_locale_independent() {
 int test_invalid_wide_string_propagates_without_termination() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	bool threw = false;
 	try {
 		log << Level::Info << std::wstring(1, static_cast<wchar_t>(0xD800));
@@ -496,9 +600,14 @@ int test_invalid_wide_string_propagates_without_termination() {
 	RETURN_TEST("test_invalid_wide_string_propagates_without_termination", 0);
 }
 
+// ---------------------------------------------------------------------------
+// Throttle
+// ---------------------------------------------------------------------------
+
 int test_throttle_off_preserves_output() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log << Level::Info << "one" << std::endl;
 	log << Level::Warning << "two" << std::endl;
 	ASSERT_EQUAL("test_throttle_off_preserves_output", "Info    : one\nWarning : two\n", output.str());
@@ -508,6 +617,7 @@ int test_throttle_off_preserves_output() {
 int test_throttle_drop_burst() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	log.Throttle(0.0, 2);
 	for (int index = 0; index < 5; ++index)
 		log << Level::Info << index << std::endl;
@@ -518,6 +628,7 @@ int test_throttle_drop_burst() {
 int test_throttle_sample_and_window() {
 	std::ostringstream sample_output;
 	Log sample(sample_output, Level::Info, "%L:");
+	IsolateLine(sample);
 	ThrottleSpec sample_spec;
 	sample_spec.Policy = ThrottlePolicy::Sample;
 	sample_spec.SampleN = 10;
@@ -529,6 +640,7 @@ int test_throttle_sample_and_window() {
 
 	std::ostringstream window_output;
 	Log window(window_output, Level::Info, "%L:");
+	IsolateLine(window);
 	ThrottleSpec window_spec;
 	window_spec.Policy = ThrottlePolicy::Window;
 	window_spec.WindowKeep = 2;
@@ -544,6 +656,7 @@ int test_throttle_sample_and_window() {
 int test_throttle_precedence_and_no_throttle() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g:");
+	IsolateLine(log);
 	ThrottleSpec global;
 	global.Burst = 10;
 	log.Throttle(global);
@@ -572,6 +685,7 @@ int test_throttle_precedence_and_no_throttle() {
 int test_throttle_warning_but_not_error_or_fatal() {
 	std::ostringstream output;
 	Log log(output, Level::Fatal, "%L:");
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Burst = 1;
 	log.Throttle(spec);
@@ -587,6 +701,7 @@ int test_throttle_warning_but_not_error_or_fatal() {
 int test_throttle_summary_preserves_context() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g ");
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Component = "A";
 	spec.Level = Level::Info;
@@ -606,6 +721,7 @@ int test_throttle_summary_preserves_context() {
 int test_throttle_component_and_group_isolation() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]%g ");
+	IsolateLine(log);
 	ThrottleSpec component_rule;
 	component_rule.Component = "A";
 	component_rule.Burst = 1;
@@ -628,6 +744,7 @@ int test_throttle_component_and_group_isolation() {
 int test_throttle_empty_lines_are_counted() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Policy = ThrottlePolicy::Window;
 	spec.WindowKeep = 1;
@@ -644,6 +761,7 @@ int test_throttle_empty_lines_are_counted() {
 int test_throttle_level_change_redecides_line() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Level = Level::Info;
 	spec.Burst = 1;
@@ -657,6 +775,7 @@ int test_throttle_level_change_redecides_line() {
 int test_flush_throttle_emits_orphaned_summary() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Policy = ThrottlePolicy::Window;
 	spec.WindowKeep = 1;
@@ -673,6 +792,7 @@ int test_flush_throttle_emits_orphaned_summary() {
 int test_flush_throttle_selects_component_only() {
 	std::ostringstream output;
 	Log log(output, Level::Info, "%c[%L]:");
+	IsolateLine(log);
 	ThrottleSpec a;
 	a.Component = "A";
 	a.Burst = 1;
@@ -694,6 +814,7 @@ int test_flush_throttle_selects_component_only() {
 
 int test_throttle_rejects_invalid_specs() {
 	Log log(std::cout, Level::Info);
+	IsolateLine(log);
 	ThrottleSpec spec;
 	spec.Rate = -1.0;
 	bool threw = false;
@@ -736,18 +857,20 @@ int test_throttle_rejects_invalid_specs() {
 int main() {
 	int result = 0;
 	result += test_basic_logging();
-	result += test_log_level_filtering();
-	result += test_log_critical_levels_are_never_filtered();
 	result += test_log_data();
 	result += log_to_stdout();
 	result += test_log_with_std_endl();
+	result += test_smart_pointer_usage();
+	result += test_log_level_filtering();
+	result += test_log_critical_levels_are_never_filtered();
+	result += test_filtered_produces_empty_output();
+	result += test_filtered_then_enabled_message();
+	result += test_enabled_is_floor_not_throttle();
+	result += test_string_view_and_wstring_view_payloads();
 	result += test_humanreadable_number();
 	result += test_humanreadable_bytes();
 	result += test_nohumanreadable();
 	result += test_humanreadable_enable_and_disable();
-	result += test_smart_pointer_usage();
-	result += test_filtered_produces_empty_output();
-	result += test_filtered_then_enabled_message();
 	result += test_escaped_percent_in_format();
 	result += test_color_manipulators_and_line_reset();
 	result += test_default_color_emits_no_ansi();
@@ -783,11 +906,10 @@ int main() {
 	result += test_flush_throttle_emits_orphaned_summary();
 	result += test_flush_throttle_selects_component_only();
 	result += test_throttle_rejects_invalid_specs();
-	if (result == 0) {
-		std::cout << "All tests passed!" << std::endl;
-	} else {
-		std::cout << result << " tests failed." << std::endl;
-	}
 
+	if (result == 0)
+		std::cout << "All tests passed!" << std::endl;
+	else
+		std::cout << result << " tests failed." << std::endl;
 	return result;
 }

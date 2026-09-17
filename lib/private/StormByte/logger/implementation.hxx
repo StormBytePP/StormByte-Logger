@@ -349,17 +349,23 @@ namespace StormByte::Logger {
 					}
 					write_text(message);
 				}
+				else if constexpr (StormByte::Type::SameAs<DecayedT, std::string_view>) {
+					write_text(value);
+				}
 				else if constexpr (StormByte::Type::SameAs<DecayedT, std::string>) {
 					write_text(value);
 				}
 				else if constexpr (StormByte::Type::SameAs<DecayedT, const char*>) {
 					write_text(value ? std::string_view{value} : std::string_view{});
 				}
+				else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring_view>) {
+					write_text(String::UTF8Encode(value));
+				}
 				else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring>) {
 					write_text(String::UTF8Encode(value));
 				}
 				else if constexpr (StormByte::Type::SameAs<DecayedT, const wchar_t*>) {
-					write_text(value ? String::UTF8Encode(std::wstring(value)) : std::string{});
+					write_text(value ? String::UTF8Encode(std::wstring_view{value}) : std::string{});
 				}
 				else {
 					static_assert(!StormByte::Type::SameAs<T, T>, "Unsupported type for Implementation::operator<<");
@@ -592,6 +598,8 @@ namespace StormByte::Logger {
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const char*>(const char* const& value);
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::string_view>(const std::string_view& value);
+	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
 
 	/**
 	 * @brief Stream a value into a smart pointer to Implementation.

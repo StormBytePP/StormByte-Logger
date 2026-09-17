@@ -23,6 +23,7 @@
 #include <StormByte/thread_lock.hxx>
 
 #include <memory>
+#include <string_view>
 
 /**
  * @namespace StormByte::Logger
@@ -35,6 +36,7 @@ namespace StormByte::Logger {
 	 *
 	 * Serializes logical lines (until a newline manipulator) so concurrent
 	 * writers do not interleave. Filtered messages do not hold the line lock.
+	 * Text payloads use @c std::string_view / @c std::wstring_view like @c Log.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
@@ -221,7 +223,10 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const std::string& v) {
+			/**
+			 * @brief Stream UTF-8 text. @c std::string converts to this view.
+			 */
+			inline Log& operator<<(std::string_view v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
@@ -231,7 +236,10 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
-			inline Log& operator<<(const std::wstring& v) {
+			/**
+			 * @brief Stream wide text. @c std::wstring converts to this view.
+			 */
+			inline Log& operator<<(std::wstring_view v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
@@ -345,9 +353,9 @@ namespace StormByte::Logger {
 			void Write(float v) override;
 			void Write(double v) override;
 			void Write(long double v) override;
-			void Write(const std::string& v) override;
+			void Write(std::string_view v) override;
 			void Write(const char* v) override;
-			void Write(const std::wstring& v) override;
+			void Write(std::wstring_view v) override;
 			void Write(const wchar_t* v) override;
 			void Write(const Level& level) override;
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
