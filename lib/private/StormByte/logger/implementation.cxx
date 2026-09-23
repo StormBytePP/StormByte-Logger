@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,13 +32,18 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/logger/implementation.hxx>
 #include <StormByte/logger/exception.hxx>
+#include <StormByte/logger/implementation.hxx>
 #include <StormByte/logger/manipulators.hxx>
+#include <StormByte/string/string.hxx>
+#include <StormByte/string/wstring.hxx>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -37,6 +61,7 @@ namespace {
 	thread_local std::string t_facade_path;
 	thread_local std::string t_group;
 	thread_local std::optional<Level> t_level;
+
 	struct LineState {
 		bool decided = false;
 		bool admitted = true;
@@ -47,7 +72,16 @@ namespace {
 		std::string group;
 		std::uint64_t dropped = 0;
 	};
+
 	thread_local LineState t_line;
+
+	std::string ToStd(const StormByte::String::String& text) {
+		return static_cast<std::string>(text);
+	}
+
+	std::string ToStdOrEmpty(const std::optional<StormByte::String::String>& text) {
+		return text ? ToStd(*text) : std::string{};
+	}
 
 	bool IsAlwaysVisible(const Level level) noexcept {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
@@ -82,7 +116,7 @@ namespace {
 		return path.substr(0, slash);
 	}
 
-	bool PathMatchesPrefix(const std::string& path, const std::string& prefix) {
+	bool PathMatchesPrefix(const std::string& path, std::string_view prefix) {
 		if (prefix.empty())
 			return path.empty();
 		if (path == prefix)
@@ -130,13 +164,20 @@ namespace {
 		const bool level = spec.Level.has_value();
 		const bool group = spec.Group.has_value();
 		int score = 0;
-		if (component && level && group) score = 7;
-		else if (component && group) score = 6;
-		else if (component && level) score = 5;
-		else if (component) score = 4;
-		else if (level && group) score = 3;
-		else if (group) score = 2;
-		else if (level) score = 1;
+		if (component && level && group)
+			score = 7;
+		else if (component && group)
+			score = 6;
+		else if (component && level)
+			score = 5;
+		else if (component)
+			score = 4;
+		else if (level && group)
+			score = 3;
+		else if (group)
+			score = 2;
+		else if (level)
+			score = 1;
 		if (component)
 			score = score * 1000 + static_cast<int>(spec.Component->size());
 		return score;
@@ -149,11 +190,11 @@ namespace {
 	bool Matches(const ThrottleSpec& spec, const std::string& component, const Level level, const std::string& group) {
 		if (spec.Level && *spec.Level != level)
 			return false;
-		if (spec.Group && *spec.Group != group)
+		if (spec.Group && static_cast<std::string_view>(*spec.Group) != group)
 			return false;
 		if (!spec.Component)
 			return true;
-		return PathMatchesPrefix(component, *spec.Component);
+		return PathMatchesPrefix(component, static_cast<std::string_view>(*spec.Component));
 	}
 
 	bool Selects(const ThrottleSpec& filter, const ThrottleSpec& rule) {
@@ -190,7 +231,7 @@ namespace {
 			return true;
 		if (spec.Rate == 0.0)
 			return ConsumeFiniteCredit(state);
-		const auto interval = std::max<std::int64_t>(1,	static_cast<std::int64_t>(1'000'000'000.0 / spec.Rate));
+		const auto interval = std::max<std::int64_t>(1, static_cast<std::int64_t>(1'000'000'000.0 / spec.Rate));
 		const auto now = NowNanoseconds();
 		const auto capacity = static_cast<std::int64_t>(spec.Burst - 1) * interval;
 		auto next = state.next_token_ns.load(std::memory_order_relaxed);
@@ -242,7 +283,7 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_current_level(std::nullopt),
 	m_enabled(true),
 	m_format(format),
-	m_human_readable_format(String::Format::Raw),
+	m_human_readable_format(Detail::HumanReadable::Raw),
 	m_redact_active(false),
 	m_redact_count(0),
 	m_redact_keep_first(false),
@@ -260,7 +301,9 @@ void Implementation::SetFacadePath(std::string path) noexcept {
 }
 
 std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
-#if defined(WINDOWS) || defined(__GLIBCXX__)
+#ifdef WINDOWS
+	return m_throttle_table.load(std::memory_order_acquire);
+#elifdef __GLIBCXX__
 	return m_throttle_table.load(std::memory_order_acquire);
 #else
 	return std::atomic_load_explicit(&m_throttle_table, std::memory_order_acquire);
@@ -268,7 +311,9 @@ std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const n
 }
 
 void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
-#if defined(WINDOWS) || defined(__GLIBCXX__)
+#ifdef WINDOWS
+	m_throttle_table.store(std::move(table), std::memory_order_release);
+#elifdef __GLIBCXX__
 	m_throttle_table.store(std::move(table), std::memory_order_release);
 #else
 	std::atomic_store_explicit(&m_throttle_table, std::move(table), std::memory_order_release);
@@ -433,7 +478,7 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 		t_line.admitted = true;
 		t_line.level = rule.spec.Level.value_or(Level::Notice);
 		t_line.component = component;
-		t_line.group = rule.spec.Group.value_or(std::string{});
+		t_line.group = ToStdOrEmpty(rule.spec.Group);
 		t_line.dropped = 0;
 		BeginOutputLine();
 		print_header();
@@ -451,9 +496,9 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 			std::lock_guard<std::mutex> lock(*rule.leaf_mutex);
 			for (const auto& [path, state] : *rule.leaf_states)
 				emit(rule, path, state);
+		} else {
+			emit(rule, ToStdOrEmpty(rule.spec.Component), rule.state);
 		}
-		else
-			emit(rule, rule.spec.Component.value_or(std::string{}), rule.state);
 	}
 
 	t_line = saved;
@@ -626,7 +671,7 @@ Implementation& Implementation::operator<<(FormatManip manip) {
 		reset_line_state();
 	}
 
-	m_format_stack.push_back(std::move(manip.format));
+	m_format_stack.push_back(ToStd(manip.format));
 	return *this;
 }
 
@@ -657,13 +702,13 @@ Implementation& Implementation::operator<<(GroupManip manip) {
 		reset_line_state();
 	}
 
-	t_group = std::move(manip.name);
+	t_group = ToStd(manip.name);
 	return *this;
 }
 
 Implementation& Implementation::operator<<(ComponentManip manip) {
 	if (!manip.name.empty())
-		t_component_stack.push_back(std::move(manip.name));
+		t_component_stack.push_back(ToStd(manip.name));
 	return *this;
 }
 
@@ -785,7 +830,9 @@ void Implementation::print_message(const std::string& message) noexcept {
 }
 
 void Implementation::print_message(const wchar_t& value) {
-	print_message(String::UTF8Encode(std::wstring(1, value)));
+	const wchar_t raw[1] = { value };
+	const StormByte::String::String encoded{StormByte::String::WString{std::wstring_view{raw, 1}}};
+	print_message(ToStd(encoded));
 }
 
 namespace StormByte::Logger {

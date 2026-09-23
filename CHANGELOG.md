@@ -9,16 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
-It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network, String or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64).
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64). Owned text that crosses the logger DLL boundary uses `StormByte::String::String` / `WString` and `StormByte::CString` / `WCString`; `StormByte::Size` is accepted as a payload. Views and `std::string` stay on the caller side.
+
+From 2.0.0, original Logger sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
 
 If you landed here from a release link and have not read the tree:
 
 - What this module is, how to build it, and short examples: [README.md](https://github.com/StormBytePP/StormByte-Logger/blob/master/README.md)
-- License: GNU Lesser General Public License version 3 or later, [LICENSE](https://github.com/StormBytePP/StormByte-Logger/blob/master/LICENSE)
+- License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-Logger/blob/master/LICENSE)
 
 ## [Unreleased]
+
+### Added
+
+- `operator<<` on `Log` and `ThreadedLog` for `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString` and `StormByte::Size`. Conversion and copy run only when `WillWrite()` is true.
+- `component`, `group` and `push_format` accept `std::string_view` (literals) in the caller and `StormByte::String::String` by value at the DLL boundary. Manipulator payloads are owned `String`.
+- Private `StormByte::Logger::Detail` human-readable number and IEC byte formatting (the manipulator API is unchanged; this logic no longer lives in String).
+- Tests for owned-text payloads, filtered drop of owned text, `Size`, and ill-formed wide input substituted as U+FFFD.
+
+### Changed
+
+- **Breaking:** the bundled dependency is [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0), which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). Logger no longer submodules Base directly.
+- **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
+- **Breaking:** `ThrottleSpec::Component` and `ThrottleSpec::Group` are `std::optional<StormByte::String::String>`.
+- **Breaking:** ill-formed wide text is written as U+FFFD (`EF BF BD`). Logger does not throw `StormByte::UTF8Error` on that path.
+- `StormByte::Base64Encode` returns `CString` (Base 2.0.0). Binary-span default output is unchanged for the reader.
+- **License:** original Logger sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...HEAD
 

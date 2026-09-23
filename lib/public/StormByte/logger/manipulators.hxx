@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,18 +32,21 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
 #pragma once
 
 #include <StormByte/logger/typedefs.hxx>
 #include <StormByte/logger/visibility.h>
+#include <StormByte/string/string.hxx>
 
 #include <cstddef>
 #include <optional>
-#include <string>
+#include <string_view>
 
 /**
  * @namespace StormByte::Logger
@@ -51,15 +73,15 @@ namespace StormByte::Logger {
 	 * Component or Group selects the root/empty key.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC ThrottleSpec {
-		std::optional<std::string> Component; ///< Optional component selector.
-		std::optional<Level> Level;           ///< Optional level selector.
-		std::optional<std::string> Group;     ///< Optional group selector.
-		double Rate = 0.0;                    ///< Lines per second; zero disables refill.
-		std::size_t Burst = 0;                ///< Initial and maximum token capacity.
-		ThrottlePolicy Policy = ThrottlePolicy::Drop; ///< Count policy.
-		std::size_t SampleN = 0;              ///< Sample period when Policy is Sample.
-		std::size_t WindowKeep = 0;           ///< Kept lines when Policy is Window.
-		std::size_t WindowPeriod = 0;         ///< Window size when Policy is Window.
+		std::optional<StormByte::String::String> Component; ///< Optional component selector.
+		std::optional<Level> Level;							///< Optional level selector.
+		std::optional<StormByte::String::String> Group;		///< Optional group selector.
+		double Rate = 0.0;									///< Lines per second; zero disables refill.
+		std::size_t Burst = 0;								///< Initial and maximum token capacity.
+		ThrottlePolicy Policy = ThrottlePolicy::Drop;		///< Count policy.
+		std::size_t SampleN = 0;							///< Sample period when Policy is Sample.
+		std::size_t WindowKeep = 0;							///< Kept lines when Policy is Window.
+		std::size_t WindowPeriod = 0;						///< Window size when Policy is Window.
 	};
 
 	/**
@@ -67,15 +89,24 @@ namespace StormByte::Logger {
 	 * @brief Labels the current logging line with a producer group.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC GroupManip {
-		std::string name; ///< Group name; an empty name clears the current group.
+		StormByte::String::String name; ///< Group name; an empty name clears the current group.
 	};
 
 	/**
 	 * @brief Set the producer group for the current line.
-	 * @param name Group name, or an empty string to clear the group.
+	 * @param name Group name, or empty text to clear the group.
 	 * @return Group manipulator carrying the requested name.
 	 */
-	STORMBYTE_LOGGER_PUBLIC GroupManip group(std::string name);
+	STORMBYTE_LOGGER_PUBLIC GroupManip group(StormByte::String::String name);
+
+	/**
+	 * @brief Set the producer group from caller-owned text.
+	 * @param name Group name viewed in the caller; copied into an owned String.
+	 * @return Group manipulator carrying the requested name.
+	 */
+	inline GroupManip group(std::string_view name) {
+		return group(StormByte::String::String{name});
+	}
 
 	/**
 	 * @struct ComponentManip
@@ -86,7 +117,7 @@ namespace StormByte::Logger {
 	 * observe the same component; this is intentional for shared logger use.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC ComponentManip {
-		std::string name; ///< Component name; empty selects the root component.
+		StormByte::String::String name; ///< Component name; empty selects the root component.
 	};
 
 	/**
@@ -96,7 +127,16 @@ namespace StormByte::Logger {
 	 * @note An empty component is allowed for compatibility, but @ref reset_component
 	 *       is preferred when returning to the root component explicitly.
 	 */
-	STORMBYTE_LOGGER_PUBLIC ComponentManip component(std::string name);
+	STORMBYTE_LOGGER_PUBLIC ComponentManip component(StormByte::String::String name);
+
+	/**
+	 * @brief Select the component from caller-owned text.
+	 * @param name Component name viewed in the caller; copied into an owned String.
+	 * @return Component manipulator carrying the requested name.
+	 */
+	inline ComponentManip component(std::string_view name) {
+		return component(StormByte::String::String{name});
+	}
 
 	/**
 	 * @struct ResetComponentManip
@@ -131,7 +171,7 @@ namespace StormByte::Logger {
 	 * @brief Temporarily replaces the logger format and saves the previous one.
 	 */
 	struct STORMBYTE_LOGGER_PUBLIC FormatManip {
-		std::string format; ///< Temporary format, including an empty format if requested.
+		StormByte::String::String format; ///< Temporary format, including an empty format if requested.
 	};
 
 	/**
@@ -145,7 +185,16 @@ namespace StormByte::Logger {
 	 * @param format Format to activate until pop_format is streamed.
 	 * @return Format manipulator containing the requested format.
 	 */
-	STORMBYTE_LOGGER_PUBLIC FormatManip push_format(std::string format);
+	STORMBYTE_LOGGER_PUBLIC FormatManip push_format(StormByte::String::String format);
+
+	/**
+	 * @brief Save the current format and activate a temporary format from caller-owned text.
+	 * @param format Format viewed in the caller; copied into an owned String.
+	 * @return Format manipulator containing the requested format.
+	 */
+	inline FormatManip push_format(std::string_view format) {
+		return push_format(StormByte::String::String{format});
+	}
 
 	/**
 	 * @brief Restore the most recently saved format, or do nothing if empty.

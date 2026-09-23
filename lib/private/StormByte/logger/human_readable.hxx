@@ -1,0 +1,117 @@
+/*
+ * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+ *
+ * This file is part of StormByte-Logger.
+ *
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
+ *
+ * StormByte-Logger is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * version 3 along with StormByte-Logger. If not, see
+ * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
+ */
+
+#pragma once
+
+#include <string>
+#include <type_traits>
+
+/**
+ * @namespace StormByte
+ * @brief Root namespace of the StormByte suite.
+ */
+namespace StormByte {
+	/**
+	 * @namespace Logger
+	 * @brief Logger module of the StormByte suite.
+	 */
+	namespace Logger {
+		/**
+		 * @namespace Detail
+		 * @brief Private helpers of StormByte-Logger.
+		 */
+		namespace Detail {
+			/**
+			 * @enum HumanReadable
+			 * @brief Numeric formatting mode for log payloads.
+			 */
+			enum class HumanReadable : unsigned char {
+				Raw,	///< std::to_string
+				Number,	///< Locale-grouped number
+				Bytes	///< IEC magnitude (Bytes, KiB, MiB, …)
+			};
+
+			/**
+			 * @brief Format an arithmetic value as a grouped number.
+			 * @tparam T Arithmetic type other than wchar_t.
+			 * @param number Value.
+			 * @param locale Locale name; falls back to "C".
+			 * @return Formatted text.
+			 */
+			template<typename T>
+			requires std::is_arithmetic_v<T> && (!std::is_same_v<T, wchar_t>)
+			std::string FormatNumber(const T& number, const std::string& locale) noexcept;
+
+			/**
+			 * @brief Format an arithmetic value as an IEC byte size.
+			 * @tparam T Arithmetic type.
+			 * @param bytes Value treated as a byte count.
+			 * @param locale Locale name; falls back to "C".
+			 * @return Formatted text.
+			 */
+			template<typename T>
+			requires std::is_arithmetic_v<T>
+			std::string FormatBytes(const T& bytes, const std::string& locale) noexcept;
+
+			/**
+			 * @brief Format an arithmetic value according to @p mode.
+			 * @tparam T Arithmetic type other than wchar_t.
+			 * @param number Value.
+			 * @param mode Formatting mode.
+			 * @param locale Locale name.
+			 * @return Formatted text.
+			 */
+			template<typename T>
+			requires std::is_arithmetic_v<T> && (!std::is_same_v<T, wchar_t>)
+			std::string FormatHuman(const T& number, HumanReadable mode, const std::string& locale = "en_US.UTF-8") noexcept {
+				switch (mode) {
+					case HumanReadable::Raw:
+						return std::to_string(number);
+					case HumanReadable::Number:
+						return FormatNumber(number, locale);
+					case HumanReadable::Bytes:
+						return FormatBytes(number, locale);
+					default:
+						return std::to_string(number);
+				}
+			}
+		}
+	}
+}

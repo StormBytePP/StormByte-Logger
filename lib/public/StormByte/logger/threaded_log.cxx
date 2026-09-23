@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,13 +32,17 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
 #include <StormByte/logger/implementation.hxx>
 #include <StormByte/logger/threaded_log.hxx>
-#include <StormByte/string.hxx>
+#include <StormByte/string/string.hxx>
+#include <StormByte/string/wstring.hxx>
+
 #include <sstream>
 #include <utility>
 
@@ -27,6 +50,7 @@ using namespace StormByte::Logger;
 
 namespace {
 	thread_local bool t_line_held = false;
+
 	void claim_line(const std::shared_ptr<StormByte::ThreadLock>& lock) {
 		if (!t_line_held) {
 			lock->Lock();
@@ -127,22 +151,54 @@ const std::string& ThreadedLog::Format(const std::string& component) const {
 	return Log::Format(component);
 }
 
-Log& ThreadedLog::Throttle(const ThrottleSpec& spec) { return Log::Throttle(spec); }
-Log& ThreadedLog::NoThrottle(const ThrottleSpec& spec) { return Log::NoThrottle(spec); }
-Log& ThreadedLog::Throttle(double rate, std::size_t burst) { return Log::Throttle(rate, burst); }
+Log& ThreadedLog::Throttle(const ThrottleSpec& spec) {
+	return Log::Throttle(spec);
+}
+
+Log& ThreadedLog::NoThrottle(const ThrottleSpec& spec) {
+	return Log::NoThrottle(spec);
+}
+
+Log& ThreadedLog::Throttle(double rate, std::size_t burst) {
+	return Log::Throttle(rate, burst);
+}
+
 Log& ThreadedLog::Throttle(double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
 	return Log::Throttle(rate, burst, policy, value, period);
 }
-Log& ThreadedLog::Throttle(const Level& level, double rate, std::size_t burst) { return Log::Throttle(level, rate, burst); }
-Log& ThreadedLog::Throttle(GroupManip group, double rate, std::size_t burst) { return Log::Throttle(group, rate, burst); }
-Log& ThreadedLog::Throttle(ComponentManip component, double rate, std::size_t burst) { return Log::Throttle(component, rate, burst); }
+
+Log& ThreadedLog::Throttle(const Level& level, double rate, std::size_t burst) {
+	return Log::Throttle(level, rate, burst);
+}
+
+Log& ThreadedLog::Throttle(GroupManip group, double rate, std::size_t burst) {
+	return Log::Throttle(group, rate, burst);
+}
+
+Log& ThreadedLog::Throttle(ComponentManip component, double rate, std::size_t burst) {
+	return Log::Throttle(component, rate, burst);
+}
+
 Log& ThreadedLog::Throttle(ComponentManip component, const Level& level, GroupManip group, double rate, std::size_t burst, ThrottlePolicy policy, std::size_t value, std::size_t period) {
 	return Log::Throttle(component, level, group, rate, burst, policy, value, period);
 }
-Log& ThreadedLog::NoThrottle() { return Log::NoThrottle(); }
-Log& ThreadedLog::NoThrottle(const Level& level) { return Log::NoThrottle(level); }
-Log& ThreadedLog::NoThrottle(GroupManip group) { return Log::NoThrottle(group); }
-Log& ThreadedLog::NoThrottle(ComponentManip component) { return Log::NoThrottle(component); }
+
+Log& ThreadedLog::NoThrottle() {
+	return Log::NoThrottle();
+}
+
+Log& ThreadedLog::NoThrottle(const Level& level) {
+	return Log::NoThrottle(level);
+}
+
+Log& ThreadedLog::NoThrottle(GroupManip group) {
+	return Log::NoThrottle(group);
+}
+
+Log& ThreadedLog::NoThrottle(ComponentManip component) {
+	return Log::NoThrottle(component);
+}
+
 Log& ThreadedLog::NoThrottle(ComponentManip component, const Level& level, GroupManip group) {
 	return Log::NoThrottle(component, level, group);
 }
@@ -166,123 +222,148 @@ Log& ThreadedLog::FlushThrottle(const ThrottleSpec& spec) {
 }
 
 void ThreadedLog::Write(bool v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(char v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(signed char v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(unsigned char v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(short v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(unsigned short v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(int v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(unsigned int v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(long v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(unsigned long v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(long long v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(unsigned long long v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(float v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(double v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(long double v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(std::string_view v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(const char* v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	claim_line(m_lock);
 	Log::Write(v);
 }
 
 void ThreadedLog::Write(std::wstring_view v) {
-	if (!WillWrite() || !PrepareLine()) return;
-	const std::string encoded = StormByte::String::UTF8Encode(v);
+	if (!WillWrite() || !PrepareLine())
+		return;
+	const StormByte::String::String encoded{StormByte::String::WString{v}};
 	claim_line(m_lock);
-	Log::Write(std::string_view{encoded});
+	Log::Write(static_cast<std::string_view>(encoded));
 }
 
 void ThreadedLog::Write(const wchar_t* v) {
-	if (!WillWrite() || !PrepareLine()) return;
-	const std::string encoded = v ? StormByte::String::UTF8Encode(std::wstring_view{v}) : std::string{};
+	if (!WillWrite() || !PrepareLine())
+		return;
+	if (!v) {
+		claim_line(m_lock);
+		Log::Write(std::string_view{});
+		return;
+	}
+	const StormByte::String::String encoded{StormByte::String::WString{v}};
 	claim_line(m_lock);
-	Log::Write(std::string_view{encoded});
+	Log::Write(static_cast<std::string_view>(encoded));
 }
 
 void ThreadedLog::Write(std::span<const std::byte> v) {
-	if (!WillWrite() || !PrepareLine()) return;
+	if (!WillWrite() || !PrepareLine())
+		return;
 	const std::string formatted = m_impl->FormatBinary(v);
 	claim_line(m_lock);
 	m_impl->WritePrepared(formatted);

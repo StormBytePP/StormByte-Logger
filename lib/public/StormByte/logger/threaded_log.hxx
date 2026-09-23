@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,8 +32,10 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
 #pragma once
@@ -39,6 +60,7 @@ namespace StormByte::Logger {
 	 * Serializes logical lines (until a newline manipulator) so concurrent
 	 * writers do not interleave. Filtered messages do not hold the line lock.
 	 * Text payloads use @c std::string_view / @c std::wstring_view like @c Log.
+	 * Owned suite text and @c StormByte::Size use the same overloads as @c Log.
 	 * Binary payloads use @c std::span<const std::byte> (Base64 by default).
 	 *
 	 * @c Scope clones this type and shares both the Implementation and the
@@ -272,81 +294,172 @@ namespace StormByte::Logger {
 			 * Same contract as Log; data overloads early-out when filtered.
 			 */
 			//@{
+
+			/**
+			 * @brief Stream a boolean.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(bool v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a character.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(char v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a signed character.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(signed char v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an unsigned character.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(unsigned char v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a short.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(short v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an unsigned short.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(unsigned short v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an int.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(int v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an unsigned int.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(unsigned int v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a long.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(long v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an unsigned long.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(unsigned long v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a long long.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(long long v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream an unsigned long long.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(unsigned long long v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a float.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(float v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a double.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(double v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a long double.
+			 * @param v Value to write.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(long double v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
 			/**
 			 * @brief Stream UTF-8 text. @c std::string converts to this view.
 			 * @param v Text to write.
@@ -357,11 +470,40 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a C string.
+			 * @param v Text to write; may be null.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(const char* v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream owned UTF-8 bytes.
+			 * @param v Buffer owned by Base. Copied into the line buffer.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::CString& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(static_cast<std::string_view>(v));
+				return *this;
+			}
+
+			/**
+			 * @brief Stream owned UTF-8 text.
+			 * @param v Text owned by String. Copied into the line buffer.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::String::String& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(static_cast<std::string_view>(v));
+				return *this;
+			}
+
 			/**
 			 * @brief Stream wide text. @c std::wstring converts to this view.
 			 * @param v Wide text to write.
@@ -372,11 +514,40 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a wide C string.
+			 * @param v Text to write; may be null.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(const wchar_t* v) {
 				if (!WillWrite()) [[likely]] return *this;
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream owned wide bytes.
+			 * @param v Buffer owned by Base. Copied into the line buffer.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::WCString& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(static_cast<std::wstring_view>(v));
+				return *this;
+			}
+
+			/**
+			 * @brief Stream owned wide text.
+			 * @param v Text owned by String. Copied into the line buffer.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::String::WString& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				Write(static_cast<std::wstring_view>(v));
+				return *this;
+			}
+
 			/**
 			 * @brief Stream raw bytes. Default output is Base64; @c hex dumps @c 0xHH.
 			 * @param v Contiguous bytes. @c std::vector<std::byte> converts to this span.
@@ -387,18 +558,50 @@ namespace StormByte::Logger {
 				Write(v);
 				return *this;
 			}
+
+			/**
+			 * @brief Stream a byte count.
+			 * @param v Size. Uses @c Size::operator std::string (IEC text).
+			 * @return Reference to this logger.
+			 * @note The @c std::string is built only after @c WillWrite.
+			 */
+			inline Log& operator<<(const StormByte::Size& v) {
+				if (!WillWrite()) [[likely]] return *this;
+				const std::string text = static_cast<std::string>(v);
+				Write(std::string_view{text});
+				return *this;
+			}
+
+			/**
+			 * @brief Set the level of the current line.
+			 * @param level Level to emit.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(const Level& level) {
 				Write(level);
 				return *this;
 			}
+
+			/**
+			 * @brief Apply a stream manipulator (e.g. @c std::endl).
+			 * @param manip Stream manipulator.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(std::ostream& (*manip)(std::ostream&)) {
 				Write(manip);
 				return *this;
 			}
+
+			/**
+			 * @brief Apply a Log manipulator.
+			 * @param manip Logger manipulator.
+			 * @return Reference to this logger.
+			 */
 			inline Log& operator<<(Log& (*manip)(Log&) noexcept) {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Apply redaction policy. State remains until noredact.
 			 * @param m Redaction manipulator.
@@ -408,6 +611,7 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+
 			/**
 			 * @brief Dump subsequent payloads as hex bytes until nohex.
 			 * @param m Hex manipulator.
@@ -417,6 +621,7 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+
 			/**
 			 * @brief Disable hex dumps and restore default payload formatting.
 			 * @param m No-hex manipulator.
@@ -426,6 +631,7 @@ namespace StormByte::Logger {
 				Write(m);
 				return *this;
 			}
+
 			/**
 			 * @brief Apply a configured or explicit content color.
 			 * @param manip Color manipulator.
@@ -435,6 +641,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Disable color for subsequent content.
 			 * @param manip No-color manipulator.
@@ -444,6 +651,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Save and activate a temporary format under the line lock.
 			 * @param manip Format manipulator.
@@ -453,6 +661,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Restore a saved format under the line lock.
 			 * @param manip Pop-format manipulator.
@@ -462,6 +671,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Set the producer group for the current line under the line lock.
 			 * @param manip Group manipulator.
@@ -471,6 +681,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Push a component segment onto the current thread's stack.
 			 * @param manip Component manipulator.
@@ -480,6 +691,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Pop one component segment from the current thread's stack.
 			 * @param manip Pop-component manipulator.
@@ -489,6 +701,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			/**
 			 * @brief Clear the current thread's component stack.
 			 * @param manip Reset-component manipulator.
@@ -498,6 +711,7 @@ namespace StormByte::Logger {
 				Write(manip);
 				return *this;
 			}
+
 			//@}
 
 		protected:
@@ -522,88 +736,211 @@ namespace StormByte::Logger {
 			 * Locked emit. Newline stream manipulators drop the line lock.
 			 */
 			//@{
+
+			/**
+			 * @brief Forward a boolean under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(bool v) override;
+
+			/**
+			 * @brief Forward a character under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(char v) override;
+
+			/**
+			 * @brief Forward a signed character under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(signed char v) override;
+
+			/**
+			 * @brief Forward an unsigned character under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(unsigned char v) override;
+
+			/**
+			 * @brief Forward a short under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(short v) override;
+
+			/**
+			 * @brief Forward an unsigned short under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(unsigned short v) override;
+
+			/**
+			 * @brief Forward an int under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(int v) override;
+
+			/**
+			 * @brief Forward an unsigned int under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(unsigned int v) override;
+
+			/**
+			 * @brief Forward a long under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(long v) override;
+
+			/**
+			 * @brief Forward an unsigned long under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(unsigned long v) override;
+
+			/**
+			 * @brief Forward a long long under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(long long v) override;
+
+			/**
+			 * @brief Forward an unsigned long long under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(unsigned long long v) override;
+
+			/**
+			 * @brief Forward a float under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(float v) override;
+
+			/**
+			 * @brief Forward a double under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(double v) override;
+
+			/**
+			 * @brief Forward a long double under the line lock.
+			 * @param v Value to write.
+			 */
 			void Write(long double v) override;
+
+			/**
+			 * @brief Forward UTF-8 text under the line lock.
+			 * @param v Text to write.
+			 */
 			void Write(std::string_view v) override;
+
+			/**
+			 * @brief Forward a C string under the line lock.
+			 * @param v Text to write; may be null.
+			 */
 			void Write(const char* v) override;
+
+			/**
+			 * @brief Forward wide text under the line lock.
+			 * @param v Text to write.
+			 */
 			void Write(std::wstring_view v) override;
+
+			/**
+			 * @brief Forward a wide C string under the line lock.
+			 * @param v Text to write; may be null.
+			 */
 			void Write(const wchar_t* v) override;
+
 			/**
 			 * @brief Forward raw bytes under the line lock after formatting.
 			 * @param v Contiguous bytes to format as Base64 or hex.
 			 */
 			void Write(std::span<const std::byte> v) override;
+
+			/**
+			 * @brief Forward a level change under the line lock.
+			 * @param level Level of the current line.
+			 */
 			void Write(const Level& level) override;
+
+			/**
+			 * @brief Forward a stream manipulator under the line lock.
+			 * @param manip Stream manipulator.
+			 */
 			void Write(std::ostream& (*manip)(std::ostream&)) override;
+
+			/**
+			 * @brief Forward a Log manipulator under the line lock.
+			 * @param manip Logger manipulator.
+			 */
 			void Write(Log& (*manip)(Log&) noexcept) override;
+
 			/**
 			 * @brief Apply redaction state under the line lock.
 			 * @param m Redaction manipulator.
 			 */
 			void Write(RedactManip m) override;
+
 			/**
 			 * @brief Apply hex-dump state under the line lock.
 			 * @param m Hex manipulator.
 			 */
 			void Write(HexManip m) override;
+
 			/**
 			 * @brief Disable hex dumps under the line lock.
 			 * @param m No-hex manipulator.
 			 */
 			void Write(NoHexManip m) override;
+
 			/**
 			 * @brief Apply a color manipulator under the line lock.
 			 * @param manip Color manipulator.
 			 */
 			void Write(ColorManip manip) override;
+
 			/**
 			 * @brief Apply a no-color manipulator under the line lock.
 			 * @param manip No-color manipulator.
 			 */
 			void Write(NoColorManip manip) override;
+
 			/**
 			 * @brief Apply a push-format manipulator under the line lock.
 			 * @param manip Format manipulator.
 			 */
 			void Write(FormatManip manip) override;
+
 			/**
 			 * @brief Apply a pop-format manipulator under the line lock.
 			 * @param manip Pop-format manipulator.
 			 */
 			void Write(PopFormatManip manip) override;
+
 			/**
 			 * @brief Apply a group manipulator under the line lock.
 			 * @param manip Group manipulator.
 			 */
 			void Write(GroupManip manip) override;
+
 			/**
 			 * @brief Apply a component push manipulator.
 			 * @param manip Component manipulator.
 			 */
 			void Write(ComponentManip manip) override;
+
 			/**
 			 * @brief Apply a component pop manipulator.
 			 * @param manip Pop-component manipulator.
 			 */
 			void Write(PopComponentManip manip) override;
+
 			/**
 			 * @brief Apply a reset-component manipulator.
 			 * @param manip Reset-component manipulator.
 			 */
 			void Write(ResetComponentManip manip) override;
+
 			//@}
 	};
 }

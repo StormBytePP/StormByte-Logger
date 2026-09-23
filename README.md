@@ -3,15 +3,15 @@
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 ![C++26](https://img.shields.io/badge/C%2B%2B-26-00599C?logo=c%2B%2B&logoColor=white)
 ![CMake](https://img.shields.io/badge/CMake-3.28+-064F8C?logo=cmake&logoColor=white)
-![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)
+![License: LGPL v3 or commercial](https://img.shields.io/badge/License-LGPL_v3_or_commercial-blue.svg)
 [![CI](https://github.com/StormBytePP/StormByte-Logger/actions/workflows/ci.yml/badge.svg)](https://github.com/StormBytePP/StormByte-Logger/actions/workflows/ci.yml)
 [![Sponsor](https://img.shields.io/badge/Sponsor-StormBytePP-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/StormBytePP)
 
 This repository is **StormByte Logger**: stream logging for the StormByte C++ suite.
 
-It depends on [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, hierarchical components, `Scope` facades, groups, colors, temporary formats, human-readable numbers, redaction, hex dumps and binary payloads.
+It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. Public headers live under `StormByte/logger/` and cover `Log`, `ThreadedLog`, header formats, hierarchical components, `Scope` facades, groups, colors, temporary formats, human-readable numbers, redaction, hex dumps, binary payloads, and owned text types that can cross a DLL / `.so` boundary (`StormByte::String::String` / `WString`, `StormByte::CString` / `WCString`, `StormByte::Size`).
 
-The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network and System are **other repositories**. This one does not implement them.
+The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network, String and System are **other repositories**. This one does not implement them.
 
 ## What this module does
 
@@ -23,24 +23,26 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
 - **Groups** — line-scoped `group("name")` labels, cleared by a newline.
 - **Colors** — ANSI colors configured by level or component path (longest prefix wins). `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
 - **Formats** — persistent general / component-path formats (longest prefix wins) plus nested temporary `push_format("...")` / `pop_format`.
-- **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`.
+- **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`. Formatting lives in Logger (`Detail`); String no longer ships it.
 - **Redaction** — `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `noredact`.
 - **Hex** — `hex` / `hex(N)` dumps payload bytes as `0xAA` with N bytes per row (default 16). `nohex` restores the default. Applies to every subsequent payload, including numbers (text bytes, not numeric hex).
-- **Binary** — `std::span<const std::byte>` (and `std::vector<std::byte>`) print as Base64 by default, or as a hex dump when `hex` is active.
-- **ThreadedLog** — one lock per logical line. Binary encoding (Base64 / hex) runs before the lock. Filtered writes do not take the lock.
+- **Binary** — `std::span<const std::byte>` (and `std::vector<std::byte>`) print as Base64 by default (`StormByte::Base64Encode` returns `CString`), or as a hex dump when `hex` is active.
+- **Owned text** — `String`, `WString`, `CString`, `WCString` and `Size` have explicit `operator<<`. Conversion runs only when the line will be written (`WillWrite()`). Ill-formed wide text is emitted as U+FFFD.
+- **ThreadedLog** — one lock per logical line. Binary encoding (Base64 / hex) and wide-to-UTF-8 run before the lock. Filtered writes do not take the lock.
 - **Not thread-safe** — plain `Log` is single-threaded. Share a logger across threads only via `ThreadedLog`.
 
 ## The rest of the suite
 
 | Module | Role | API |
 | --- | --- | --- |
-| [Base](https://github.com/StormBytePP/StormByte) | Exceptions, Expected, serialization, strings, UUID, concepts | [/StormByte](https://dev.stormbyte.org/StormByte) |
+| [Base](https://github.com/StormBytePP/StormByte) | Exceptions, Expected, serialization, UUID, concepts, `CString` / `WCString` / `Size` | [/StormByte](https://dev.stormbyte.org/StormByte) |
 | [Buffer](https://github.com/StormBytePP/StormByte-Buffer) | FIFO, SharedFIFO, Ring, Producer/Consumer and multi-stage pipelines | [/StormByte-Buffer](https://dev.stormbyte.org/StormByte-Buffer) |
 | [Config](https://github.com/StormBytePP/StormByte-Config) | Human-readable text and versioned binary documents (groups, lists, raw bytes) | [/StormByte-Config](https://dev.stormbyte.org/StormByte-Config) |
 | [Crypto](https://github.com/StormBytePP/StormByte-Crypto) | Hash, compress, encrypt, sign and key agreement — Crypto++ never leaves the private tree | [/StormByte-Crypto](https://dev.stormbyte.org/StormByte-Crypto) |
 | [Database](https://github.com/StormBytePP/StormByte-Database) | One API over SQLite, PostgreSQL and MariaDB | [/StormByte-Database](https://dev.stormbyte.org/StormByte-Database) |
 | **Logger** | This repository | [/StormByte-Logger](https://dev.stormbyte.org/StormByte-Logger) |
 | [Network](https://github.com/StormBytePP/StormByte-Network) | Framed packets, Client/Server, IPv4/IPv6 TCP and Buffer pipelines (compress/encrypt) | [/StormByte-Network](https://dev.stormbyte.org/StormByte-Network) |
+| [String](https://github.com/StormBytePP/StormByte-String) | Owned UTF-8 / wide text over `CString` / `WCString` for DLL-safe return and storage | [/StormByte-String](https://dev.stormbyte.org/StormByte-String) |
 | [System](https://github.com/StormBytePP/StormByte-System) | Processes, pipes and environment variables across Linux, Windows and macOS | [/StormByte-System](https://dev.stormbyte.org/StormByte-System) |
 
 ## Table of Contents
@@ -55,6 +57,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network a
   - [Log and ThreadedLog](#log-and-threadedlog)
   - [A line](#a-line)
   - [Sharing a logger](#sharing-a-logger)
+  - [Owned text and Size](#owned-text-and-size)
   - [Human-readable numbers](#human-readable-numbers)
   - [Redaction](#redaction)
   - [Hex and binary payloads](#hex-and-binary-payloads)
@@ -110,7 +113,7 @@ Payload `operator<<` for ordinary filtered levels returns immediately below the 
 
 ```cpp
 if (log.Enabled(Level::Debug)) {
-    log << Level::Debug << std::string_view{detail} << std::endl;
+	log << Level::Debug << std::string_view{detail} << std::endl;
 }
 ```
 
@@ -135,7 +138,7 @@ A component format override can introduce `%c` / `%g` even when the general form
 
 ## Installation
 
-Needs a C++26 compiler, CMake 3.28 or newer, and [StormByte Base 1.2.0](https://github.com/StormBytePP/StormByte/releases/tag/1.2.0) or newer.
+Needs a C++26 compiler, CMake 3.28 or newer, [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, and [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer (vendored by String when you use the bundled tree).
 
 ```sh
 git clone --recursive https://github.com/StormBytePP/StormByte-Logger.git
@@ -144,7 +147,7 @@ cmake -S . -B build
 cmake --build build
 ```
 
-Link `StormByte-Logger` (and Base). Include path: the public install prefix, headers as `#include <StormByte/logger/….hxx>`.
+Link `StormByte-Logger` (and String / Base). Include path: the public install prefix, headers as `#include <StormByte/logger/….hxx>`.
 
 ## Usage
 
@@ -173,7 +176,7 @@ tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
-Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or string.
+Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`, `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString`, `StormByte::Size`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or an owned String type.
 
 ### A line
 
@@ -202,6 +205,40 @@ Muxer   mux(log, container);
 ```
 
 The objects store `std::shared_ptr<Log>`. `ThreadedLog` *is-a* `Log`, so the same pointer type works. `Scope` facades also share that backend.
+
+### Owned text and Size
+
+Text that is owned by another module, or that must remain valid after returning across a DLL / `.so`, is `String` / `WString` / `CString` / `WCString`. Do not put `std::string` in objects that cross that boundary.
+
+`String` has an implicit inline `string_view` in the **caller**. That view points at the other module's buffer. Logger still provides an explicit `operator<<(const String&)` so the copy into the line happens on this side after `WillWrite()`.
+
+```cpp
+#include <StormByte/cstring.hxx>
+#include <StormByte/size.hxx>
+#include <StormByte/string/string.hxx>
+#include <StormByte/string/wstring.hxx>
+#include <StormByte/wcstring.hxx>
+
+using StormByte::CString;
+using StormByte::Size;
+using StormByte::WCString;
+using StormByte::String::String;
+using StormByte::String::WString;
+
+log << Level::Info << String{"owned utf-8"} << std::endl;
+log << Level::Info << CString{"owned cstring"} << std::endl;
+log << Level::Info << WString{L"wide"} << std::endl;
+log << Level::Info << Size{1024} << std::endl;
+
+if (!log.Enabled(Level::Debug)) {
+	// String / WString are not converted here: the overload returns before ToStd.
+	log << Level::Debug << WString{L"dropped"} << std::endl;
+}
+```
+
+`component("Media")`, `group("work")` and `push_format("[%L]")` take `std::string_view` in the caller (literals work). The manipulator stores an owned `String`.
+
+Ill-formed wide input is written as U+FFFD (`EF BF BD`). Logger does not throw `UTF8Error` on that path. A filtered wide write does not convert at all.
 
 ### Human-readable numbers
 
@@ -302,7 +339,7 @@ log.Format("[%L] %T");
 log.Format("Multimedia", "[%L] %T %c");
 
 log << component("Multimedia") << component("Decoder")
-    << Level::Info << "inherits Multimedia format" << std::endl;
+	<< Level::Info << "inherits Multimedia format" << std::endl;
 log.Format("Multimedia/Decoder", "[DEC] %c %L:");
 ```
 
@@ -323,7 +360,7 @@ pushes join with `/` for `%c` and for config lookup:
 
 ```cpp
 log << component("Multimedia") << component("Decoder")
-    << Level::Notice << "open" << std::endl;
+	<< Level::Notice << "open" << std::endl;
 // %c is Multimedia/Decoder
 
 log << pop_component << Level::Info << "parent" << std::endl;
@@ -398,9 +435,13 @@ match, the longer component string wins.
 `Error` and `Fatal` are never throttled. `Warning` can be throttled even though
 it is always visible with respect to the print floor.
 
+`ThrottleSpec::Component` and `ThrottleSpec::Group` are
+`std::optional<StormByte::String::String>`. Assigning a literal still works
+where `String` can be constructed from it.
+
 ```cpp
 ThrottleSpec spec;
-spec.Component = "Multimedia/Decoder";
+spec.Component = String{"Multimedia/Decoder"};
 spec.Level = Level::LowLevel;
 spec.Policy = ThrottlePolicy::Window;
 spec.WindowKeep = 20;
@@ -433,6 +474,7 @@ Install rules before concurrent writers start.
 Other suite modules log through this module. A useful convention is:
 
 - Identify the module with `Scope("Multimedia")` (or a nested `Scope("Decoder")`), not by repeating `component(...)` on every line.
+- Pass owned `String` / `CString` when the text is produced in that module and must survive the return.
 - `LowLevel` — per-packet / per-frame / wait-wake. Sparse-sample if the volume would drown the log.
 - `Debug` — binds, reserves, work `n/min/max`.
 - `Notice` — created, open path, eof, closed. Must stay low-noise.
@@ -451,8 +493,8 @@ The application chooses the floor. A user who sets `LowLevel` is asking for nois
 
 - The line lock is taken when a write that will be printed starts (or when `<< Level` starts a line).
 - The lock is dropped when a stream manipulator that writes a newline is applied (`std::endl`).
-- Filtered payload writes do not take the lock.
-- Binary payloads (Base64 / hex) are formatted before the lock is taken.
+- Filtered payload writes do not take the lock and do not convert owned / wide text.
+- Binary payloads (Base64 / hex) and wide-to-UTF-8 are formatted before the lock is taken.
 - `<< Level` always updates the current message level. If that level is an ordinary filtered level below the floor, the lock is released immediately after the update; Warning, Error and Fatal remain enabled.
 - `Scope` facades of a `ThreadedLog` share that same lock.
 
@@ -468,7 +510,12 @@ Issues only on this repository. Fork and open a pull request against `master`.
 
 ## License
 
-GNU Lesser General Public License version 3 or later. See [LICENSE](LICENSE) and <https://www.gnu.org/licenses/lgpl-3.0.html>.
+From 2.0.0, original StormByte-Logger source is dual-licensed:
+
+1. GNU Lesser General Public License version 3 or later. See [LICENSE](LICENSE) and <https://www.gnu.org/licenses/lgpl-3.0.html>.
+2. A commercial license from the copyright holder (David C. Manuelda, StormBytePP).
+
+Neither license covers other StormByte modules or third-party material shipped under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors). Those keep their own licenses. Neither license grants patent rights.
 
 ## Support
 

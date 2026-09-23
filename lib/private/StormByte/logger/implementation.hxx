@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,26 +32,30 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
 #pragma once
 
 #include <StormByte/base64.hxx>
-#include <StormByte/logger/typedefs.hxx>
+#include <StormByte/logger/human_readable.hxx>
 #include <StormByte/logger/manipulators.hxx>
-#include <StormByte/string.hxx>
+#include <StormByte/logger/typedefs.hxx>
+#include <StormByte/string/string.hxx>
+#include <StormByte/string/wstring.hxx>
 #include <StormByte/type_traits.hxx>
 
 #include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
-#include <ostream>
 #include <memory>
 #include <mutex>
+#include <optional>
+#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
@@ -45,31 +68,36 @@
  * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
+	/**
+	 * @struct ThrottleRuleState
+	 * @brief Mutable counters for one throttle rule or emitting path.
+	 */
 	struct ThrottleRuleState {
-		std::atomic<std::uint64_t> dropped{0};
-		std::atomic<std::uint64_t> sample_count{0};
-		std::atomic<std::uint64_t> window_count{0};
-		std::atomic<std::uint64_t> finite_credits{0};
-		std::atomic<std::int64_t> next_token_ns{0};
-	};
-	struct ThrottleRule {
-		ThrottleSpec spec;
-		std::shared_ptr<ThrottleRuleState> state;
-		std::shared_ptr<std::mutex> leaf_mutex;
-		std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<ThrottleRuleState>>> leaf_states;
-	};
-	struct ThrottleTable {
-		std::vector<ThrottleRule> rules;
+		std::atomic<std::uint64_t> dropped{0};		///< Dropped lines waiting for a summary
+		std::atomic<std::uint64_t> sample_count{0};	///< Sample policy counter
+		std::atomic<std::uint64_t> window_count{0};	///< Window policy counter
+		std::atomic<std::uint64_t> finite_credits{0};	///< Remaining burst credits
+		std::atomic<std::int64_t> next_token_ns{0};	///< Next token refill time
 	};
 
-	struct ColorManip;
-	struct NoColorManip;
-	struct FormatManip;
-	struct PopFormatManip;
-	struct GroupManip;
-	struct ComponentManip;
-	struct PopComponentManip;
-	struct ResetComponentManip;
+	/**
+	 * @struct ThrottleRule
+	 * @brief One published throttle rule and its shared state.
+	 */
+	struct ThrottleRule {
+		ThrottleSpec spec;								///< Selectors and rates
+		std::shared_ptr<ThrottleRuleState> state;					///< Shared counters
+		std::shared_ptr<std::mutex> leaf_mutex;						///< Guards leaf_states
+		std::shared_ptr<std::unordered_map<std::string, std::shared_ptr<ThrottleRuleState>>> leaf_states;	///< Per-path counters
+	};
+
+	/**
+	 * @struct ThrottleTable
+	 * @brief Immutable snapshot of installed rules.
+	 */
+	struct ThrottleTable {
+		std::vector<ThrottleRule> rules;	///< Published rules
+	};
 
 	/**
 	 * @class Implementation
@@ -99,15 +127,17 @@ namespace StormByte::Logger {
 			 */
 			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			/** @brief Copy constructor (deleted). */
 			Implementation(const Implementation&) = delete;
-			/** @brief Move constructor (deleted). */
+
 			Implementation(Implementation&&) noexcept = delete;
-			/** @brief Copy assignment operator (deleted). */
+
 			Implementation& operator=(const Implementation&) = delete;
-			/** @brief Move assignment operator (deleted). */
+
 			Implementation& operator=(Implementation&&) noexcept = delete;
-			/** @brief Destructor. */
+
+			/**
+			 * @brief Destructor.
+			 */
 			~Implementation() noexcept;
 
 			/**
@@ -260,9 +290,16 @@ namespace StormByte::Logger {
 			 * @brief Remove all throttle rules.
 			 */
 			void NoThrottleAll() noexcept;
-			/** @brief Flush all dropped summaries without changing throttle rules. */
+
+			/**
+			 * @brief Flush all dropped summaries without changing throttle rules.
+			 */
 			void FlushThrottle();
-			/** @brief Flush matching dropped summaries without changing throttle rules. */
+
+			/**
+			 * @brief Flush matching dropped summaries without changing throttle rules.
+			 * @param spec Selectors of the rules to flush.
+			 */
 			void FlushThrottle(const ThrottleSpec& spec);
 
 			/**
@@ -276,7 +313,11 @@ namespace StormByte::Logger {
 			 * @return true when payload output is allowed.
 			 */
 			bool LineAdmitted() const noexcept;
-			/** @brief Whether throttle has already decided the current line. */
+
+			/**
+			 * @brief Whether throttle has already decided the current line.
+			 * @return true when the line decision exists.
+			 */
 			bool LineDecided() const noexcept;
 
 			/**
@@ -284,6 +325,10 @@ namespace StormByte::Logger {
 			 * @return true when output has started for the line.
 			 */
 			bool HasOpenOutputLine() const noexcept;
+
+			/**
+			 * @brief Mark the current line as having started output.
+			 */
 			void BeginOutputLine() noexcept;
 
 			/**
@@ -372,8 +417,8 @@ namespace StormByte::Logger {
 			 * @return Reference to this Implementation.
 			 */
 			template <typename T>
-				Implementation& operator<<(const T& value)
-				requires (!StormByte::Type::SameAs<T, Implementation& (*)(Implementation&) noexcept>) {
+			Implementation& operator<<(const T& value)
+			requires (!StormByte::Type::SameAs<T, Implementation& (*)(Implementation&) noexcept>) {
 				using DecayedT = std::decay_t<T>;
 
 				if (!Enabled()) [[likely]] {
@@ -382,70 +427,63 @@ namespace StormByte::Logger {
 
 				if constexpr (StormByte::Type::SameAs<DecayedT, bool>) {
 					write_text(std::string_view{value ? "true" : "false"});
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, wchar_t>) {
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, wchar_t>) {
 					print_message(value);
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, std::span<const std::byte>>) {
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::span<const std::byte>>) {
 					WritePrepared(FormatBinary(value));
-				}
-				else if constexpr (StormByte::Type::Arithmetic<DecayedT>) {
-					std::string message;
-					if (m_human_readable_format == String::Format::Raw) {
-						message = std::to_string(value);
-					} else {
-						message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
-					}
-					write_text(message);
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, std::string_view>) {
+				} else if constexpr (StormByte::Type::Arithmetic<DecayedT>) {
+					write_text(Detail::FormatHuman(value, m_human_readable_format));
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::string_view>) {
 					write_text(value);
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, std::string>) {
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::string>) {
 					write_text(value);
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, const char*>) {
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, const char*>) {
 					write_text(value ? std::string_view{value} : std::string_view{});
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring_view>) {
-					write_text(String::UTF8Encode(value));
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring>) {
-					write_text(String::UTF8Encode(value));
-				}
-				else if constexpr (StormByte::Type::SameAs<DecayedT, const wchar_t*>) {
-					write_text(value ? String::UTF8Encode(std::wstring_view{value}) : std::string{});
-				}
-				else {
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring_view>) {
+					const StormByte::String::String encoded{StormByte::String::WString{value}};
+					write_text(static_cast<std::string_view>(encoded));
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::wstring>) {
+					const StormByte::String::String encoded{StormByte::String::WString{std::wstring_view{value}}};
+					write_text(static_cast<std::string_view>(encoded));
+				} else if constexpr (StormByte::Type::SameAs<DecayedT, const wchar_t*>) {
+					if (!value) {
+						write_text(std::string_view{});
+					} else {
+						const StormByte::String::String encoded{StormByte::String::WString{value}};
+						write_text(static_cast<std::string_view>(encoded));
+					}
+				} else {
 					static_assert(!StormByte::Type::SameAs<T, T>, "Unsupported type for Implementation::operator<<");
 				}
 				return *this;
 			}
 
 		private:
-			std::ostream& m_out;                                      ///< Output stream
-			Level m_print_level;                                      ///< Minimum level that will be printed
-			std::optional<Level> m_current_level;                     ///< Level of the current message
-			std::atomic<bool> m_enabled;                              ///< Whether the current level is enabled
-			std::string m_format;                                     ///< Header format string
-			std::vector<std::string> m_format_stack;                  ///< Temporary formats for push/pop
-			std::unordered_map<std::string, std::string> m_component_formats; ///< Persistent component formats
-			String::Format m_human_readable_format;                   ///< Current human-readable format
-			bool m_redact_active;                                     ///< When true, text and numbers are redacted
-			std::size_t m_redact_count;                               ///< 0 = all '*'; N = keep N chars
-			bool m_redact_keep_first;                                 ///< true = keep first N, false = keep last N
-			bool m_hex_active;                                        ///< When true, payloads are dumped as hex
-			std::size_t m_hex_columns;                                ///< Bytes per hex row; 0 disables wrapping
-			std::array<StormByte::Logger::Color, 7> m_level_colors{}; ///< Configured color per level
-			std::unordered_map<std::string, std::array<StormByte::Logger::Color, 7>> m_component_colors; ///< Component color overrides
-			std::optional<StormByte::Logger::Color> m_content_color;  ///< Temporary content color override
-			bool m_content_nocolor = false;                           ///< Whether content color is suppressed
-			std::optional<StormByte::Logger::Color> m_active_color;   ///< Color currently emitted to the stream
-			#if defined(WINDOWS) || defined(__GLIBCXX__)
-			std::atomic<std::shared_ptr<const ThrottleTable>> m_throttle_table; ///< Immutable rules snapshot
-			#else
-			std::shared_ptr<const ThrottleTable> m_throttle_table;        ///< Immutable rules snapshot, atomically accessed
-			#endif
+			std::ostream& m_out;										///< Output stream
+			Level m_print_level;										///< Minimum level that will be printed
+			std::optional<Level> m_current_level;								///< Level of the current message
+			std::atomic<bool> m_enabled;									///< Whether the current level is enabled
+			std::string m_format;										///< Header format string
+			std::vector<std::string> m_format_stack;							///< Temporary formats for push/pop
+			std::unordered_map<std::string, std::string> m_component_formats;				///< Persistent component formats
+			Detail::HumanReadable m_human_readable_format;							///< Current human-readable format
+			bool m_redact_active;										///< When true, text and numbers are redacted
+			std::size_t m_redact_count;									///< 0 = all '*'; N = keep N chars
+			bool m_redact_keep_first;									///< true = keep first N, false = keep last N
+			bool m_hex_active;										///< When true, payloads are dumped as hex
+			std::size_t m_hex_columns;									///< Bytes per hex row; 0 disables wrapping
+			std::array<StormByte::Logger::Color, 7> m_level_colors{};					///< Configured color per level
+			std::unordered_map<std::string, std::array<StormByte::Logger::Color, 7>> m_component_colors;	///< Component color overrides
+			std::optional<StormByte::Logger::Color> m_content_color;						///< Temporary content color override
+			bool m_content_nocolor = false;									///< Whether content color is suppressed
+			std::optional<StormByte::Logger::Color> m_active_color;						///< Color currently emitted to the stream
+#ifdef WINDOWS
+			std::atomic<std::shared_ptr<const ThrottleTable>> m_throttle_table;				///< Immutable rules snapshot
+#elifdef __GLIBCXX__
+			std::atomic<std::shared_ptr<const ThrottleTable>> m_throttle_table;				///< Immutable rules snapshot
+#else
+			std::shared_ptr<const ThrottleTable> m_throttle_table;						///< Immutable rules snapshot, atomically accessed
+#endif
 
 			/**
 			 * @brief Ensure the header has been printed for the current line.
@@ -542,18 +580,73 @@ namespace StormByte::Logger {
 				write_text(std::string_view{text});
 			}
 
+			/**
+			 * @brief Write the timestamp field.
+			 */
 			void print_time() const noexcept;
+
+			/**
+			 * @brief Current timestamp text.
+			 * @return Timestamp.
+			 */
 			std::string CurrentTime() const noexcept;
+
+			/**
+			 * @brief Write the level field.
+			 */
 			void print_level() const noexcept;
+
+			/**
+			 * @brief Write the thread-id field.
+			 */
 			void print_thread_id() const noexcept;
+
+			/**
+			 * @brief Write the header for the current line.
+			 */
 			void print_header() noexcept;
+
+			/**
+			 * @brief Emit the content color if it changed.
+			 */
 			void sync_content_color() noexcept;
+
+			/**
+			 * @brief Emit an ANSI color.
+			 * @param color Color to emit.
+			 */
 			void emit_color(StormByte::Logger::Color color) noexcept;
+
+			/**
+			 * @brief Reset ANSI color.
+			 */
 			void reset_color() noexcept;
+
+			/**
+			 * @brief Close a deferred line if one is open.
+			 */
 			void close_deferred_line() noexcept;
+
+			/**
+			 * @brief Reset per-line state after a newline.
+			 */
 			void reset_line_state() noexcept;
+
+			/**
+			 * @brief Write a dropped-line summary when one is pending.
+			 */
 			void write_drop_summary() noexcept;
+
+			/**
+			 * @brief Load the published throttle table.
+			 * @return Snapshot; may be null.
+			 */
 			std::shared_ptr<const ThrottleTable> LoadThrottleTable() const noexcept;
+
+			/**
+			 * @brief Publish a throttle table.
+			 * @param table Snapshot to store.
+			 */
 			void StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept;
 
 			/**
@@ -563,35 +656,64 @@ namespace StormByte::Logger {
 			 * @return Isolated state. Never null.
 			 */
 			std::shared_ptr<ThrottleRuleState> LeafThrottleState(const ThrottleRule& rule, const std::string& path);
+
+			/**
+			 * @brief Effective header format for the current line.
+			 * @return Format string.
+			 */
 			const std::string& effective_format() const noexcept;
 
+			/**
+			 * @brief Format and write an arithmetic value.
+			 * @tparam T Arithmetic type other than wchar_t.
+			 * @param value Value to write.
+			 */
 			template <typename T>
 			requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 			void print_message(const T& value) noexcept {
-				std::string message;
-				if (m_human_readable_format == String::Format::Raw)
-					message = std::to_string(value);
-				else
-					message = String::HumanReadable(value, m_human_readable_format, "en_US.UTF-8");
-				print_message(message);
+				print_message(Detail::FormatHuman(value, m_human_readable_format));
 			}
 
+			/**
+			 * @brief Write already-formatted text through the message path.
+			 * @param message Text to write.
+			 */
 			void print_message(const std::string& message) noexcept;
+
+			/**
+			 * @brief Write a wide character.
+			 * @param value Character to write.
+			 */
 			void print_message(const wchar_t& value);
 	};
 
+	/**
+	 * @brief Enable grouped-number formatting.
+	 * @param logger Implementation to update.
+	 * @return @p logger.
+	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept {
-		logger.m_human_readable_format = String::Format::HumanReadableNumber;
+		logger.m_human_readable_format = Detail::HumanReadable::Number;
 		return logger;
 	}
 
+	/**
+	 * @brief Enable IEC byte-size formatting.
+	 * @param logger Implementation to update.
+	 * @return @p logger.
+	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept {
-		logger.m_human_readable_format = String::Format::HumanReadableBytes;
+		logger.m_human_readable_format = Detail::HumanReadable::Bytes;
 		return logger;
 	}
 
+	/**
+	 * @brief Disable human-readable numeric formatting.
+	 * @param logger Implementation to update.
+	 * @return @p logger.
+	 */
 	inline STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept {
-		logger.m_human_readable_format = String::Format::Raw;
+		logger.m_human_readable_format = Detail::HumanReadable::Raw;
 		return logger;
 	}
 
@@ -619,25 +741,47 @@ namespace StormByte::Logger {
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
 	extern template STORMBYTE_LOGGER_PUBLIC Implementation& Implementation::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
 
+	/**
+	 * @brief Stream a value into a smart pointer to Implementation.
+	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @tparam T Value type.
+	 * @param logger Smart pointer.
+	 * @param value Value to stream.
+	 * @return @p logger.
+	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value)
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << value;
 		return logger;
 	}
 
+	/**
+	 * @brief Stream a Level into a smart pointer to Implementation.
+	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @param logger Smart pointer.
+	 * @param level Level to set.
+	 * @return @p logger.
+	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << level;
 		return logger;
 	}
 
+	/**
+	 * @brief Stream a stream manipulator into a smart pointer to Implementation.
+	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @param logger Smart pointer.
+	 * @param manip Stream manipulator.
+	 * @return @p logger.
+	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-		requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
 		if (logger)
 			*logger << manip;
 		return logger;

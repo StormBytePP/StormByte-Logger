@@ -3,9 +3,28 @@
  *
  * This file is part of StormByte-Logger.
  *
- * StormByte-Logger is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * or later, as published by the Free Software Foundation.
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
  *
  * StormByte-Logger is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,8 +32,10 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with StormByte-Logger. If not, see
+ * version 3 along with StormByte-Logger. If not, see
  * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
 #include <StormByte/logger/log.hxx>
@@ -55,7 +76,7 @@ namespace {
 
 	void BindStickyComponent(ThrottleSpec& spec, const std::string& path) {
 		if (!spec.Component && !path.empty())
-			spec.Component = path;
+			spec.Component = StormByte::String::String{std::string_view{path}};
 	}
 }
 
@@ -81,38 +102,107 @@ bool Log::Enabled(const Level& level) const noexcept {
 	return AlwaysVisible(level) || level >= m_impl->PrintLevel();
 }
 
-void Log::Write(bool v) { m_impl << v; }
-void Log::Write(char v) { m_impl << v; }
-void Log::Write(signed char v) { m_impl << v; }
-void Log::Write(unsigned char v) { m_impl << v; }
-void Log::Write(short v) { m_impl << v; }
-void Log::Write(unsigned short v) { m_impl << v; }
-void Log::Write(int v) { m_impl << v; }
-void Log::Write(unsigned int v) { m_impl << v; }
-void Log::Write(long v) { m_impl << v; }
-void Log::Write(unsigned long v) { m_impl << v; }
-void Log::Write(long long v) { m_impl << v; }
-void Log::Write(unsigned long long v) { m_impl << v; }
-void Log::Write(float v) { m_impl << v; }
-void Log::Write(double v) { m_impl << v; }
-void Log::Write(long double v) { m_impl << v; }
-void Log::Write(std::string_view v) { m_impl << v; }
-void Log::Write(const char* v) { m_impl << v; }
-void Log::Write(std::wstring_view v) { m_impl << v; }
-void Log::Write(const wchar_t* v) { m_impl << v; }
-void Log::Write(std::span<const std::byte> v) { m_impl << v; }
+void Log::Write(bool v) {
+	m_impl << v;
+}
+
+void Log::Write(char v) {
+	m_impl << v;
+}
+
+void Log::Write(signed char v) {
+	m_impl << v;
+}
+
+void Log::Write(unsigned char v) {
+	m_impl << v;
+}
+
+void Log::Write(short v) {
+	m_impl << v;
+}
+
+void Log::Write(unsigned short v) {
+	m_impl << v;
+}
+
+void Log::Write(int v) {
+	m_impl << v;
+}
+
+void Log::Write(unsigned int v) {
+	m_impl << v;
+}
+
+void Log::Write(long v) {
+	m_impl << v;
+}
+
+void Log::Write(unsigned long v) {
+	m_impl << v;
+}
+
+void Log::Write(long long v) {
+	m_impl << v;
+}
+
+void Log::Write(unsigned long long v) {
+	m_impl << v;
+}
+
+void Log::Write(float v) {
+	m_impl << v;
+}
+
+void Log::Write(double v) {
+	m_impl << v;
+}
+
+void Log::Write(long double v) {
+	m_impl << v;
+}
+
+void Log::Write(std::string_view v) {
+	m_impl << v;
+}
+
+void Log::Write(const char* v) {
+	m_impl << v;
+}
+
+void Log::Write(std::wstring_view v) {
+	m_impl << v;
+}
+
+void Log::Write(const wchar_t* v) {
+	m_impl << v;
+}
+
+void Log::Write(std::span<const std::byte> v) {
+	m_impl << v;
+}
+
 void Log::Write(const Level& level) {
 	m_impl->SetFacadePath(m_scope_path);
 	m_impl << level;
 }
-void Log::Write(std::ostream& (*manip)(std::ostream&)) { m_impl << manip; }
-void Log::Write(Log& (*manip)(Log&) noexcept) { manip(*this); }
+
+void Log::Write(std::ostream& (*manip)(std::ostream&)) {
+	m_impl << manip;
+}
+
+void Log::Write(Log& (*manip)(Log&) noexcept) {
+	manip(*this);
+}
+
 void Log::Write(RedactManip m) {
 	m_impl->SetRedact(true, m.count, m.keep_first);
 }
+
 void Log::Write(HexManip m) {
 	m_impl->SetHex(true, m.columns);
 }
+
 void Log::Write(NoHexManip) {
 	m_impl->SetHex(false, 0);
 }
@@ -252,14 +342,37 @@ Log& Log::FlushThrottle(const ThrottleSpec& spec) {
 	return *this;
 }
 
-void Log::Write(ColorManip manip) { *m_impl << manip; }
-void Log::Write(NoColorManip manip) { *m_impl << manip; }
-void Log::Write(FormatManip manip) { *m_impl << std::move(manip); }
-void Log::Write(PopFormatManip manip) { *m_impl << manip; }
-void Log::Write(GroupManip manip) { *m_impl << std::move(manip); }
-void Log::Write(ComponentManip manip) { *m_impl << std::move(manip); }
-void Log::Write(PopComponentManip manip) { *m_impl << manip; }
-void Log::Write(ResetComponentManip manip) { *m_impl << manip; }
+void Log::Write(ColorManip manip) {
+	*m_impl << manip;
+}
+
+void Log::Write(NoColorManip manip) {
+	*m_impl << manip;
+}
+
+void Log::Write(FormatManip manip) {
+	*m_impl << std::move(manip);
+}
+
+void Log::Write(PopFormatManip manip) {
+	*m_impl << manip;
+}
+
+void Log::Write(GroupManip manip) {
+	*m_impl << std::move(manip);
+}
+
+void Log::Write(ComponentManip manip) {
+	*m_impl << std::move(manip);
+}
+
+void Log::Write(PopComponentManip manip) {
+	*m_impl << manip;
+}
+
+void Log::Write(ResetComponentManip manip) {
+	*m_impl << manip;
+}
 
 bool Log::WillWrite() const noexcept {
 	return m_impl->Enabled();
