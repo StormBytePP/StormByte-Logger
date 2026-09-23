@@ -1,47 +1,48 @@
 /*
-* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
-*
-* This file is part of StormByte-Logger.
-*
-* StormByte-Logger original source is dual-licensed:
-*
-* 1. GNU Lesser General Public License v3.0 (or later)
-*    You may redistribute and/or modify this file under the terms of the
-*    GNU Lesser General Public License as published by the Free Software
-*    Foundation, either version 3 of the License, or (at your option)
-*    any later version.
-*
-* 2. Commercial license
-*    Alternatively, this file may be used under the terms of a commercial
-*    license agreement with the copyright holder
-*    (David C. Manuelda <StormByte@gmail.com>).
-*
-* Both licenses apply only to original StormByte-Logger source in this
-* repository. They do not cover other StormByte modules or any third-party
-* material shipped with this repository (including everything under
-* thirdparty/, and in particular the bundled StormByte-String tree and
-* the StormByte Base tree it vendors), which remains under its own license.
-*
-* Neither license grants any patent rights. Any patent licenses required
-* to use this software or third-party components must be obtained separately
-* from the patent holders.
-*
-* StormByte-Logger is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public License
-* version 3 along with StormByte-Logger. If not, see
-* <https://www.gnu.org/licenses/lgpl-3.0.html>.
-*
-* SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
-*/
+ * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+ *
+ * This file is part of StormByte-Logger.
+ *
+ * StormByte-Logger original source is dual-licensed:
+ *
+ * 1. GNU Lesser General Public License v3.0 (or later)
+ *    You may redistribute and/or modify this file under the terms of the
+ *    GNU Lesser General Public License as published by the Free Software
+ *    Foundation, either version 3 of the License, or (at your option)
+ *    any later version.
+ *
+ * 2. Commercial license
+ *    Alternatively, this file may be used under the terms of a commercial
+ *    license agreement with the copyright holder
+ *    (David C. Manuelda <StormByte@gmail.com>).
+ *
+ * Both licenses apply only to original StormByte-Logger source in this
+ * repository. They do not cover other StormByte modules or any third-party
+ * material shipped with this repository (including everything under
+ * thirdparty/, and in particular the bundled StormByte-String tree and
+ * the StormByte Base tree it vendors), which remains under its own license.
+ *
+ * Neither license grants any patent rights. Any patent licenses required
+ * to use this software or third-party components must be obtained separately
+ * from the patent holders.
+ *
+ * StormByte-Logger is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * version 3 along with StormByte-Logger. If not, see
+ * <https://www.gnu.org/licenses/lgpl-3.0.html>.
+ *
+ * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
+ */
 
 #include <StormByte/logger/implementation.hxx>
 #include <StormByte/logger/log.hxx>
 #include <StormByte/string/string.hxx>
 
+#include <string>
 #include <utility>
 
 using namespace StormByte::Logger;
@@ -68,17 +69,27 @@ namespace {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
 	}
 
-	std::string JoinPath(const std::string& base, std::string_view add) {
-		if (add.empty())
-			return base;
-		if (base.empty())
-			return std::string{add};
-		return base + "/" + std::string{add};
+	std::string Native(const StormByte::String::String& text) {
+		return std::string{static_cast<std::string_view>(text)};
 	}
 
-	void BindStickyComponent(ThrottleSpec& spec, const std::string& path) {
-		if (!spec.Component && !path.empty())
-			spec.Component = StormByte::String::String{std::string_view{path}};
+	StormByte::String::String JoinPath(const StormByte::String::String& base, std::string_view add) {
+		const std::string_view left = static_cast<std::string_view>(base);
+		if (add.empty())
+			return base;
+		if (left.empty())
+			return StormByte::String::String{add};
+		std::string out;
+		out.reserve(left.size() + 1 + add.size());
+		out.append(left);
+		out.push_back('/');
+		out.append(add);
+		return StormByte::String::String{std::string_view{out}};
+	}
+
+	void BindStickyComponent(ThrottleSpec& spec, const StormByte::String::String& path) {
+		if (!spec.Component && !static_cast<std::string_view>(path).empty())
+			spec.Component = path;
 	}
 
 	StormByte::String::String CopyFormat(const std::string& format) {
@@ -138,7 +149,7 @@ void Log::Write(std::span<const std::byte> v) {
 }
 
 void Log::Write(const Level& level) {
-	m_impl->SetFacadePath(m_scope_path);
+	m_impl->SetFacadePath(Native(m_scope_path));
 	m_impl << level;
 }
 
@@ -163,17 +174,17 @@ void Log::Write(NoHexManip) {
 }
 
 Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
-	if (m_scope_path.empty())
+	if (static_cast<std::string_view>(m_scope_path).empty())
 		m_impl->Color(level, color);
 	else
-		m_impl->Color(m_scope_path, level, color);
+		m_impl->Color(Native(m_scope_path), level, color);
 	return *this;
 }
 
 StormByte::Logger::Color Log::Color(const Level& level) const {
-	if (m_scope_path.empty())
+	if (static_cast<std::string_view>(m_scope_path).empty())
 		return m_impl->Color(level);
-	return m_impl->Color(m_scope_path, level);
+	return m_impl->Color(Native(m_scope_path), level);
 }
 
 Log& Log::Color(std::string_view component, const Level& level, const StormByte::Logger::Color& color) {
@@ -186,17 +197,17 @@ StormByte::Logger::Color Log::Color(std::string_view component, const Level& lev
 }
 
 Log& Log::Format(std::string_view format) {
-	if (m_scope_path.empty())
+	if (static_cast<std::string_view>(m_scope_path).empty())
 		m_impl->Format(std::string{format});
 	else
-		m_impl->Format(m_scope_path, std::string{format});
+		m_impl->Format(Native(m_scope_path), std::string{format});
 	return *this;
 }
 
 StormByte::String::String Log::Format() const {
-	if (m_scope_path.empty())
+	if (static_cast<std::string_view>(m_scope_path).empty())
 		return CopyFormat(m_impl->Format());
-	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(m_scope_path));
+	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(Native(m_scope_path)));
 }
 
 Log& Log::Format(std::string_view component, std::string_view format) {
