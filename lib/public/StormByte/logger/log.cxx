@@ -1,45 +1,47 @@
 /*
- * Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
- *
- * This file is part of StormByte-Logger.
- *
- * StormByte-Logger original source is dual-licensed:
- *
- * 1. GNU Lesser General Public License v3.0 (or later)
- *    You may redistribute and/or modify this file under the terms of the
- *    GNU Lesser General Public License as published by the Free Software
- *    Foundation, either version 3 of the License, or (at your option)
- *    any later version.
- *
- * 2. Commercial license
- *    Alternatively, this file may be used under the terms of a commercial
- *    license agreement with the copyright holder
- *    (David C. Manuelda <StormByte@gmail.com>).
- *
- * Both licenses apply only to original StormByte-Logger source in this
- * repository. They do not cover other StormByte modules or any third-party
- * material shipped with this repository (including everything under
- * thirdparty/, and in particular the bundled StormByte-String tree and
- * the StormByte Base tree it vendors), which remains under its own license.
- *
- * Neither license grants any patent rights. Any patent licenses required
- * to use this software or third-party components must be obtained separately
- * from the patent holders.
- *
- * StormByte-Logger is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * version 3 along with StormByte-Logger. If not, see
- * <https://www.gnu.org/licenses/lgpl-3.0.html>.
- *
- * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
- */
+* Copyright (C) 2024-2026 David C. Manuelda (StormBytePP)
+*
+* This file is part of StormByte-Logger.
+*
+* StormByte-Logger original source is dual-licensed:
+*
+* 1. GNU Lesser General Public License v3.0 (or later)
+*    You may redistribute and/or modify this file under the terms of the
+*    GNU Lesser General Public License as published by the Free Software
+*    Foundation, either version 3 of the License, or (at your option)
+*    any later version.
+*
+* 2. Commercial license
+*    Alternatively, this file may be used under the terms of a commercial
+*    license agreement with the copyright holder
+*    (David C. Manuelda <StormByte@gmail.com>).
+*
+* Both licenses apply only to original StormByte-Logger source in this
+* repository. They do not cover other StormByte modules or any third-party
+* material shipped with this repository (including everything under
+* thirdparty/, and in particular the bundled StormByte-String tree and
+* the StormByte Base tree it vendors), which remains under its own license.
+*
+* Neither license grants any patent rights. Any patent licenses required
+* to use this software or third-party components must be obtained separately
+* from the patent holders.
+*
+* StormByte-Logger is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU Lesser General Public License for more details.
+*
+* You should have received a copy of the GNU Lesser General Public License
+* version 3 along with StormByte-Logger. If not, see
+* <https://www.gnu.org/licenses/lgpl-3.0.html>.
+*
+* SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
+*/
 
-#include <StormByte/logger/log.hxx>
 #include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/log.hxx>
+#include <StormByte/string/string.hxx>
+
 #include <utility>
 
 using namespace StormByte::Logger;
@@ -66,22 +68,33 @@ namespace {
 		return level == Level::Warning || level == Level::Error || level == Level::Fatal;
 	}
 
-	std::string JoinPath(const std::string& base, std::string add) {
+	std::string JoinPath(const std::string& base, std::string_view add) {
 		if (add.empty())
 			return base;
 		if (base.empty())
-			return add;
-		return base + "/" + add;
+			return std::string{add};
+		return base + "/" + std::string{add};
 	}
 
 	void BindStickyComponent(ThrottleSpec& spec, const std::string& path) {
 		if (!spec.Component && !path.empty())
 			spec.Component = StormByte::String::String{std::string_view{path}};
 	}
+
+	StormByte::String::String CopyFormat(const std::string& format) {
+		return StormByte::String::String{std::string_view{format}};
+	}
 }
 
-Log::Log(std::ostream& out, const Level& level, const std::string& format) {
-	m_impl = std::make_shared<Implementation>(out, level, format);
+template <typename T>
+void Log::WriteValue(const T& v) {
+	if (!BeginPayload())
+		return;
+	m_impl << v;
+}
+
+Log::Log(std::ostream& out, const Level& level, std::string_view format) {
+	m_impl = std::make_shared<Implementation>(out, level, std::string{format});
 }
 
 Log::PointerType Log::Clone() const {
@@ -92,9 +105,9 @@ Log::PointerType Log::Move() {
 	return std::make_shared<Log>(*this);
 }
 
-Log::PointerType Log::Scope(std::string path) {
+Log::PointerType Log::Scope(std::string_view path) {
 	auto facade = Clone();
-	facade->m_scope_path = JoinPath(m_scope_path, std::move(path));
+	facade->m_scope_path = JoinPath(m_scope_path, path);
 	return facade;
 }
 
@@ -102,83 +115,25 @@ bool Log::Enabled(const Level& level) const noexcept {
 	return AlwaysVisible(level) || level >= m_impl->PrintLevel();
 }
 
-void Log::Write(bool v) {
-	m_impl << v;
-}
-
-void Log::Write(char v) {
-	m_impl << v;
-}
-
-void Log::Write(signed char v) {
-	m_impl << v;
-}
-
-void Log::Write(unsigned char v) {
-	m_impl << v;
-}
-
-void Log::Write(short v) {
-	m_impl << v;
-}
-
-void Log::Write(unsigned short v) {
-	m_impl << v;
-}
-
-void Log::Write(int v) {
-	m_impl << v;
-}
-
-void Log::Write(unsigned int v) {
-	m_impl << v;
-}
-
-void Log::Write(long v) {
-	m_impl << v;
-}
-
-void Log::Write(unsigned long v) {
-	m_impl << v;
-}
-
-void Log::Write(long long v) {
-	m_impl << v;
-}
-
-void Log::Write(unsigned long long v) {
-	m_impl << v;
-}
-
-void Log::Write(float v) {
-	m_impl << v;
-}
-
-void Log::Write(double v) {
-	m_impl << v;
-}
-
-void Log::Write(long double v) {
-	m_impl << v;
-}
-
-void Log::Write(std::string_view v) {
-	m_impl << v;
-}
-
-void Log::Write(const char* v) {
-	m_impl << v;
+bool Log::BeginPayload() {
+	return true;
 }
 
 void Log::Write(std::wstring_view v) {
+	if (!BeginPayload())
+		return;
 	m_impl << v;
 }
 
 void Log::Write(const wchar_t* v) {
+	if (!BeginPayload())
+		return;
 	m_impl << v;
 }
 
 void Log::Write(std::span<const std::byte> v) {
+	if (!BeginPayload())
+		return;
 	m_impl << v;
 }
 
@@ -221,36 +176,36 @@ StormByte::Logger::Color Log::Color(const Level& level) const {
 	return m_impl->Color(m_scope_path, level);
 }
 
-Log& Log::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
-	m_impl->Color(component, level, color);
+Log& Log::Color(std::string_view component, const Level& level, const StormByte::Logger::Color& color) {
+	m_impl->Color(std::string{component}, level, color);
 	return *this;
 }
 
-StormByte::Logger::Color Log::Color(const std::string& component, const Level& level) const {
-	return m_impl->Color(component, level);
+StormByte::Logger::Color Log::Color(std::string_view component, const Level& level) const {
+	return m_impl->Color(std::string{component}, level);
 }
 
-Log& Log::Format(const std::string& format) {
+Log& Log::Format(std::string_view format) {
 	if (m_scope_path.empty())
-		m_impl->Format(format);
+		m_impl->Format(std::string{format});
 	else
-		m_impl->Format(m_scope_path, format);
+		m_impl->Format(m_scope_path, std::string{format});
 	return *this;
 }
 
-const std::string& Log::Format() const {
+StormByte::String::String Log::Format() const {
 	if (m_scope_path.empty())
-		return m_impl->Format();
-	return static_cast<const Implementation&>(*m_impl).Format(m_scope_path);
+		return CopyFormat(m_impl->Format());
+	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(m_scope_path));
 }
 
-Log& Log::Format(const std::string& component, const std::string& format) {
-	m_impl->Format(component, format);
+Log& Log::Format(std::string_view component, std::string_view format) {
+	m_impl->Format(std::string{component}, std::string{format});
 	return *this;
 }
 
-const std::string& Log::Format(const std::string& component) const {
-	return static_cast<const Implementation&>(*m_impl).Format(component);
+StormByte::String::String Log::Format(std::string_view component) const {
+	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(std::string{component}));
 }
 
 Log& Log::Throttle(const ThrottleSpec& spec) {
@@ -393,3 +348,21 @@ bool Log::LineDecided() const noexcept {
 bool Log::LineAdmitted() const noexcept {
 	return m_impl->LineAdmitted();
 }
+
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<bool>(const bool& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<char>(const char& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<signed char>(const signed char& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<unsigned char>(const unsigned char& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<short>(const short& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<unsigned short>(const unsigned short& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<int>(const int& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<unsigned int>(const unsigned int& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<long>(const long& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<unsigned long>(const unsigned long& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<long long>(const long long& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<unsigned long long>(const unsigned long long& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<float>(const float& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<double>(const double& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<long double>(const long double& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<std::string_view>(const std::string_view& v);
+template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<const char*>(const char* const& v);
