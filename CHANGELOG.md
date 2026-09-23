@@ -22,6 +22,10 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
+[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/2.0.0...HEAD
+
+## [2.0.0] - 2026-09-23
+
 ### Added
 
 - `operator<<` on `Log` and `ThreadedLog` for `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString` and `StormByte::Size`. Conversion and copy run only when `WillWrite()` is true.
@@ -35,10 +39,12 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
 - **Breaking:** `ThrottleSpec::Component` and `ThrottleSpec::Group` are `std::optional<StormByte::String::String>`.
 - **Breaking:** ill-formed wide text is written as U+FFFD (`EF BF BD`). Logger does not throw `StormByte::UTF8Error` on that path.
+- `Log::m_scope_path` is `StormByte::String::String` so a copied or derived `Log` does not carry `std::string` across a DLL boundary.
+- Numeric and narrow-text payloads share `Log::WriteValue`; `ThreadedLog` only overrides `BeginPayload` for those payloads.
 - `StormByte::Base64Encode` returns `CString` (Base 2.0.0). Binary-span default output is unchanged for the reader.
 - **License:** original Logger sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
 
-[Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...HEAD
+[2.0.0]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...2.0.0
 
 ## [1.2.0] - 2026-09-17
 
