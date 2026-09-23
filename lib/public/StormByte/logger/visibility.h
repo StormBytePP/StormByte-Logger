@@ -44,12 +44,18 @@
 
 #ifdef WINDOWS
 	#ifdef StormByte_Logger_EXPORTS
-		#define STORMBYTE_LOGGER_PUBLIC	__declspec(dllexport)
-  	#else
-      	#define STORMBYTE_LOGGER_PUBLIC	__declspec(dllimport)
-  	#endif
-  	#define STORMBYTE_LOGGER_PRIVATE
+		#define STORMBYTE_LOGGER_PUBLIC			__declspec(dllexport)
+		#define STORMBYTE_LOGGER_INSTANTIATE	__declspec(dllexport)
+	#elifdef STORMBYTE_LOGGER_SHARED
+		#define STORMBYTE_LOGGER_PUBLIC			__declspec(dllimport)
+		#define STORMBYTE_LOGGER_INSTANTIATE
+	#else
+		#define STORMBYTE_LOGGER_PUBLIC
+		#define STORMBYTE_LOGGER_INSTANTIATE
+	#endif
+	#define STORMBYTE_LOGGER_PRIVATE
 #else
-    #define STORMBYTE_LOGGER_PUBLIC		__attribute__ ((visibility ("default")))
-    #define STORMBYTE_LOGGER_PRIVATE	__attribute__ ((visibility ("hidden")))
+	#define STORMBYTE_LOGGER_PUBLIC				__attribute__((visibility("default")))
+	#define STORMBYTE_LOGGER_PRIVATE			__attribute__((visibility("hidden")))
+	#define STORMBYTE_LOGGER_INSTANTIATE
 #endif
