@@ -281,8 +281,10 @@ std::string Engine::CurrentTime() const noexcept {
 	}
 }
 
-Engine::Engine(std::ostream& out, const Level& level, const std::string& format):
-	m_out(out),
+Engine::Engine(SinkWrite write, SinkManip manip, void* context, const Level& level, const std::string& format):
+	m_write(write),
+	m_manip(manip),
+	m_context(context),
 	m_print_level(level),
 	m_current_level(std::nullopt),
 	m_enabled(true),
@@ -384,7 +386,7 @@ const std::string& Engine::Format(const std::string& component) const noexcept {
 void Engine::Format(const std::string& format) {
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out << std::endl;
+		sink_manip(std::endl);
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -403,7 +405,7 @@ void Engine::Format(const std::string& component, const std::string& format) {
 
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out << std::endl;
+		sink_manip(std::endl);
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -467,7 +469,7 @@ void Engine::FlushThrottle(const ThrottleSpec& filter) {
 	const auto saved = t_line;
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out.put('\n');
+		sink_char('\n');
 		reset_line_state();
 	}
 
@@ -487,9 +489,11 @@ void Engine::FlushThrottle(const ThrottleSpec& filter) {
 		BeginOutputLine();
 		print_header();
 		sync_content_color();
-		m_out << "dropped " << dropped << " messages";
+		sink_write("dropped ");
+		sink_write(std::to_string(dropped));
+		sink_write(" messages");
 		reset_color();
-		m_out.put('\n');
+		sink_char('\n');
 		reset_line_state();
 	};
 
@@ -572,7 +576,7 @@ bool Engine::HasOpenOutputLine() const noexcept {
 void Engine::BeginOutputLine() noexcept {
 	if (t_line.close_before_header) {
 		reset_color();
-		m_out.put('\n');
+		sink_char('\n');
 		t_line.close_before_header = false;
 		t_line.header_displayed = false;
 	}
@@ -584,7 +588,7 @@ void Engine::close_deferred_line() noexcept {
 	if (!t_line.close_before_header)
 		return;
 	reset_color();
-	m_out.put('\n');
+	sink_char('\n');
 	t_line.close_before_header = false;
 	t_line.header_displayed = false;
 }
@@ -599,9 +603,11 @@ void Engine::write_drop_summary() noexcept {
 		return;
 	print_header();
 	sync_content_color();
-	m_out << "dropped " << t_line.dropped << " messages";
+	sink_write("dropped ");
+	sink_write(std::to_string(t_line.dropped));
+	sink_write(" messages");
 	reset_color();
-	m_out.put('\n');
+	sink_char('\n');
 	t_line.dropped = 0;
 }
 
@@ -628,7 +634,7 @@ Engine& Engine::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 			write_drop_summary();
 			reset_color();
 			if (t_line.admitted)
-				m_out << manip;
+				sink_manip(manip);
 		}
 
 		t_line.header_displayed = false;
@@ -640,7 +646,7 @@ Engine& Engine::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	}
 
 	if (Enabled())
-		m_out << manip;
+		sink_manip(manip);
 	return *this;
 }
 
@@ -667,7 +673,7 @@ Engine& Engine::operator<<(NoColorManip) noexcept {
 Engine& Engine::operator<<(FormatManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out << std::endl;
+		sink_manip(std::endl);
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -684,7 +690,7 @@ Engine& Engine::operator<<(PopFormatManip) noexcept {
 		return *this;
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out << std::endl;
+		sink_manip(std::endl);
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -699,7 +705,7 @@ Engine& Engine::operator<<(PopFormatManip) noexcept {
 Engine& Engine::operator<<(GroupManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
-		m_out << std::endl;
+		sink_manip(std::endl);
 		t_line.header_displayed = false;
 		m_content_color.reset();
 		m_content_nocolor = false;
@@ -728,19 +734,21 @@ Engine& Engine::operator<<(ResetComponentManip) {
 }
 
 void Engine::print_time() const noexcept {
-	m_out << CurrentTime();
+	sink_write(CurrentTime());
 }
 
 void Engine::print_level() const noexcept {
 	constexpr std::size_t fixed_width = 8;
 	const std::string level_str = LevelToString(t_line.decided ? t_line.level : t_level.value_or(m_print_level));
-	m_out << level_str;
+	sink_write(level_str);
 	for (std::size_t i = level_str.size(); i < fixed_width; ++i)
-		m_out.put(' ');
+		sink_char(' ');
 }
 
 void Engine::print_thread_id() const noexcept {
-	m_out << std::this_thread::get_id();
+	std::ostringstream id;
+	id << std::this_thread::get_id();
+	sink_write(id.str());
 }
 
 void Engine::print_header() noexcept {
@@ -753,15 +761,15 @@ void Engine::print_header() noexcept {
 			const char spec = fmt[i + 1];
 			switch (spec) {
 				case '%':
-					m_out.put('%');
+					sink_char('%');
 					++i;
 					break;
 				case 'L': {
 					const Level lvl = t_line.decided ? t_line.level : t_level.value_or(m_print_level);
 					std::string level_str = LevelToString(lvl);
-					m_out << level_str;
+					sink_write(level_str);
 					for (std::size_t p = level_str.size(); p < fixed_width; ++p)
-						m_out.put(' ');
+						sink_char(' ');
 					++i;
 					break;
 				}
@@ -775,23 +783,23 @@ void Engine::print_header() noexcept {
 					++i;
 					break;
 				case 'g':
-					m_out << (t_line.decided ? t_line.group : t_group);
+					sink_write(t_line.decided ? t_line.group : t_group);
 					++i;
 					break;
 				case 'c':
-					m_out << component;
+					sink_write(component);
 					++i;
 					break;
 				default:
-					m_out.put('%');
+					sink_char('%');
 					break;
 			}
 		} else {
-			m_out.put(fmt[i]);
+			sink_char(fmt[i]);
 		}
 	}
 
-	m_out.put(' ');
+	sink_char(' ');
 }
 
 void Engine::sync_content_color() noexcept {
@@ -810,19 +818,19 @@ void Engine::emit_color(const StormByte::Logger::Color color) noexcept {
 	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
 		return;
 	if (m_active_color) {
-		m_out << "\033[0m";
+		sink_write("\033[0m");
 		m_active_color.reset();
 	}
 
 	if (color != StormByte::Logger::Color::Default) {
-		m_out << AnsiColor(color);
+		sink_write(AnsiColor(color));
 		m_active_color = color;
 	}
 }
 
 void Engine::reset_color() noexcept {
 	if (m_active_color) {
-		m_out << "\033[0m";
+		sink_write("\033[0m");
 		m_active_color.reset();
 	}
 }

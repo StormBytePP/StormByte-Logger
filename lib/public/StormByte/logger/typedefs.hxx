@@ -42,7 +42,7 @@
 
 #include <StormByte/logger/visibility.h>
 
-#include <string>
+#include <ostream>
 
 /**
  * @namespace StormByte::Logger
@@ -111,4 +111,19 @@ namespace StormByte::Logger {
 			default:				return "Error";
 		}
 	}
+
+	/**
+	 * @brief Caller-side write of raw bytes into the sink.
+	 *
+	 * The function runs in the module that created the logger, not in this DLL.
+	 */
+	using SinkWrite = void (*)(void* context, const char* data, std::size_t size);
+
+	/**
+	 * @brief Caller-side application of an `std::ostream` manipulator.
+	 *
+	 * Used for `std::endl` and any other stream manipulator. The call happens
+	 * in the module that owns the stream.
+	 */
+	using SinkManip = void (*)(void* context, std::ostream& (*manip)(std::ostream&));
 }

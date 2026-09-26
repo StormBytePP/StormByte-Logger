@@ -123,11 +123,13 @@ namespace StormByte::Logger {
 		public:
 			/**
 			 * @brief Construct the internal logger implementation.
-			 * @param out Output stream to write log messages to.
+			 * @param write Caller function that receives raw bytes.
+			 * @param manip Caller function that applies an ostream manipulator.
+			 * @param context Opaque pointer passed back to @p write and @p manip. Not owned.
 			 * @param level Initial minimum Level that will be emitted.
 			 * @param format Header format string (%L, %T, %i, %c, %g, %%).
 			 */
-			Engine(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+			Engine(SinkWrite write, SinkManip manip, void* context, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
 			Engine(const Engine&) = delete;
 
@@ -214,9 +216,9 @@ namespace StormByte::Logger {
 					return;
 				sync_content_color();
 				if (m_redact_active)
-					m_out << ApplyRedact(text, m_redact_count, m_redact_keep_first);
+					sink_write(ApplyRedact(text, m_redact_count, m_redact_keep_first));
 				else
-					m_out << text;
+					sink_write(text);
 			}
 
 			/**
@@ -460,7 +462,39 @@ namespace StormByte::Logger {
 			}
 
 		private:
-			std::ostream& m_out;										///< Output stream
+			/**
+			 * @brief Hand bytes to the caller sink. Empty text is a no-op.
+			 * @param text Bytes to write.
+			 */
+			void sink_write(std::string_view text) const noexcept {
+				if (m_write == nullptr || text.empty())
+					return;
+				m_write(m_context, text.data(), text.size());
+			}
+
+			/**
+			 * @brief Hand one byte to the caller sink.
+			 * @param c Byte to write.
+			 */
+			void sink_char(char c) const noexcept {
+				if (m_write == nullptr)
+					return;
+				m_write(m_context, &c, 1);
+			}
+
+			/**
+			 * @brief Apply a stream manipulator in the caller.
+			 * @param manip Manipulator, for example `std::endl`.
+			 */
+			void sink_manip(std::ostream& (*manip)(std::ostream&)) const noexcept {
+				if (m_manip == nullptr || manip == nullptr)
+					return;
+				m_manip(m_context, manip);
+			}
+
+			SinkWrite m_write = nullptr;									///< Caller write callback
+			SinkManip m_manip = nullptr;									///< Caller manipulator callback
+			void* m_context = nullptr;									///< Opaque sink, not owned
 			Level m_print_level;										///< Minimum level that will be printed
 			std::optional<Level> m_current_level;								///< Level of the current message
 			std::atomic<bool> m_enabled;									///< Whether the current level is enabled
@@ -568,9 +602,9 @@ namespace StormByte::Logger {
 					payload = formatted;
 				}
 				if (m_redact_active)
-					m_out << ApplyRedact(payload, m_redact_count, m_redact_keep_first);
+					sink_write(ApplyRedact(payload, m_redact_count, m_redact_keep_first));
 				else
-					m_out << payload;
+					sink_write(payload);
 			}
 
 			/**

@@ -71,11 +71,12 @@ namespace StormByte::Logger {
 		public:
 			/**
 			 * @brief Construct a ThreadedLog writing to out.
-			 * @param out Output stream.
+			 * @param out Output stream. Must outlive this logger.
 			 * @param level Minimum Level that will be emitted.
 			 * @param format Header format string (%L, %T, %i, %c, %g).
 			 */
-			ThreadedLog(std::ostream& out, const Level& level = Level::Info, std::string_view format = "[%L] %T");
+			ThreadedLog(std::ostream& out, const Level& level = Level::Info, std::string_view format = "[%L] %T")
+				: ThreadedLog(&OStreamWrite, &OStreamManip, &out, level, format) {}
 
 			/**
 			 * @brief Copy constructor.
@@ -385,6 +386,17 @@ namespace StormByte::Logger {
 			 * @param manip Pop-format manipulator.
 			 */
 			void Write(PopFormatManip manip) override;
+
+		protected:
+			/**
+			 * @brief Construct a threaded logger that emits through caller callbacks.
+			 * @param write Receives raw bytes.
+			 * @param manip Applies an ostream manipulator in the caller.
+			 * @param context Passed back to the callbacks. Not owned.
+			 * @param level Minimum Level that will be emitted.
+			 * @param format Header format string.
+			 */
+			ThreadedLog(SinkWrite write, SinkManip manip, void* context, const Level& level, std::string_view format);
 
 		private:
 			std::shared_ptr<ThreadLock> m_lock;	///< Shared line lock (copy and Scope share it)

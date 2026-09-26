@@ -82,8 +82,8 @@ namespace {
 	}
 }
 
-ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, std::string_view format):
-	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
+ThreadedLog::ThreadedLog(SinkWrite write, SinkManip manip, void* context, const Level& level, std::string_view format):
+	Log(write, manip, context, level, format), m_lock(std::make_shared<ThreadLock>()) {}
 
 Log::PointerType ThreadedLog::Clone() const {
 	return PointerType::MakePointer<ThreadedLog>(*this);
