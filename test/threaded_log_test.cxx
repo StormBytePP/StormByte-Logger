@@ -713,7 +713,7 @@ int test_threadedlog_scope_is_threadedlog_and_concurrent() {
 	std::ostringstream output;
 	auto root = std::make_shared<ThreadedLog>(output, Level::Info, "%c %L:");
 	auto scoped = root->Scope("Buffer/Pipeline");
-	ASSERT_TRUE("Scope preserves ThreadedLog", std::dynamic_pointer_cast<ThreadedLog>(scoped) != nullptr);
+	ASSERT_TRUE("Scope preserves ThreadedLog", dynamic_cast<ThreadedLog*>(scoped.get()) != nullptr);
 	constexpr int kThreads = 12;
 	constexpr int kLines = 64;
 	std::vector<std::thread> workers;
