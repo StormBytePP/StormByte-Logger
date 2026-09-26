@@ -46,6 +46,7 @@ If you landed here from a release link and have not read the tree:
 - **License:** original Logger sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
 - **Breaking:** with `hex(N)` active, `std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` are formatted with `BinaryData::HexDump(N)`. Text, wide text and numbers still use the `0xAA` dump. Without `hex`, binary payloads stay Base64.
 - **Breaking:** `Logger::Exception` takes `Exception::Path{"Logger"}`. `what()` is `StormByte.Logger: message`. `Component` is gone. `ThrottleError` is a leaf and adds no segment. Destructors are defined in this module.
+- **Breaking:** `Log` is `Clonable<Log>`, so `Clone`, `Move` and `Scope` return `StormByte::Shared<Log>` allocated on Base's heap. `std::shared_ptr<Log>` is no longer a `PointerType`. `Shared` still converts to `std::shared_ptr<Log>` and keeps Base's deleter. The same applies to `ThreadedLog`.
 
 [2.0.0]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...2.0.0
 

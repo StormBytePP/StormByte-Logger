@@ -84,11 +84,11 @@ ThreadedLog::ThreadedLog(std::ostream& out, const Level& level, std::string_view
 	Log(out, level, format), m_lock(std::make_shared<ThreadLock>()) {}
 
 Log::PointerType ThreadedLog::Clone() const {
-	return std::make_shared<ThreadedLog>(*this);
+	return PointerType::MakePointer<ThreadedLog>(*this);
 }
 
 Log::PointerType ThreadedLog::Move() {
-	return std::make_shared<ThreadedLog>(*this);
+	return PointerType::MakePointer<ThreadedLog>(*this);
 }
 
 bool ThreadedLog::BeginPayload() {

@@ -291,13 +291,13 @@ namespace StormByte::Logger {
 
 		protected:
 			/**
-			 * @brief Deep-copy this facade into a shared_ptr.
+			 * @brief Deep-copy this facade into a @ref StormByte::Shared.
 			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
 			 */
 			PointerType Clone() const override;
 
 			/**
-			 * @brief Move this facade into a shared_ptr.
+			 * @brief Move this facade into a @ref StormByte::Shared.
 			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
 			 */
 			PointerType Move() override;
