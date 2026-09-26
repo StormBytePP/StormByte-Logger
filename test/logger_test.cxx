@@ -1106,14 +1106,14 @@ int test_throttle_rejects_invalid_specs() {
 	bool threw = false;
 	try { log.Throttle(spec); } catch (const StormByte::Logger::ThrottleError& ex) {
 		threw = true;
-		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte::Logger:") == 0);
+		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte.Logger:") == 0);
 	}
 	ASSERT_TRUE("test_throttle_rejects_invalid_specs (negative rate)", threw);
 	spec = {};
 	spec.Rate = 1.0;
 	try { log.Throttle(spec); } catch (const StormByte::Logger::ThrottleError& ex) {
 		threw = true;
-		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte::Logger:") == 0);
+		ASSERT_TRUE("test_throttle_rejects_invalid_specs (component)", std::string(ex.what()).find("StormByte.Logger:") == 0);
 	}
 	ASSERT_TRUE("test_throttle_rejects_invalid_specs (zero burst)", threw);
 	spec = {};
