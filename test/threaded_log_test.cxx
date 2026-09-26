@@ -82,6 +82,15 @@ int test_smart_pointer_usage() {
 	RETURN_TEST("test_smart_pointer_usage", result);
 }
 
+int test_shared_unwraps_without_dereference() {
+	int result = 0;
+	std::ostringstream output;
+	StormByte::Shared<ThreadedLog> log = StormByte::Shared<ThreadedLog>::MakePointer<ThreadedLog>(output, Level::Info, "%L:");
+	log << Level::Info << "Hola" << std::endl;
+	ASSERT_EQUAL("test_shared_unwraps_without_dereference", "Info    : Hola\n", output.str());
+	RETURN_TEST("test_shared_unwraps_without_dereference", result);
+}
+
 int test_threadedlog_basic() {
 	int result = 0;
 	std::ostringstream output;
@@ -968,6 +977,7 @@ int main() {
 	// Basic emit
 	// -------------------
 	result += test_smart_pointer_usage();
+	result += test_shared_unwraps_without_dereference();
 	result += test_threadedlog_basic();
 
 	// -------------------

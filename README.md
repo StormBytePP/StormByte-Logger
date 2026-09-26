@@ -172,7 +172,12 @@ tlog << Level::Notice << "opened source /tmp/in.mkv" << std::endl;
 tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
 ```
 
-`operator<<` unpacks `std::shared_ptr` / `std::unique_ptr` and `StormByte::Shared` / `StormByte::Unique` whose element type derives from `Log` (`Log` and `ThreadedLog`). `*tlog <<` still works.
+`operator<<` unpacks `std::shared_ptr` / `std::unique_ptr` and `StormByte::Shared` / `StormByte::Unique` whose element type derives from `Log` (`Log` and `ThreadedLog`). `*tlog <<` still works, and so does `tlog <<` on those owners:
+
+```cpp
+StormByte::Shared<ThreadedLog> log = StormByte::Shared<ThreadedLog>::MakePointer<ThreadedLog>(std::cout);
+log << Level::Info << "Hola" << std::endl;
+```
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
