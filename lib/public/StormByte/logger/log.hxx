@@ -46,7 +46,6 @@
 #include <StormByte/cstring.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/typedefs.hxx>
-#include <StormByte/platform.h>
 #include <StormByte/size.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/string/wstring.hxx>
@@ -374,7 +373,7 @@ namespace StormByte::Logger {
 			 * @return Reference to this logger.
 			 */
 			template <typename T>
-			STORMBYTE_FORCE_INLINE Log& operator<<(const T& v)
+			inline Log& operator<<(const T& v)
 			requires (
 				(StormByte::Type::Arithmetic<std::decay_t<T>> && !StormByte::Type::SameAs<std::decay_t<T>, wchar_t>)
 				|| StormByte::Type::SameAs<std::decay_t<T>, std::string_view>
@@ -397,7 +396,7 @@ namespace StormByte::Logger {
 			 * @param v Buffer owned by Base. Copied into the line buffer.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::CString& v) {
+			inline Log& operator<<(const StormByte::CString& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				WriteValue(static_cast<std::string_view>(v));
@@ -409,7 +408,7 @@ namespace StormByte::Logger {
 			 * @param v Text owned by String. Copied into the line buffer.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::String::String& v) {
+			inline Log& operator<<(const StormByte::String::String& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				WriteValue(static_cast<std::string_view>(v));
@@ -421,7 +420,7 @@ namespace StormByte::Logger {
 			 * @param v Wide text to write.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(std::wstring_view v) {
+			inline Log& operator<<(std::wstring_view v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(v);
@@ -433,7 +432,7 @@ namespace StormByte::Logger {
 			 * @param v Text to write; may be null.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const wchar_t* v) {
+			inline Log& operator<<(const wchar_t* v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(v);
@@ -445,7 +444,7 @@ namespace StormByte::Logger {
 			 * @param v Buffer owned by Base. Copied into the line buffer.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::WCString& v) {
+			inline Log& operator<<(const StormByte::WCString& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(static_cast<std::wstring_view>(v));
@@ -457,7 +456,7 @@ namespace StormByte::Logger {
 			 * @param v Text owned by String. Copied into the line buffer.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::String::WString& v) {
+			inline Log& operator<<(const StormByte::String::WString& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(static_cast<std::wstring_view>(v));
@@ -469,7 +468,7 @@ namespace StormByte::Logger {
 			 * @param v Contiguous bytes. std::vector<std::byte> converts to this span.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(std::span<const std::byte> v) {
+			inline Log& operator<<(std::span<const std::byte> v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(v);
@@ -481,7 +480,7 @@ namespace StormByte::Logger {
 			 * @param v BinaryData. Same contract as a byte span: Base64, or HexDump when hex is active.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::BinaryData& v) {
+			inline Log& operator<<(const StormByte::BinaryData& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				Write(static_cast<std::span<const std::byte>>(v));
@@ -493,7 +492,7 @@ namespace StormByte::Logger {
 			 * @param v Size. Uses Size::operator std::string.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::Size& v) {
+			inline Log& operator<<(const StormByte::Size& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				const std::string text = static_cast<std::string>(v);
@@ -506,7 +505,7 @@ namespace StormByte::Logger {
 			 * @param v ByteSize. Uses ByteSize::operator std::string.
 			 * @return Reference to this logger.
 			 */
-			STORMBYTE_FORCE_INLINE Log& operator<<(const StormByte::ByteSize& v) {
+			inline Log& operator<<(const StormByte::ByteSize& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				const std::string text = static_cast<std::string>(v);
