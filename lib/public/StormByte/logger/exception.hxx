@@ -54,35 +54,55 @@
 namespace StormByte::Logger {
 	/**
 	 * @class Exception
-	 * @brief Root exception for Logger errors.
+	 * @brief Root exception for Logger. `what()` is `StormByte.Logger: message`.
+	 *
+	 * Forwards the format and the arguments. Does not format. A child segment
+	 * is prepended under `Logger`.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Exception: public StormByte::Exception {
 		public:
-			/** @brief Construct with an unformatted message. */
-			explicit Exception(const std::string& message):
-				StormByte::Exception(StormByte::Component{"Logger"}, "{}", message) {}
-
-			/** @brief Construct with a moved message. */
-			explicit Exception(std::string&& message):
-				StormByte::Exception(StormByte::Component{"Logger"}, "{}", std::move(message)) {}
-
 			/**
-			 * @brief Construct with a formatted message.
+			 * @brief Format under `StormByte.Logger`.
 			 * @tparam Args Format argument types.
 			 * @param fmt Format string.
 			 * @param args Format arguments.
 			 */
 			template <typename... Args>
-			Exception(std::format_string<Args...> fmt, Args&&... args):
-				StormByte::Exception(StormByte::Component{"Logger"}, fmt, std::forward<Args>(args)...) {}
+			explicit Exception(std::format_string<Args...> fmt, Args&&... args)
+				: StormByte::Exception(StormByte::Exception::Path{"Logger"}, fmt, std::forward<Args>(args)...) {}
+
+			/**
+			 * @brief Destructor. Defined in this module so `catch` matches across a DLL.
+			 */
+			~Exception() noexcept override;
+
+		protected:
+			/**
+			 * @brief Format under `StormByte.Logger.<child>`.
+			 * @tparam Args Format argument types.
+			 * @param child Segment under `Logger`.
+			 * @param fmt Format string.
+			 * @param args Format arguments.
+			 */
+			template <typename... Args>
+			explicit Exception(StormByte::Exception::Path child, std::format_string<Args...> fmt, Args&&... args)
+				: StormByte::Exception(
+					StormByte::Exception::Path{std::string("Logger.") + std::string(child.text)},
+					fmt,
+					std::forward<Args>(args)...) {}
 	};
 
 	/**
 	 * @class ThrottleError
-	 * @brief Thrown when a throttle rule is invalid.
+	 * @brief Thrown when a throttle rule is invalid. Leaf: no extra segment.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThrottleError: public Exception {
 		public:
 			using Exception::Exception;
+
+			/**
+			 * @brief Destructor. Defined in this module so `catch` matches across a DLL.
+			 */
+			~ThrottleError() noexcept override;
 	};
 }

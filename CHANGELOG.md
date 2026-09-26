@@ -22,17 +22,9 @@ If you landed here from a release link and have not read the tree:
 
 ## [Unreleased]
 
-### Added
-
-- `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
-
-### Changed
-
-- **Breaking:** with `hex(N)` active, `std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` are formatted with `BinaryData::HexDump(N)`. Text, wide text and numbers still use the `0xAA` dump. Without `hex`, binary payloads stay Base64.
-
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/2.0.0...HEAD
 
-## [2.0.0] - 2026-09-23
+## [2.0.0] - 2026-09-26
 
 ### Added
 
@@ -40,6 +32,7 @@ If you landed here from a release link and have not read the tree:
 - `component`, `group` and `push_format` accept `std::string_view` (literals) in the caller and `StormByte::String::String` by value at the DLL boundary. Manipulator payloads are owned `String`.
 - Private `StormByte::Logger::Detail` human-readable number and IEC byte formatting (the manipulator API is unchanged; this logic no longer lives in String).
 - Tests for owned-text payloads, filtered drop of owned text, `Size`, and ill-formed wide input substituted as U+FFFD.
+- `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
 
 ### Changed
 
@@ -51,6 +44,8 @@ If you landed here from a release link and have not read the tree:
 - Numeric and narrow-text payloads share `Log::WriteValue`; `ThreadedLog` only overrides `BeginPayload` for those payloads.
 - `StormByte::Base64Encode` returns `CString` (Base 2.0.0). Binary-span default output is unchanged for the reader.
 - **License:** original Logger sources are dual-licensed LGPL-3.0-or-later or commercial. Third-party trees under `thirdparty/` keep their own licenses. Neither license grants patent rights.
+- **Breaking:** with `hex(N)` active, `std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` are formatted with `BinaryData::HexDump(N)`. Text, wide text and numbers still use the `0xAA` dump. Without `hex`, binary payloads stay Base64.
+- **Breaking:** `Logger::Exception` takes `Exception::Path{"Logger"}`. `what()` is `StormByte.Logger: message`. `Component` is gone. `ThrottleError` is a leaf and adds no segment. Destructors are defined in this module.
 
 [2.0.0]: https://github.com/StormBytePP/StormByte-Logger/compare/1.2.0...2.0.0
 
