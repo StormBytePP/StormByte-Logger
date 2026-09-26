@@ -95,17 +95,17 @@ namespace StormByte::Logger {
 			~ThreadedLog() noexcept override;
 
 			/**
-			 * @brief Copy assignment.
+			 * @brief Copy assignment. Defined out of line so the previous line lock is released inside the DLL.
 			 * @return Reference to this logger.
 			 * @note Shares the Engine and the line lock.
 			 */
-			ThreadedLog& operator=(const ThreadedLog&) = default;
+			ThreadedLog& operator=(const ThreadedLog&);
 
 			/**
-			 * @brief Move assignment.
+			 * @brief Move assignment. Defined out of line so the previous line lock is released inside the DLL.
 			 * @return Reference to this logger.
 			 */
-			ThreadedLog& operator=(ThreadedLog&&) noexcept = default;
+			ThreadedLog& operator=(ThreadedLog&&) noexcept;
 
 			/**
 			 * @brief Set a level color while holding the line lock.
