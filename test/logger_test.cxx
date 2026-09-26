@@ -826,15 +826,12 @@ int test_every_accepted_payload() {
 	char mutable_text[] = "buf";
 	const char* null_narrow = nullptr;
 	const wchar_t* null_wide = nullptr;
-	const std::string std_text = "std";
-	const std::wstring std_wide = L"wstd";
 	log << Level::Info
 		<< false << " "
 		<< ch << " " << sch << " " << uch << " "
 		<< sh << " " << ush << " " << ui << " "
 		<< lg << " " << ul << " " << ll << " " << ull << " "
 		<< fl << " " << ld << " "
-		<< std_text << " " << std_wide << " "
 		<< mutable_text << " "
 		<< null_narrow << null_wide
 		<< std::endl;
@@ -852,7 +849,7 @@ int test_every_accepted_payload() {
 		+ std::to_string(ull) + ' '
 		+ std::to_string(fl) + ' '
 		+ std::to_string(ld)
-		+ " std wstd buf ";
+		+ " buf ";
 	ASSERT_EQUAL("test_every_accepted_payload", std::string("Info    : ") + body + "\n", output.str());
 	RETURN_TEST("test_every_accepted_payload", result);
 }

@@ -40,8 +40,9 @@
 
 #pragma once
 
+#include <StormByte/type_traits.hxx>
+
 #include <string>
-#include <type_traits>
 
 /**
  * @namespace StormByte
@@ -76,7 +77,7 @@ namespace StormByte {
 			 * @return Formatted text.
 			 */
 			template<typename T>
-			requires std::is_arithmetic_v<T> && (!std::is_same_v<T, wchar_t>)
+			requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 			std::string FormatNumber(const T& number, const std::string& locale) noexcept;
 
 			/**
@@ -87,7 +88,7 @@ namespace StormByte {
 			 * @return Formatted text.
 			 */
 			template<typename T>
-			requires std::is_arithmetic_v<T>
+			requires StormByte::Type::Arithmetic<T>
 			std::string FormatBytes(const T& bytes, const std::string& locale) noexcept;
 
 			/**
@@ -99,7 +100,7 @@ namespace StormByte {
 			 * @return Formatted text.
 			 */
 			template<typename T>
-			requires std::is_arithmetic_v<T> && (!std::is_same_v<T, wchar_t>)
+			requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 			std::string FormatHuman(const T& number, HumanReadable mode, const std::string& locale = "en_US.UTF-8") noexcept {
 				switch (mode) {
 					case HumanReadable::Raw:
