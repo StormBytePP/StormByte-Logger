@@ -50,6 +50,8 @@
 #include <StormByte/string/wstring.hxx>
 #include <StormByte/type_traits.hxx>
 
+#include <charconv>
+#include <system_error>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -191,8 +193,9 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Set the emitting facade's sticky component path for the next line.
 			 * @param path Sticky path from Log::Scope; empty uses the thread-local stack.
+			 * Assigned into a reused thread-local buffer. No temporary string.
 			 */
-			void SetFacadePath(std::string path) noexcept;
+			void SetFacadePath(std::string_view path) noexcept;
 
 			/**
 			 * @brief Format raw bytes for a payload (HexDump or Base64). Does not write.
@@ -434,6 +437,24 @@ namespace StormByte::Logger {
 					print_message(value);
 				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::span<const std::byte>>) {
 					WritePrepared(FormatBinary(value));
+				} else if constexpr (
+					StormByte::Type::Integral<DecayedT>
+					&& !StormByte::Type::SameAs<DecayedT, bool>
+					&& !StormByte::Type::SameAs<DecayedT, char>
+					&& !StormByte::Type::SameAs<DecayedT, signed char>
+					&& !StormByte::Type::SameAs<DecayedT, unsigned char>
+					&& !StormByte::Type::SameAs<DecayedT, wchar_t>
+				) {
+					if (m_human_readable_format == Detail::HumanReadable::Raw) {
+						char buf[32];
+						const auto result = std::to_chars(buf, buf + sizeof(buf), value);
+						if (result.ec == std::errc{})
+							write_text(std::string_view{buf, static_cast<std::size_t>(result.ptr - buf)});
+						else
+							write_text(Detail::FormatHuman(value, m_human_readable_format));
+					} else {
+						write_text(Detail::FormatHuman(value, m_human_readable_format));
+					}
 				} else if constexpr (StormByte::Type::Arithmetic<DecayedT>) {
 					write_text(Detail::FormatHuman(value, m_human_readable_format));
 				} else if constexpr (StormByte::Type::SameAs<DecayedT, std::string_view>) {
@@ -616,9 +637,10 @@ namespace StormByte::Logger {
 			}
 
 			/**
-			 * @brief Write the timestamp field.
+			 * @brief Append the timestamp field.
+			 * @param out Buffer that receives the text.
 			 */
-			void print_time() const noexcept;
+			void print_time(std::string& out) const noexcept;
 
 			/**
 			 * @brief Current timestamp text.
@@ -627,14 +649,16 @@ namespace StormByte::Logger {
 			std::string CurrentTime() const noexcept;
 
 			/**
-			 * @brief Write the level field.
+			 * @brief Append the level field, padded to 8 characters.
+			 * @param out Buffer that receives the text.
 			 */
-			void print_level() const noexcept;
+			void print_level(std::string& out) const noexcept;
 
 			/**
-			 * @brief Write the thread-id field.
+			 * @brief Append the thread-id field.
+			 * @param out Buffer that receives the text.
 			 */
-			void print_thread_id() const noexcept;
+			void print_thread_id(std::string& out) const noexcept;
 
 			/**
 			 * @brief Write the header for the current line.
@@ -645,6 +669,13 @@ namespace StormByte::Logger {
 			 * @brief Emit the content color if it changed.
 			 */
 			void sync_content_color() noexcept;
+
+			/**
+			 * @brief Append an ANSI color change and remember it.
+			 * @param out Buffer that receives the sequence.
+			 * @param color Color to select.
+			 */
+			void append_color(std::string& out, StormByte::Logger::Color color) noexcept;
 
 			/**
 			 * @brief Emit an ANSI color.

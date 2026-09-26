@@ -151,8 +151,10 @@ void Log::Write(std::span<const std::byte> v) {
 }
 
 void Log::Write(const Level& level) {
-	m_engine->SetFacadePath(Native(m_scope_path));
 	m_engine << level;
+	if (!WillWrite() && !HasOpenOutputLine())
+		return;
+	m_engine->SetFacadePath(static_cast<std::string_view>(m_scope_path));
 }
 
 void Log::Write(std::ostream& (*manip)(std::ostream&)) {

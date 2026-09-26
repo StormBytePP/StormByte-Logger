@@ -154,6 +154,11 @@ namespace {
 	}
 
 	bool ManipulatorWritesNewline(std::ostream& (*manip)(std::ostream&)) {
+		if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::endl))
+			return true;
+		if (manip == static_cast<std::ostream& (*)(std::ostream&)>(std::ends)
+			|| manip == static_cast<std::ostream& (*)(std::ostream&)>(std::flush))
+			return false;
 		try {
 			std::ostringstream probe;
 			manip(probe);
@@ -302,8 +307,8 @@ Engine::~Engine() noexcept {
 	reset_color();
 }
 
-void Engine::SetFacadePath(std::string path) noexcept {
-	t_facade_path = std::move(path);
+void Engine::SetFacadePath(std::string_view path) noexcept {
+	t_facade_path.assign(path.data(), path.size());
 }
 
 std::shared_ptr<const ThrottleTable> Engine::LoadThrottleTable() const noexcept {
@@ -630,6 +635,10 @@ Engine& Engine::operator<<(const Level& level) noexcept {
 
 Engine& Engine::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	if (ManipulatorWritesNewline(manip)) {
+		// A newline closes the line. The next admitted payload prints a new header.
+		// std::endl is forwarded only when this line is actually emitted, so the
+		// caller flushes and the text shows up at this instant. A filtered or
+		// throttled line never touches the stream: there is nothing to flush.
 		if (Enabled() && PrepareLine()) {
 			write_drop_summary();
 			reset_color();
@@ -733,73 +742,93 @@ Engine& Engine::operator<<(ResetComponentManip) {
 	return *this;
 }
 
-void Engine::print_time() const noexcept {
-	sink_write(CurrentTime());
+void Engine::print_time(std::string& out) const noexcept {
+	out += CurrentTime();
 }
 
-void Engine::print_level() const noexcept {
+void Engine::print_level(std::string& out) const noexcept {
 	constexpr std::size_t fixed_width = 8;
-	const std::string level_str = LevelToString(t_line.decided ? t_line.level : t_level.value_or(m_print_level));
-	sink_write(level_str);
-	for (std::size_t i = level_str.size(); i < fixed_width; ++i)
-		sink_char(' ');
+	const char* const level_str = LevelToString(t_line.decided ? t_line.level : t_level.value_or(m_print_level));
+	out += level_str;
+	const std::size_t length = std::char_traits<char>::length(level_str);
+	if (length < fixed_width)
+		out.append(fixed_width - length, ' ');
 }
 
-void Engine::print_thread_id() const noexcept {
-	std::ostringstream id;
+void Engine::print_thread_id(std::string& out) const noexcept {
+	thread_local std::ostringstream id;
+	id.str({});
+	id.clear();
 	id << std::this_thread::get_id();
-	sink_write(id.str());
+	out += id.str();
 }
 
 void Engine::print_header() noexcept {
+	std::string header;
+	header.reserve(160);
 	const std::string& fmt = effective_format();
-	constexpr std::size_t fixed_width = 8;
 	const auto component = t_line.decided ? t_line.component : CurrentPath();
-	emit_color(Color(component, t_line.level));
+	append_color(header, Color(component, t_line.level));
 	for (std::size_t i = 0; i < fmt.size(); ++i) {
 		if (fmt[i] == '%' && (i + 1) < fmt.size()) {
 			const char spec = fmt[i + 1];
 			switch (spec) {
 				case '%':
-					sink_char('%');
+					header.push_back('%');
 					++i;
 					break;
-				case 'L': {
-					const Level lvl = t_line.decided ? t_line.level : t_level.value_or(m_print_level);
-					std::string level_str = LevelToString(lvl);
-					sink_write(level_str);
-					for (std::size_t p = level_str.size(); p < fixed_width; ++p)
-						sink_char(' ');
+				case 'L':
+					print_level(header);
 					++i;
 					break;
-				}
 
 				case 'T':
-					print_time();
+					print_time(header);
 					++i;
 					break;
 				case 'i':
-					print_thread_id();
+					print_thread_id(header);
 					++i;
 					break;
 				case 'g':
-					sink_write(t_line.decided ? t_line.group : t_group);
+					header += t_line.decided ? t_line.group : t_group;
 					++i;
 					break;
 				case 'c':
-					sink_write(component);
+					header += component;
 					++i;
 					break;
 				default:
-					sink_char('%');
+					header.push_back('%');
 					break;
 			}
 		} else {
-			sink_char(fmt[i]);
+			header.push_back(fmt[i]);
 		}
 	}
 
-	sink_char(' ');
+	header.push_back(' ');
+	sink_write(header);
+}
+
+void Engine::append_color(std::string& out, const StormByte::Logger::Color color) noexcept {
+	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
+		return;
+	if (m_active_color) {
+		out += "\033[0m";
+		m_active_color.reset();
+	}
+
+	if (color != StormByte::Logger::Color::Default) {
+		out += AnsiColor(color);
+		m_active_color = color;
+	}
+}
+
+void Engine::emit_color(const StormByte::Logger::Color color) noexcept {
+	std::string sequence;
+	append_color(sequence, color);
+	sink_write(sequence);
 }
 
 void Engine::sync_content_color() noexcept {
@@ -812,20 +841,6 @@ void Engine::sync_content_color() noexcept {
 		emit_color(*m_content_color);
 	else
 		emit_color(configured);
-}
-
-void Engine::emit_color(const StormByte::Logger::Color color) noexcept {
-	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
-		return;
-	if (m_active_color) {
-		sink_write("\033[0m");
-		m_active_color.reset();
-	}
-
-	if (color != StormByte::Logger::Color::Default) {
-		sink_write(AnsiColor(color));
-		m_active_color = color;
-	}
 }
 
 void Engine::reset_color() noexcept {
