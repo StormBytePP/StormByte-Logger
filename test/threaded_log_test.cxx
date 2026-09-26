@@ -39,6 +39,7 @@
  */
 
 #include <StormByte/base64.hxx>
+#include <StormByte/binary_data.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/test_handlers.h>
 
@@ -120,8 +121,10 @@ int test_threadedlog_span_hex() {
 	std::ostringstream output;
 	ThreadedLog log(output, Level::Info, "%L:");
 	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0xAB}};
+	const StormByte::BinaryData dumped(raw);
 	log << Level::Info << hex << raw << std::endl;
-	ASSERT_EQUAL("test_threadedlog_span_hex", "Info    : 0x01 0xAB\n", output.str());
+	ASSERT_EQUAL("test_threadedlog_span_hex",
+		std::string("Info    : ") + static_cast<std::string>(dumped.HexDump(StormByte::Size{16})) + "\n", output.str());
 	RETURN_TEST("test_threadedlog_span_hex", result);
 }
 

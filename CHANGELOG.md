@@ -11,7 +11,7 @@ StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
 It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network, String or System.
 
-Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64). Owned text that crosses the logger DLL boundary uses `StormByte::String::String` / `WString` and `StormByte::CString` / `WCString`; `StormByte::Size` is accepted as a payload. Views and `std::string` stay on the caller side.
+Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64). Owned text that crosses the logger DLL boundary uses `StormByte::String::String` / `WString` and `StormByte::CString` / `WCString`; `StormByte::Size`, `StormByte::ByteSize` and `StormByte::BinaryData` are accepted as payloads. Views and `std::string` stay on the caller side.
 
 From 2.0.0, original Logger sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
 
@@ -21,6 +21,14 @@ If you landed here from a release link and have not read the tree:
 - License: dual license LGPL-3.0-or-later or commercial, [LICENSE](https://github.com/StormBytePP/StormByte-Logger/blob/master/LICENSE)
 
 ## [Unreleased]
+
+### Added
+
+- `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
+
+### Changed
+
+- **Breaking:** with `hex(N)` active, `std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` are formatted with `BinaryData::HexDump(N)`. Text, wide text and numbers still use the `0xAA` dump. Without `hex`, binary payloads stay Base64.
 
 [Unreleased]: https://github.com/StormBytePP/StormByte-Logger/compare/2.0.0...HEAD
 

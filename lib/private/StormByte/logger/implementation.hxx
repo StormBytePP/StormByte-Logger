@@ -41,9 +41,11 @@
 #pragma once
 
 #include <StormByte/base64.hxx>
+#include <StormByte/binary_data.hxx>
 #include <StormByte/logger/human_readable.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/logger/typedefs.hxx>
+#include <StormByte/size.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/string/wstring.hxx>
 #include <StormByte/type_traits.hxx>
@@ -191,16 +193,15 @@ namespace StormByte::Logger {
 			void SetFacadePath(std::string path) noexcept;
 
 			/**
-			 * @brief Format raw bytes for a payload (hex or Base64). Does not write.
+			 * @brief Format raw bytes for a payload (HexDump or Base64). Does not write.
 			 * @param v Contiguous bytes.
-			 * @return Display string. Hex wraps with raw newlines; Base64 is one line.
+			 * @return Display string. HexDump uses @c m_hex_columns. Base64 is one line.
 			 */
 			std::string FormatBinary(std::span<const std::byte> v) const {
-				if (m_hex_active) {
-					const auto* data = reinterpret_cast<const char*>(v.data());
-					return FormatHex(std::string_view{data, v.size()}, m_hex_columns);
-				}
-				return StormByte::Base64Encode(v);
+				const StormByte::BinaryData data(v);
+				if (m_hex_active)
+					return static_cast<std::string>(data.HexDump(StormByte::Size{m_hex_columns}));
+				return static_cast<std::string>(StormByte::Base64Encode(data));
 			}
 
 			/**
