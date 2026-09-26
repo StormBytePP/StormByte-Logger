@@ -149,17 +149,17 @@ namespace StormByte::Logger {
 			~Log() noexcept override;
 
 			/**
-			 * @brief Copy assignment.
+			 * @brief Copy assignment. Defined out of line so the previous backend is released inside the DLL.
 			 * @return Reference to this logger.
 			 * @note Shares the Engine. Copies the sticky component path.
 			 */
-			Log& operator=(const Log&) = default;
+			Log& operator=(const Log&);
 
 			/**
-			 * @brief Move assignment.
+			 * @brief Move assignment. Defined out of line so the previous backend is released inside the DLL.
 			 * @return Reference to this logger.
 			 */
-			Log& operator=(Log&&) noexcept = default;
+			Log& operator=(Log&&) noexcept;
 
 			/**
 			 * @brief Another facade on the same backend, with a sticky component path.

@@ -50,6 +50,10 @@ using namespace StormByte::Logger;
 
 ThreadedLog::~ThreadedLog() noexcept = default;
 
+ThreadedLog& ThreadedLog::operator=(const ThreadedLog&) = default;
+
+ThreadedLog& ThreadedLog::operator=(ThreadedLog&&) noexcept = default;
+
 namespace {
 	thread_local bool t_line_held = false;
 

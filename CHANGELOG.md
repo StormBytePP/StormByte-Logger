@@ -34,7 +34,7 @@ If you landed here from a release link and have not read the tree:
 - Tests for owned-text payloads, filtered drop of owned text, `Size`, and ill-formed wide input substituted as U+FFFD.
 - `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
 - `operator<<` on `StormByte::Shared` and `StormByte::Unique` of `Log` or `ThreadedLog`, same sugar as `std::shared_ptr`: `log << "Hola"` without a dereference.
-- `~Log` and `~ThreadedLog` are defined in the library, so the backend and the line lock are released inside the DLL.
+- `~Log` and `~ThreadedLog` are defined in the library, so the backend and the line lock are released inside the DLL. Copy and move assignment are too.
 
 ### Changed
 
