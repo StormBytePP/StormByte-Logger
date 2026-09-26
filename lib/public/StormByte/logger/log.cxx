@@ -47,6 +47,8 @@
 
 using namespace StormByte::Logger;
 
+Log::~Log() noexcept = default;
+
 namespace {
 	StormByte::Logger::ThrottleSpec make_spec(const double rate, const std::size_t burst,
 		const StormByte::Logger::ThrottlePolicy policy = StormByte::Logger::ThrottlePolicy::Drop,

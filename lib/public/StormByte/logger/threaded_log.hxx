@@ -89,9 +89,9 @@ namespace StormByte::Logger {
 			ThreadedLog(ThreadedLog&&) noexcept = default;
 
 			/**
-			 * @brief Destructor.
+			 * @brief Destructor. Defined out of line so the line lock is released inside the DLL.
 			 */
-			~ThreadedLog() noexcept override = default;
+			~ThreadedLog() noexcept override;
 
 			/**
 			 * @brief Copy assignment.

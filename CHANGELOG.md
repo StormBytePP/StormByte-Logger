@@ -34,11 +34,13 @@ If you landed here from a release link and have not read the tree:
 - Tests for owned-text payloads, filtered drop of owned text, `Size`, and ill-formed wide input substituted as U+FFFD.
 - `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
 - `operator<<` on `StormByte::Shared` and `StormByte::Unique` of `Log` or `ThreadedLog`, same sugar as `std::shared_ptr`: `log << "Hola"` without a dereference.
+- `~Log` and `~ThreadedLog` are defined in the library, so the backend and the line lock are released inside the DLL.
 
 ### Changed
 
 - **Breaking:** the bundled dependency is [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0), which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). Logger no longer submodules Base directly.
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
+- `LevelToString` returns `const char*` (a string literal) instead of `std::string`. Call sites that store it in a `std::string` are unchanged.
 - **Breaking:** `ThrottleSpec::Component` and `ThrottleSpec::Group` are `std::optional<StormByte::String::String>`.
 - **Breaking:** ill-formed wide text is written as U+FFFD (`EF BF BD`). Logger does not throw `StormByte::UTF8Error` on that path.
 - `Log::m_scope_path` is `StormByte::String::String` so a copied or derived `Log` does not carry `std::string` across a DLL boundary.

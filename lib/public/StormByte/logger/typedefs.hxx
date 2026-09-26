@@ -97,9 +97,9 @@ namespace StormByte::Logger {
 	/**
 	 * @brief Convert a Level to a short name.
 	 * @param l Level to convert.
-	 * @return Name such as "Info" or "Error".
+	 * @return Name such as "Info" or "Error". A string literal, not an owning string.
 	 */
-	constexpr static std::string LevelToString(const Level& l) noexcept {
+	constexpr static const char* LevelToString(const Level& l) noexcept {
 		switch (l) {
 			case Level::LowLevel:	return "LowLevel";
 			case Level::Debug:		return "Debug";
