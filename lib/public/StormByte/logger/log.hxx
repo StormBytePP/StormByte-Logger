@@ -40,6 +40,8 @@
 
 #pragma once
 
+#include <StormByte/binary_data.hxx>
+#include <StormByte/byte_size.hxx>
 #include <StormByte/clonable.hxx>
 #include <StormByte/cstring.hxx>
 #include <StormByte/logger/manipulators.hxx>
@@ -75,9 +77,11 @@ namespace StormByte::Logger {
 	 * Numeric and narrow-text payloads share WriteValue after WillWrite.
 	 * ThreadedLog only overrides BeginPayload for those payloads.
 	 * Owned suite text has its own overloads so WillWrite runs before conversion.
-	 * StormByte::Size is sugar over its operator std::string.
+	 * StormByte::Size and StormByte::ByteSize are sugar over operator std::string.
 	 *
-	 * Binary payloads use std::span<const std::byte>. Default formatting is Base64.
+	 * Binary payloads are std::span<const std::byte>, std::vector<std::byte>
+	 * and StormByte::BinaryData. Default formatting is Base64. With hex(N)
+	 * they use BinaryData::HexDump(N). Text still uses the 0xAA dump.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC Log : protected StormByte::Clonable<Log, std::shared_ptr<Log>> {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
@@ -443,11 +447,36 @@ namespace StormByte::Logger {
 			}
 
 			/**
+			 * @brief Stream owned bytes.
+			 * @param v BinaryData. Same contract as a byte span: Base64, or HexDump when hex is active.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::BinaryData& v) {
+				if (!WillWrite()) [[likely]]
+					return *this;
+				Write(static_cast<std::span<const std::byte>>(v));
+				return *this;
+			}
+
+			/**
 			 * @brief Stream a byte count.
 			 * @param v Size. Uses Size::operator std::string.
 			 * @return Reference to this logger.
 			 */
 			inline Log& operator<<(const StormByte::Size& v) {
+				if (!WillWrite()) [[likely]]
+					return *this;
+				const std::string text = static_cast<std::string>(v);
+				WriteValue(std::string_view{text});
+				return *this;
+			}
+
+			/**
+			 * @brief Stream an octet count.
+			 * @param v ByteSize. Uses ByteSize::operator std::string.
+			 * @return Reference to this logger.
+			 */
+			inline Log& operator<<(const StormByte::ByteSize& v) {
 				if (!WillWrite()) [[likely]]
 					return *this;
 				const std::string text = static_cast<std::string>(v);

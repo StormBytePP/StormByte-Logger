@@ -25,9 +25,9 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network, 
 - **Formats** — persistent general / component-path formats (longest prefix wins) plus nested temporary `push_format("...")` / `pop_format`.
 - **Human-readable** — `humanreadable_number`, `humanreadable_bytes`, `nohumanreadable`. Formatting lives in Logger (`Detail`); String no longer ships it.
 - **Redaction** — `redact` / `redact(N)` keep last N, `redact_first(N)` keep first N, `noredact`.
-- **Hex** — `hex` / `hex(N)` dumps payload bytes as `0xAA` with N bytes per row (default 16). `nohex` restores the default. Applies to every subsequent payload, including numbers (text bytes, not numeric hex).
-- **Binary** — `std::span<const std::byte>` (and `std::vector<std::byte>`) print as Base64 by default (`StormByte::Base64Encode` returns `CString`), or as a hex dump when `hex` is active.
-- **Owned text** — `String`, `WString`, `CString`, `WCString` and `Size` have explicit `operator<<`. Conversion runs only when the line will be written (`WillWrite()`). Ill-formed wide text is emitted as U+FFFD.
+- **Hex** — `hex` / `hex(N)` dumps text payloads as `0xAA` with N bytes per row (default 16). `nohex` restores the default. Applies to every subsequent text payload, including numbers (text bytes, not numeric hex). Binary payloads use `HexDump(N)` instead.
+- **Binary** — `std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` print as Base64 by default (`StormByte::Base64Encode` returns `CString`). With `hex(N)` the dump is `BinaryData::HexDump(N)`.
+- **Owned text** — `String`, `WString`, `CString`, `WCString`, `Size` and `ByteSize` have explicit `operator<<`. Conversion runs only when the line will be written (`WillWrite()`). Ill-formed wide text is emitted as U+FFFD.
 - **ThreadedLog** — one lock per logical line. Binary encoding (Base64 / hex) and wide-to-UTF-8 run before the lock. Filtered writes do not take the lock.
 - **Not thread-safe** — plain `Log` is single-threaded. Share a logger across threads only via `ThreadedLog`.
 
@@ -176,7 +176,7 @@ tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
-Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`, `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString`, `StormByte::Size`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or an owned String type.
+Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`, `StormByte::BinaryData`, `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString`, `StormByte::Size`, `StormByte::ByteSize`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or an owned String type.
 
 ### A line
 
@@ -278,7 +278,7 @@ Same contract on `ThreadedLog`. Hex encoding runs **before** redaction.
 
 ### Hex and binary payloads
 
-`hex` dumps every subsequent payload as space-separated `0xHH` bytes. `hex(N)` wraps every N bytes with a raw newline (no new header, line stays open). Default N is 16. `hex(0)` is the same as `nohex`.
+`hex` dumps subsequent text payloads as space-separated `0xHH` bytes. `hex(N)` wraps every N bytes with a raw newline (no new header, line stays open). Default N is 16. `hex(0)` is the same as `nohex`.
 
 ```cpp
 log << Level::Info << hex << "AB" << std::endl;
@@ -293,12 +293,12 @@ log << Level::Info << nohex << "plain" << std::endl;
 
 Numbers are converted to text first, then those text bytes are dumped. It is not a numeric hex printer.
 
-`std::span<const std::byte>` (and `std::vector<std::byte>`) is Base64 by default:
+`std::span<const std::byte>`, `std::vector<std::byte>` and `StormByte::BinaryData` are Base64 by default. With `hex(N)` they use `BinaryData::HexDump(N)` (offset, hex columns, ASCII), not the `0xHH` text dump:
 
 ```cpp
 const std::vector<std::byte> raw{std::byte{'H'}, std::byte{'i'}};
-log << Level::Info << raw << std::endl;          // Base64
-log << Level::Info << hex << raw << std::endl;   // 0x48 0x69
+log << Level::Info << raw << std::endl;            // Base64
+log << Level::Info << hex(8) << raw << std::endl;  // HexDump, 8 columns
 ```
 
 On `ThreadedLog` the Base64 / hex string is built **before** the line lock, then written as a prepared payload.

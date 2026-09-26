@@ -39,6 +39,8 @@
  */
 
 #include <StormByte/base64.hxx>
+#include <StormByte/binary_data.hxx>
+#include <StormByte/byte_size.hxx>
 #include <StormByte/cstring.hxx>
 #include <StormByte/exception.hxx>
 #include <StormByte/logger/exception.hxx>
@@ -57,6 +59,8 @@
 #include <string_view>
 #include <vector>
 
+using StormByte::BinaryData;
+using StormByte::ByteSize;
 using StormByte::CString;
 using StormByte::Size;
 using StormByte::WCString;
@@ -177,8 +181,10 @@ int test_span_hex_dumps_raw_bytes() {
 	Log log(output, Level::Info, "%L:");
 	IsolateLine(log);
 	const std::vector<std::byte> raw{std::byte{0x01}, std::byte{0xAB}};
+	const BinaryData dumped(raw);
 	log << Level::Info << hex << raw << std::endl;
-	ASSERT_EQUAL("test_span_hex_dumps_raw_bytes", "Info    : 0x01 0xAB\n", output.str());
+	ASSERT_EQUAL("test_span_hex_dumps_raw_bytes",
+		std::string("Info    : ") + static_cast<std::string>(dumped.HexDump(Size{16})) + "\n", output.str());
 	RETURN_TEST("test_span_hex_dumps_raw_bytes", result);
 }
 
@@ -191,7 +197,7 @@ int test_span_hex_then_nohex_restores_base64() {
 	log << Level::Info << hex << raw << std::endl;
 	log << Level::Info << nohex << raw << std::endl;
 	ASSERT_EQUAL("test_span_hex_then_nohex_restores_base64",
-		std::string("Info    : 0x41\nInfo    : ") + static_cast<std::string>(StormByte::Base64Encode(raw)) + "\n", output.str());
+		std::string("Info    : ") + static_cast<std::string>(BinaryData(raw).HexDump(Size{16})) + "\nInfo    : " + static_cast<std::string>(StormByte::Base64Encode(raw)) + "\n", output.str());
 	RETURN_TEST("test_span_hex_then_nohex_restores_base64", result);
 }
 
@@ -205,6 +211,30 @@ int test_span_vector_converts_to_span() {
 	ASSERT_EQUAL("test_span_vector_converts_to_span",
 		std::string("Info    : ") + static_cast<std::string>(StormByte::Base64Encode(raw)) + "\n", output.str());
 	RETURN_TEST("test_span_vector_converts_to_span", result);
+}
+
+int test_binary_data_default_is_base64() {
+	int result = 0;
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const BinaryData raw{std::byte{'H'}, std::byte{'i'}};
+	log << Level::Info << raw << std::endl;
+	ASSERT_EQUAL("test_binary_data_default_is_base64",
+		std::string("Info    : ") + static_cast<std::string>(StormByte::Base64Encode(raw)) + "\n", output.str());
+	RETURN_TEST("test_binary_data_default_is_base64", result);
+}
+
+int test_binary_data_hex_uses_columns() {
+	int result = 0;
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const BinaryData raw{std::byte{0x01}, std::byte{0xAB}, std::byte{0x02}};
+	log << Level::Info << hex(2) << raw << std::endl;
+	ASSERT_EQUAL("test_binary_data_hex_uses_columns",
+		std::string("Info    : ") + static_cast<std::string>(raw.HexDump(Size{2})) + "\n", output.str());
+	RETURN_TEST("test_binary_data_hex_uses_columns", result);
 }
 
 // -------------------
@@ -718,6 +748,18 @@ int test_size_payload() {
 	RETURN_TEST("test_size_payload", result);
 }
 
+int test_bytesize_payload() {
+	int result = 0;
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const ByteSize bytes{1024};
+	log << Level::Info << bytes << std::endl;
+	ASSERT_EQUAL("test_bytesize_payload",
+		std::string("Info    : ") + static_cast<std::string>(bytes) + "\n", output.str());
+	RETURN_TEST("test_bytesize_payload", result);
+}
+
 int test_string_payload() {
 	int result = 0;
 	std::ostringstream output;
@@ -1212,6 +1254,8 @@ int main() {
 	result += test_span_empty();
 	result += test_span_filtered_produces_no_output();
 	result += test_span_hex_dumps_raw_bytes();
+	result += test_binary_data_default_is_base64();
+	result += test_binary_data_hex_uses_columns();
 	result += test_span_hex_then_nohex_restores_base64();
 	result += test_span_vector_converts_to_span();
 
@@ -1275,6 +1319,7 @@ int main() {
 	result += test_cstring_payload();
 	result += test_filtered_owned_text_is_dropped();
 	result += test_size_payload();
+	result += test_bytesize_payload();
 	result += test_string_payload();
 	result += test_string_view_and_wstring_view_payloads();
 	result += test_wcstring_payload();

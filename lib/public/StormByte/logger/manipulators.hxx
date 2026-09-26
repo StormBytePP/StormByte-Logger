@@ -287,6 +287,9 @@ namespace StormByte::Logger {
 	 *
 	 * The payload is converted as usual (numbers / bool to text, wide text to
 	 * UTF-8) and then each byte is printed as @c 0xAA separated by spaces.
+	 * Byte spans and @ref StormByte::BinaryData do not use that text dump:
+	 * with this manipulator active they use @ref StormByte::BinaryData::HexDump
+	 * and @c columns is the row width. Without it they stay Base64.
 	 * @c columns is the number of bytes per continuation row; @c 0 disables
 	 * wrapping. Continuations write a raw newline without a new header and
 	 * without ending the logical line.
