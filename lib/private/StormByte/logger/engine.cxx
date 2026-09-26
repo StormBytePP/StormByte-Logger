@@ -39,7 +39,7 @@
  */
 
 #include <StormByte/logger/exception.hxx>
-#include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/engine.hxx>
 #include <StormByte/logger/manipulators.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/string/wstring.hxx>
@@ -261,7 +261,7 @@ namespace {
 	}
 }
 
-std::string Implementation::CurrentTime() const noexcept {
+std::string Engine::CurrentTime() const noexcept {
 	try {
 		auto now = std::chrono::system_clock::now();
 		std::time_t rawtime = std::chrono::system_clock::to_time_t(now);
@@ -281,7 +281,7 @@ std::string Implementation::CurrentTime() const noexcept {
 	}
 }
 
-Implementation::Implementation(std::ostream& out, const Level& level, const std::string& format):
+Engine::Engine(std::ostream& out, const Level& level, const std::string& format):
 	m_out(out),
 	m_print_level(level),
 	m_current_level(std::nullopt),
@@ -296,15 +296,15 @@ Implementation::Implementation(std::ostream& out, const Level& level, const std:
 	m_throttle_table(std::make_shared<const ThrottleTable>()) {
 }
 
-Implementation::~Implementation() noexcept {
+Engine::~Engine() noexcept {
 	reset_color();
 }
 
-void Implementation::SetFacadePath(std::string path) noexcept {
+void Engine::SetFacadePath(std::string path) noexcept {
 	t_facade_path = std::move(path);
 }
 
-std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const noexcept {
+std::shared_ptr<const ThrottleTable> Engine::LoadThrottleTable() const noexcept {
 #ifdef WINDOWS
 	return m_throttle_table.load(std::memory_order_acquire);
 #elifdef __GLIBCXX__
@@ -314,7 +314,7 @@ std::shared_ptr<const ThrottleTable> Implementation::LoadThrottleTable() const n
 #endif
 }
 
-void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
+void Engine::StoreThrottleTable(std::shared_ptr<const ThrottleTable> table) noexcept {
 #ifdef WINDOWS
 	m_throttle_table.store(std::move(table), std::memory_order_release);
 #elifdef __GLIBCXX__
@@ -324,33 +324,33 @@ void Implementation::StoreThrottleTable(std::shared_ptr<const ThrottleTable> tab
 #endif
 }
 
-const Level& Implementation::CurrentLevel() const noexcept {
+const Level& Engine::CurrentLevel() const noexcept {
 	return t_level ? *t_level : m_print_level;
 }
 
-bool Implementation::Enabled() const noexcept {
+bool Engine::Enabled() const noexcept {
 	if (!t_level)
 		return m_enabled.load(std::memory_order_acquire);
 	return IsAlwaysVisible(*t_level) || *t_level >= m_print_level;
 }
 
-void Implementation::Color(const Level& level, const StormByte::Logger::Color& color) noexcept {
+void Engine::Color(const Level& level, const StormByte::Logger::Color& color) noexcept {
 	if (ColorIndex(level) < m_level_colors.size())
 		m_level_colors[ColorIndex(level)] = color;
 }
 
-void Implementation::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
+void Engine::Color(const std::string& component, const Level& level, const StormByte::Logger::Color& color) {
 	if (!component.empty())
 		m_component_colors[component][ColorIndex(level)] = color;
 }
 
-StormByte::Logger::Color Implementation::Color(const Level& level) const noexcept {
+StormByte::Logger::Color Engine::Color(const Level& level) const noexcept {
 	if (ColorIndex(level) < m_level_colors.size())
 		return m_level_colors[ColorIndex(level)];
 	return StormByte::Logger::Color::Default;
 }
 
-StormByte::Logger::Color Implementation::Color(const std::string& component, const Level& level) const noexcept {
+StormByte::Logger::Color Engine::Color(const std::string& component, const Level& level) const noexcept {
 	for (std::string path = component; !path.empty(); path = ParentPath(path)) {
 		if (const auto found = m_component_colors.find(path); found != m_component_colors.end())
 			return found->second[ColorIndex(level)];
@@ -358,7 +358,7 @@ StormByte::Logger::Color Implementation::Color(const std::string& component, con
 	return Color(level);
 }
 
-const std::string& Implementation::effective_format() const noexcept {
+const std::string& Engine::effective_format() const noexcept {
 	if (!m_format_stack.empty())
 		return m_format_stack.back();
 	const auto& component = t_line.decided ? t_line.component : CurrentPath();
@@ -369,11 +369,11 @@ const std::string& Implementation::effective_format() const noexcept {
 	return m_format;
 }
 
-const std::string& Implementation::Format() const noexcept {
+const std::string& Engine::Format() const noexcept {
 	return effective_format();
 }
 
-const std::string& Implementation::Format(const std::string& component) const noexcept {
+const std::string& Engine::Format(const std::string& component) const noexcept {
 	for (std::string path = component; !path.empty(); path = ParentPath(path)) {
 		if (const auto found = m_component_formats.find(path); found != m_component_formats.end())
 			return found->second;
@@ -381,7 +381,7 @@ const std::string& Implementation::Format(const std::string& component) const no
 	return m_format;
 }
 
-void Implementation::Format(const std::string& format) {
+void Engine::Format(const std::string& format) {
 	if (t_line.header_displayed) {
 		reset_color();
 		m_out << std::endl;
@@ -395,7 +395,7 @@ void Implementation::Format(const std::string& format) {
 	m_format = format;
 }
 
-void Implementation::Format(const std::string& component, const std::string& format) {
+void Engine::Format(const std::string& component, const std::string& format) {
 	if (component.empty()) {
 		Format(format);
 		return;
@@ -417,7 +417,7 @@ void Implementation::Format(const std::string& component, const std::string& for
 		m_component_formats[component] = format;
 }
 
-void Implementation::Throttle(const ThrottleSpec& spec) {
+void Engine::Throttle(const ThrottleSpec& spec) {
 	ValidateThrottle(spec);
 	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
@@ -432,7 +432,7 @@ void Implementation::Throttle(const ThrottleSpec& spec) {
 	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
 
-std::shared_ptr<ThrottleRuleState> Implementation::LeafThrottleState(
+std::shared_ptr<ThrottleRuleState> Engine::LeafThrottleState(
 	const ThrottleRule& rule, const std::string& path) {
 	if (!rule.leaf_mutex || !rule.leaf_states)
 		return rule.state;
@@ -445,7 +445,7 @@ std::shared_ptr<ThrottleRuleState> Implementation::LeafThrottleState(
 	return slot;
 }
 
-void Implementation::NoThrottle(const ThrottleSpec& spec) {
+void Engine::NoThrottle(const ThrottleSpec& spec) {
 	auto current = LoadThrottleTable();
 	auto next = std::make_shared<ThrottleTable>(*current);
 	next->rules.erase(std::remove_if(next->rules.begin(), next->rules.end(), [&](const ThrottleRule& candidate) {
@@ -454,15 +454,15 @@ void Implementation::NoThrottle(const ThrottleSpec& spec) {
 	StoreThrottleTable(std::shared_ptr<const ThrottleTable>(std::move(next)));
 }
 
-void Implementation::NoThrottleAll() noexcept {
+void Engine::NoThrottleAll() noexcept {
 	StoreThrottleTable(std::make_shared<const ThrottleTable>());
 }
 
-void Implementation::FlushThrottle() {
+void Engine::FlushThrottle() {
 	FlushThrottle(ThrottleSpec{});
 }
 
-void Implementation::FlushThrottle(const ThrottleSpec& filter) {
+void Engine::FlushThrottle(const ThrottleSpec& filter) {
 	const auto table = LoadThrottleTable();
 	const auto saved = t_line;
 	if (t_line.header_displayed) {
@@ -508,7 +508,7 @@ void Implementation::FlushThrottle(const ThrottleSpec& filter) {
 	t_line = saved;
 }
 
-bool Implementation::PrepareLine() {
+bool Engine::PrepareLine() {
 	if (t_line.decided)
 		return t_line.admitted;
 	t_line.decided = true;
@@ -557,19 +557,19 @@ bool Implementation::PrepareLine() {
 	return true;
 }
 
-bool Implementation::LineAdmitted() const noexcept {
+bool Engine::LineAdmitted() const noexcept {
 	return t_line.admitted;
 }
 
-bool Implementation::LineDecided() const noexcept {
+bool Engine::LineDecided() const noexcept {
 	return t_line.decided;
 }
 
-bool Implementation::HasOpenOutputLine() const noexcept {
+bool Engine::HasOpenOutputLine() const noexcept {
 	return t_line.header_displayed;
 }
 
-void Implementation::BeginOutputLine() noexcept {
+void Engine::BeginOutputLine() noexcept {
 	if (t_line.close_before_header) {
 		reset_color();
 		m_out.put('\n');
@@ -580,7 +580,7 @@ void Implementation::BeginOutputLine() noexcept {
 	t_line.header_displayed = true;
 }
 
-void Implementation::close_deferred_line() noexcept {
+void Engine::close_deferred_line() noexcept {
 	if (!t_line.close_before_header)
 		return;
 	reset_color();
@@ -589,12 +589,12 @@ void Implementation::close_deferred_line() noexcept {
 	t_line.header_displayed = false;
 }
 
-void Implementation::reset_line_state() noexcept {
+void Engine::reset_line_state() noexcept {
 	t_line = {};
 	t_facade_path.clear();
 }
 
-void Implementation::write_drop_summary() noexcept {
+void Engine::write_drop_summary() noexcept {
 	if (t_line.dropped == 0)
 		return;
 	print_header();
@@ -605,7 +605,7 @@ void Implementation::write_drop_summary() noexcept {
 	t_line.dropped = 0;
 }
 
-Implementation& Implementation::operator<<(const Level& level) noexcept {
+Engine& Engine::operator<<(const Level& level) noexcept {
 	if (t_level) {
 		if (level != *t_level && (IsAlwaysVisible(*t_level) || *t_level >= m_print_level) && t_line.header_displayed) {
 			reset_color();
@@ -622,7 +622,7 @@ Implementation& Implementation::operator<<(const Level& level) noexcept {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
+Engine& Engine::operator<<(std::ostream& (*manip)(std::ostream&)) noexcept {
 	if (ManipulatorWritesNewline(manip)) {
 		if (Enabled() && PrepareLine()) {
 			write_drop_summary();
@@ -644,7 +644,7 @@ Implementation& Implementation::operator<<(std::ostream& (*manip)(std::ostream&)
 	return *this;
 }
 
-Implementation& Implementation::operator<<(ColorManip manip) noexcept {
+Engine& Engine::operator<<(ColorManip manip) noexcept {
 	if (!Enabled())
 		return *this;
 	m_content_nocolor = false;
@@ -654,7 +654,7 @@ Implementation& Implementation::operator<<(ColorManip manip) noexcept {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(NoColorManip) noexcept {
+Engine& Engine::operator<<(NoColorManip) noexcept {
 	if (!Enabled())
 		return *this;
 	m_content_color.reset();
@@ -664,7 +664,7 @@ Implementation& Implementation::operator<<(NoColorManip) noexcept {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(FormatManip manip) {
+Engine& Engine::operator<<(FormatManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
 		m_out << std::endl;
@@ -679,7 +679,7 @@ Implementation& Implementation::operator<<(FormatManip manip) {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(PopFormatManip) noexcept {
+Engine& Engine::operator<<(PopFormatManip) noexcept {
 	if (m_format_stack.empty())
 		return *this;
 	if (t_line.header_displayed) {
@@ -696,7 +696,7 @@ Implementation& Implementation::operator<<(PopFormatManip) noexcept {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(GroupManip manip) {
+Engine& Engine::operator<<(GroupManip manip) {
 	if (t_line.header_displayed) {
 		reset_color();
 		m_out << std::endl;
@@ -710,28 +710,28 @@ Implementation& Implementation::operator<<(GroupManip manip) {
 	return *this;
 }
 
-Implementation& Implementation::operator<<(ComponentManip manip) {
+Engine& Engine::operator<<(ComponentManip manip) {
 	if (!manip.name.empty())
 		t_component_stack.push_back(ToStd(manip.name));
 	return *this;
 }
 
-Implementation& Implementation::operator<<(PopComponentManip) {
+Engine& Engine::operator<<(PopComponentManip) {
 	if (!t_component_stack.empty())
 		t_component_stack.pop_back();
 	return *this;
 }
 
-Implementation& Implementation::operator<<(ResetComponentManip) {
+Engine& Engine::operator<<(ResetComponentManip) {
 	t_component_stack.clear();
 	return *this;
 }
 
-void Implementation::print_time() const noexcept {
+void Engine::print_time() const noexcept {
 	m_out << CurrentTime();
 }
 
-void Implementation::print_level() const noexcept {
+void Engine::print_level() const noexcept {
 	constexpr std::size_t fixed_width = 8;
 	const std::string level_str = LevelToString(t_line.decided ? t_line.level : t_level.value_or(m_print_level));
 	m_out << level_str;
@@ -739,11 +739,11 @@ void Implementation::print_level() const noexcept {
 		m_out.put(' ');
 }
 
-void Implementation::print_thread_id() const noexcept {
+void Engine::print_thread_id() const noexcept {
 	m_out << std::this_thread::get_id();
 }
 
-void Implementation::print_header() noexcept {
+void Engine::print_header() noexcept {
 	const std::string& fmt = effective_format();
 	constexpr std::size_t fixed_width = 8;
 	const auto component = t_line.decided ? t_line.component : CurrentPath();
@@ -794,7 +794,7 @@ void Implementation::print_header() noexcept {
 	m_out.put(' ');
 }
 
-void Implementation::sync_content_color() noexcept {
+void Engine::sync_content_color() noexcept {
 	const auto level = t_line.decided ? t_line.level : t_level.value_or(m_print_level);
 	const auto component = t_line.decided ? t_line.component : CurrentPath();
 	const auto configured = Color(component, level);
@@ -806,7 +806,7 @@ void Implementation::sync_content_color() noexcept {
 		emit_color(configured);
 }
 
-void Implementation::emit_color(const StormByte::Logger::Color color) noexcept {
+void Engine::emit_color(const StormByte::Logger::Color color) noexcept {
 	if (m_active_color == std::optional<StormByte::Logger::Color>{color})
 		return;
 	if (m_active_color) {
@@ -820,47 +820,47 @@ void Implementation::emit_color(const StormByte::Logger::Color color) noexcept {
 	}
 }
 
-void Implementation::reset_color() noexcept {
+void Engine::reset_color() noexcept {
 	if (m_active_color) {
 		m_out << "\033[0m";
 		m_active_color.reset();
 	}
 }
 
-void Implementation::print_message(const std::string& message) noexcept {
+void Engine::print_message(const std::string& message) noexcept {
 	if (!Enabled())
 		return;
 	write_text(message);
 }
 
-void Implementation::print_message(const wchar_t& value) {
+void Engine::print_message(const wchar_t& value) {
 	const wchar_t raw[1] = { value };
 	const StormByte::String::String encoded{StormByte::String::WString{std::wstring_view{raw, 1}}};
 	print_message(ToStd(encoded));
 }
 
 namespace StormByte::Logger {
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<bool>(const bool& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<short>(const short& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned short>(const unsigned short& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<int>(const int& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned int>(const unsigned int& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long>(const long& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned long>(const unsigned long& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long long>(const long long& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned long long>(const unsigned long long& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<float>(const float& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<double>(const double& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long double>(const long double& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<char>(const char& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<signed char>(const signed char& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned char>(const unsigned char& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<wchar_t>(const wchar_t& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::string>(const std::string& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<const char*>(const char* const& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::string_view>(const std::string_view& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
-	template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<bool>(const bool& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<short>(const short& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned short>(const unsigned short& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<int>(const int& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned int>(const unsigned int& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long>(const long& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned long>(const unsigned long& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long long>(const long long& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned long long>(const unsigned long long& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<float>(const float& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<double>(const double& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long double>(const long double& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<char>(const char& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<signed char>(const signed char& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned char>(const unsigned char& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<wchar_t>(const wchar_t& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::string>(const std::string& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::wstring>(const std::wstring& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<const char*>(const char* const& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<const wchar_t*>(const wchar_t* const& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::string_view>(const std::string_view& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::wstring_view>(const std::wstring_view& value);
+	template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
 }

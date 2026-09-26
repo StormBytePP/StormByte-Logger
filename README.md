@@ -199,7 +199,7 @@ Do not start a line without a `Level` if you care about the filter. Do not omit 
 
 ### Sharing a logger
 
-Copy and copy-assignment of `Log` / `ThreadedLog` share the same `Implementation` (`shared_ptr`). That is the intended way to hand one logger to several objects on **one** thread.
+Copy and copy-assignment of `Log` / `ThreadedLog` share the same `Engine` (`shared_ptr`). That is the intended way to hand one logger to several objects on **one** thread.
 
 Across threads, construct a `ThreadedLog` (or `std::make_shared<ThreadedLog>`) and pass that pointer. `Log` has no line lock; concurrent `operator<<` will interleave characters.
 
@@ -505,7 +505,7 @@ The application chooses the floor. A user who sets `LowLevel` is asking for nois
 
 `endl` must drop the lock even if another thread just changed the current level. That is required so a filtered `LowLevel` line cannot leave the lock held and stall every other writer.
 
-`Implementation` current-level / enabled flags are still process-wide, not `thread_local`. Do not interleave two unfinished lines on the same logger from two threads without finishing each line with a newline. The supported pattern is: one thread writes a complete line (`Level` … `endl`) at a time; `ThreadedLog` only prevents those complete lines from mixing characters.
+`Engine` current-level / enabled flags are still process-wide, not `thread_local`. Do not interleave two unfinished lines on the same logger from two threads without finishing each line with a newline. The supported pattern is: one thread writes a complete line (`Level` … `endl`) at a time; `ThreadedLog` only prevents those complete lines from mixing characters.
 
 The component **stack** is thread-local. `Scope` paths are per-facade and do not use that stack. `group` remains line-scoped.
 

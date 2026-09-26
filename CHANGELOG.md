@@ -41,6 +41,7 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** the bundled dependency is [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0), which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). Logger no longer submodules Base directly.
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
 - `LevelToString` returns `const char*` (a string literal) instead of `std::string`. Call sites that store it in a `std::string` are unchanged.
+- The private backend is `Engine` (`m_engine`), in `engine.hxx` / `engine.cxx`. It was `Implementation`.
 - **Breaking:** `ThrottleSpec::Component` and `ThrottleSpec::Group` are `std::optional<StormByte::String::String>`.
 - **Breaking:** ill-formed wide text is written as U+FFFD (`EF BF BD`). Logger does not throw `StormByte::UTF8Error` on that path.
 - `Log::m_scope_path` is `StormByte::String::String` so a copied or derived `Log` does not carry `std::string` across a DLL boundary.

@@ -38,7 +38,7 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/engine.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/string/string.hxx>
 #include <StormByte/string/wstring.hxx>
@@ -254,9 +254,9 @@ void ThreadedLog::Write(const wchar_t* v) {
 void ThreadedLog::Write(std::span<const std::byte> v) {
 	if (!WillWrite() || !PrepareLine())
 		return;
-	const std::string formatted = m_impl->FormatBinary(v);
+	const std::string formatted = m_engine->FormatBinary(v);
 	claim_line(m_lock);
-	m_impl->WritePrepared(formatted);
+	m_engine->WritePrepared(formatted);
 }
 
 void ThreadedLog::Write(const Level& level) {

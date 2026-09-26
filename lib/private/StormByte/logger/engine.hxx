@@ -102,7 +102,7 @@ namespace StormByte::Logger {
 	};
 
 	/**
-	 * @class Implementation
+	 * @class Engine
 	 * @brief Internal logger implementation (private).
 	 *
 	 * Thread-safety note: `m_enabled` is atomic so `Enabled()` / filtered fast-paths may be
@@ -115,10 +115,10 @@ namespace StormByte::Logger {
 	 * otherwise the thread-local stack joined with `/`.
 	 * A prefix throttle rule supplies the spec; counters are per emitting path.
 	 */
-	class STORMBYTE_LOGGER_PRIVATE Implementation final {
-		friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept;
-		friend STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept;
-		friend STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept;
+	class STORMBYTE_LOGGER_PRIVATE Engine final {
+		friend STORMBYTE_LOGGER_PRIVATE Engine& humanreadable_number(Engine& logger) noexcept;
+		friend STORMBYTE_LOGGER_PRIVATE Engine& humanreadable_bytes(Engine& logger) noexcept;
+		friend STORMBYTE_LOGGER_PRIVATE Engine& nohumanreadable(Engine& logger) noexcept;
 
 		public:
 			/**
@@ -127,20 +127,20 @@ namespace StormByte::Logger {
 			 * @param level Initial minimum Level that will be emitted.
 			 * @param format Header format string (%L, %T, %i, %c, %g, %%).
 			 */
-			Implementation(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
+			Engine(std::ostream& out, const Level& level = Level::Info, const std::string& format = "[%L] %T");
 
-			Implementation(const Implementation&) = delete;
+			Engine(const Engine&) = delete;
 
-			Implementation(Implementation&&) noexcept = delete;
+			Engine(Engine&&) noexcept = delete;
 
-			Implementation& operator=(const Implementation&) = delete;
+			Engine& operator=(const Engine&) = delete;
 
-			Implementation& operator=(Implementation&&) noexcept = delete;
+			Engine& operator=(Engine&&) noexcept = delete;
 
 			/**
 			 * @brief Destructor.
 			 */
-			~Implementation() noexcept;
+			~Engine() noexcept;
 
 			/**
 			 * @brief Get the minimum print level.
@@ -335,79 +335,79 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Set the current logging level.
 			 * @param level New Level for subsequent messages.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(const Level& level) noexcept;
+			Engine& operator<<(const Level& level) noexcept;
 
 			/**
 			 * @brief Forward a standard stream manipulator.
 			 * @param manip Stream manipulator (e.g. std::endl).
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
+			Engine& operator<<(std::ostream& (*manip)(std::ostream&)) noexcept;
 
 			/**
 			 * @brief Apply a temporary content color manipulator.
 			 * @param manip Color selection to apply.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(ColorManip manip) noexcept;
+			Engine& operator<<(ColorManip manip) noexcept;
 
 			/**
 			 * @brief Disable content color until another color manipulator or endl.
 			 * @param manip No-color manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(NoColorManip manip) noexcept;
+			Engine& operator<<(NoColorManip manip) noexcept;
 
 			/**
 			 * @brief Push and activate a temporary format.
 			 * @param manip Format manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(FormatManip manip);
+			Engine& operator<<(FormatManip manip);
 
 			/**
 			 * @brief Restore the last saved format when one exists.
 			 * @param manip Pop-format manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(PopFormatManip manip) noexcept;
+			Engine& operator<<(PopFormatManip manip) noexcept;
 
 			/**
 			 * @brief Set the producer group for the current line.
 			 * @param manip Group manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(GroupManip manip);
+			Engine& operator<<(GroupManip manip);
 
 			/**
 			 * @brief Push a component segment onto the current thread's stack.
 			 * @param manip Component manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(ComponentManip manip);
+			Engine& operator<<(ComponentManip manip);
 
 			/**
 			 * @brief Pop one component segment from the current thread's stack.
 			 * @param manip Pop-component manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(PopComponentManip manip);
+			Engine& operator<<(PopComponentManip manip);
 
 			/**
 			 * @brief Clear the current thread's component stack.
 			 * @param manip Reset-component manipulator.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			Implementation& operator<<(ResetComponentManip manip);
+			Engine& operator<<(ResetComponentManip manip);
 
 			/**
-			 * @brief Apply an Implementation-specific manipulator.
+			 * @brief Apply an Engine-specific manipulator.
 			 * @param manip Manipulator function.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
-			inline Implementation& operator<<(Implementation& (*manip)(Implementation&) noexcept) {
+			inline Engine& operator<<(Engine& (*manip)(Engine&) noexcept) {
 				return manip(*this);
 			}
 
@@ -415,11 +415,11 @@ namespace StormByte::Logger {
 			 * @brief Stream a value into the log.
 			 * @tparam T Type of the value.
 			 * @param value Value to write.
-			 * @return Reference to this Implementation.
+			 * @return Reference to this Engine.
 			 */
 			template <typename T>
-			Implementation& operator<<(const T& value)
-			requires (!StormByte::Type::SameAs<T, Implementation& (*)(Implementation&) noexcept>) {
+			Engine& operator<<(const T& value)
+			requires (!StormByte::Type::SameAs<T, Engine& (*)(Engine&) noexcept>) {
 				using DecayedT = std::decay_t<T>;
 
 				if (!Enabled()) [[likely]] {
@@ -454,7 +454,7 @@ namespace StormByte::Logger {
 						write_text(static_cast<std::string_view>(encoded));
 					}
 				} else {
-					static_assert(!StormByte::Type::SameAs<T, T>, "Unsupported type for Implementation::operator<<");
+					static_assert(!StormByte::Type::SameAs<T, T>, "Unsupported type for Engine::operator<<");
 				}
 				return *this;
 			}
@@ -690,61 +690,61 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Enable grouped-number formatting.
-	 * @param logger Implementation to update.
+	 * @param logger Engine to update.
 	 * @return @p logger.
 	 */
-	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_number(Implementation& logger) noexcept {
+	inline STORMBYTE_LOGGER_PRIVATE Engine& humanreadable_number(Engine& logger) noexcept {
 		logger.m_human_readable_format = Detail::HumanReadable::Number;
 		return logger;
 	}
 
 	/**
 	 * @brief Enable IEC byte-size formatting.
-	 * @param logger Implementation to update.
+	 * @param logger Engine to update.
 	 * @return @p logger.
 	 */
-	inline STORMBYTE_LOGGER_PRIVATE Implementation& humanreadable_bytes(Implementation& logger) noexcept {
+	inline STORMBYTE_LOGGER_PRIVATE Engine& humanreadable_bytes(Engine& logger) noexcept {
 		logger.m_human_readable_format = Detail::HumanReadable::Bytes;
 		return logger;
 	}
 
 	/**
 	 * @brief Disable human-readable numeric formatting.
-	 * @param logger Implementation to update.
+	 * @param logger Engine to update.
 	 * @return @p logger.
 	 */
-	inline STORMBYTE_LOGGER_PRIVATE Implementation& nohumanreadable(Implementation& logger) noexcept {
+	inline STORMBYTE_LOGGER_PRIVATE Engine& nohumanreadable(Engine& logger) noexcept {
 		logger.m_human_readable_format = Detail::HumanReadable::Raw;
 		return logger;
 	}
 
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<bool>(const bool& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<short>(const short& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned short>(const unsigned short& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<int>(const int& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned int>(const unsigned int& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long>(const long& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned long>(const unsigned long& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long long>(const long long& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned long long>(const unsigned long long& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<float>(const float& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<double>(const double& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<long double>(const long double& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<char>(const char& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<signed char>(const signed char& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<unsigned char>(const unsigned char& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<wchar_t>(const wchar_t& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::string>(const std::string& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::wstring>(const std::wstring& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<const char*>(const char* const& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<const wchar_t*>(const wchar_t* const& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::string_view>(const std::string_view& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::wstring_view>(const std::wstring_view& value);
-	extern template STORMBYTE_LOGGER_PRIVATE Implementation& Implementation::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<bool>(const bool& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<short>(const short& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned short>(const unsigned short& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<int>(const int& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned int>(const unsigned int& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long>(const long& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned long>(const unsigned long& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long long>(const long long& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned long long>(const unsigned long long& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<float>(const float& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<double>(const double& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<long double>(const long double& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<char>(const char& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<signed char>(const signed char& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<unsigned char>(const unsigned char& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<wchar_t>(const wchar_t& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::string>(const std::string& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::wstring>(const std::wstring& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<const char*>(const char* const& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<const wchar_t*>(const wchar_t* const& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::string_view>(const std::string_view& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::wstring_view>(const std::wstring_view& value);
+	extern template STORMBYTE_LOGGER_PRIVATE Engine& Engine::operator<<<std::span<const std::byte>>(const std::span<const std::byte>& value);
 
 	/**
-	 * @brief Stream a value into a smart pointer to Implementation.
-	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @brief Stream a value into a smart pointer to Engine.
+	 * @tparam Ptr shared_ptr or unique_ptr of Engine.
 	 * @tparam T Value type.
 	 * @param logger Smart pointer.
 	 * @param value Value to stream.
@@ -752,37 +752,37 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value)
-	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Engine>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Engine>> {
 		if (logger)
 			*logger << value;
 		return logger;
 	}
 
 	/**
-	 * @brief Stream a Level into a smart pointer to Implementation.
-	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @brief Stream a Level into a smart pointer to Engine.
+	 * @tparam Ptr shared_ptr or unique_ptr of Engine.
 	 * @param logger Smart pointer.
 	 * @param level Level to set.
 	 * @return @p logger.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Engine>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Engine>> {
 		if (logger)
 			*logger << level;
 		return logger;
 	}
 
 	/**
-	 * @brief Stream a stream manipulator into a smart pointer to Implementation.
-	 * @tparam Ptr shared_ptr or unique_ptr of Implementation.
+	 * @brief Stream a stream manipulator into a smart pointer to Engine.
+	 * @tparam Ptr shared_ptr or unique_ptr of Engine.
 	 * @param logger Smart pointer.
 	 * @param manip Stream manipulator.
 	 * @return @p logger.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Implementation>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Implementation>> {
+	requires StormByte::Type::SameAs<Ptr, std::shared_ptr<Engine>> || StormByte::Type::SameAs<Ptr, std::unique_ptr<Engine>> {
 		if (logger)
 			*logger << manip;
 		return logger;

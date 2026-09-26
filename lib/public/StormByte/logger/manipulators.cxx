@@ -40,7 +40,7 @@
 
 #include <StormByte/logger/log.hxx>
 #include <StormByte/logger/manipulators.hxx>
-#include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/engine.hxx>
 #include <utility>
 
 namespace StormByte::Logger {
@@ -57,22 +57,22 @@ namespace StormByte::Logger {
 	}
 
 	STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept {
-		humanreadable_number(*log.m_impl);
+		humanreadable_number(*log.m_engine);
 		return log;
 	}
 
 	STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept {
-		humanreadable_bytes(*log.m_impl);
+		humanreadable_bytes(*log.m_engine);
 		return log;
 	}
 
 	STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept {
-		nohumanreadable(*log.m_impl);
+		nohumanreadable(*log.m_engine);
 		return log;
 	}
 
 	STORMBYTE_LOGGER_PUBLIC Log& noredact(Log& log) noexcept {
-		log.m_impl->SetRedact(false, 0, false);
+		log.m_engine->SetRedact(false, 0, false);
 		return log;
 	}
 }
