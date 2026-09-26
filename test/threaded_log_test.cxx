@@ -164,8 +164,8 @@ int test_threadedlog_every_accepted_payload() {
 	const char* null_narrow = nullptr;
 	log << Level::Info
 		<< false << " "
-		<< std::string{"std"} << " "
-		<< std::wstring{L"wide"} << " "
+		<< std::string_view{"std"} << " "
+		<< std::wstring_view{L"wide"} << " "
 		<< owned << " "
 		<< bytes << " "
 		<< count << " "

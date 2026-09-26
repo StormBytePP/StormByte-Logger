@@ -50,7 +50,7 @@ using namespace StormByte::Logger::Detail;
 
 namespace StormByte::Logger::Detail {
 	template<typename T>
-	requires std::is_arithmetic_v<T> && (!std::is_same_v<T, wchar_t>)
+	requires StormByte::Type::Arithmetic<T> && (!StormByte::Type::SameAs<T, wchar_t>)
 	std::string FormatNumber(const T& number, const std::string& locale) noexcept {
 		try {
 			std::ostringstream oss;
@@ -60,9 +60,9 @@ namespace StormByte::Logger::Detail {
 				oss.imbue(std::locale("C"));
 			}
 
-			if constexpr (std::is_integral_v<T>) {
+			if constexpr (StormByte::Type::Integral<T>) {
 				oss << number;
-			} else if constexpr (std::is_floating_point_v<T>) {
+			} else if constexpr (StormByte::Type::FloatingPoint<T>) {
 				if (std::fmod(number, 1.0) == 0.0)
 					oss << static_cast<int64_t>(number);
 				else
@@ -76,7 +76,7 @@ namespace StormByte::Logger::Detail {
 	}
 
 	template<typename T>
-	requires std::is_arithmetic_v<T>
+	requires StormByte::Type::Arithmetic<T>
 	std::string FormatBytes(const T& bytes, const std::string& locale) noexcept {
 		try {
 			constexpr uint64_t KB = 1024;
