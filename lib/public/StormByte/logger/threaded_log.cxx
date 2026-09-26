@@ -48,6 +48,8 @@
 
 using namespace StormByte::Logger;
 
+ThreadedLog::~ThreadedLog() noexcept = default;
+
 namespace {
 	thread_local bool t_line_held = false;
 

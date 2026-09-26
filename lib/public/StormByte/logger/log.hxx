@@ -115,9 +115,9 @@ namespace StormByte::Logger {
 			Log(Log&&) noexcept = default;
 
 			/**
-			 * @brief Destructor.
+			 * @brief Destructor. Defined out of line so the backend is released inside the DLL.
 			 */
-			~Log() noexcept override = default;
+			~Log() noexcept override;
 
 			/**
 			 * @brief Copy assignment.
