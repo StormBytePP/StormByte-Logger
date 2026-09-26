@@ -810,8 +810,20 @@ namespace StormByte::Logger {
 	/// @endcond
 
 	/**
+	 * @brief `std::shared_ptr` or `std::unique_ptr` to `Log` or a derived logger.
+	 * @tparam Ptr Pointer type.
+	 */
+	template<typename Ptr>
+	concept StdLogPointer =
+		StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log>
+		&& (
+			StormByte::Type::SameAs<std::remove_cvref_t<Ptr>, std::shared_ptr<typename std::remove_cvref_t<Ptr>::element_type>>
+			|| StormByte::Type::SameAs<std::remove_cvref_t<Ptr>, std::unique_ptr<typename std::remove_cvref_t<Ptr>::element_type>>
+		);
+
+	/**
 	 * @brief Stream a value into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr` or `std::unique_ptr` whose element type derives from Log.
 	 * @tparam T Value type.
 	 * @param logger Smart pointer to the logger.
 	 * @param value Value to stream.
@@ -819,7 +831,7 @@ namespace StormByte::Logger {
 	 */
 	template <typename Ptr, typename T>
 	Ptr& operator<<(Ptr& logger, const T& value) noexcept
-		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
+		requires StdLogPointer<Ptr> {
 		if (logger)
 			*logger << value;
 		return logger;
@@ -827,14 +839,14 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Stream a Level into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr` or `std::unique_ptr` whose element type derives from Log.
 	 * @param logger Smart pointer to the logger.
 	 * @param level Level to set.
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, const Level& level) noexcept
-		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
+		requires StdLogPointer<Ptr> {
 		if (logger)
 			*logger << level;
 		return logger;
@@ -842,16 +854,50 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Stream a stream manipulator into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr` or `std::unique_ptr` whose element type derives from Log.
 	 * @param logger Smart pointer to the logger.
 	 * @param manip Stream manipulator.
 	 * @return Reference to the smart pointer.
 	 */
 	template <typename Ptr>
 	Ptr& operator<<(Ptr& logger, std::ostream& (*manip)(std::ostream&)) noexcept
-		requires StormByte::Type::DerivedFrom<typename std::remove_cvref_t<Ptr>::element_type, Log> {
+		requires StdLogPointer<Ptr> {
 		if (logger)
 			*logger << manip;
+		return logger;
+	}
+}
+
+namespace StormByte {
+	/**
+	 * @brief Stream into a @ref Shared logger without dereferencing.
+	 * @tparam T `Log` or a derived logger.
+	 * @tparam U Payload type.
+	 * @param logger Owner. An empty owner is a no-op.
+	 * @param value Value to stream.
+	 * @return @p logger.
+	 */
+	template<typename T, typename U>
+	requires Type::DerivedFrom<T, Logger::Log>
+	Shared<T>& operator<<(Shared<T>& logger, const U& value) noexcept {
+		if (logger)
+			*logger << value;
+		return logger;
+	}
+
+	/**
+	 * @brief Stream into a @ref Unique logger without dereferencing.
+	 * @tparam T `Log` or a derived logger.
+	 * @tparam U Payload type.
+	 * @param logger Owner. An empty owner is a no-op.
+	 * @param value Value to stream.
+	 * @return @p logger.
+	 */
+	template<typename T, typename U>
+	requires Type::DerivedFrom<T, Logger::Log>
+	Unique<T>& operator<<(Unique<T>& logger, const U& value) noexcept {
+		if (logger)
+			*logger << value;
 		return logger;
 	}
 }

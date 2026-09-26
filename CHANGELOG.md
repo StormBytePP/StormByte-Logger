@@ -33,6 +33,7 @@ If you landed here from a release link and have not read the tree:
 - Private `StormByte::Logger::Detail` human-readable number and IEC byte formatting (the manipulator API is unchanged; this logic no longer lives in String).
 - Tests for owned-text payloads, filtered drop of owned text, `Size`, and ill-formed wide input substituted as U+FFFD.
 - `operator<<` for `StormByte::BinaryData` and `StormByte::ByteSize` on `Log` and `ThreadedLog`. Conversion runs only when `WillWrite()` is true.
+- `operator<<` on `StormByte::Shared` and `StormByte::Unique` of `Log` or `ThreadedLog`, same sugar as `std::shared_ptr`: `log << "Hola"` without a dereference.
 
 ### Changed
 
