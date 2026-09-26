@@ -67,6 +67,31 @@ namespace StormByte::Logger {
 	class Engine;
 
 	/**
+	 * @brief Write raw bytes into an `std::ostream` owned by the caller.
+	 *
+	 * Instantiated in the caller's module. The DLL only stores the function pointer.
+	 * @param context Address of the caller's `std::ostream`.
+	 * @param data Bytes to write.
+	 * @param size Number of bytes.
+	 */
+	inline void OStreamWrite(void* context, const char* data, std::size_t size) {
+		if (context == nullptr || data == nullptr || size == 0)
+			return;
+		static_cast<std::ostream*>(context)->write(data, static_cast<std::streamsize>(size));
+	}
+
+	/**
+	 * @brief Apply an `std::ostream` manipulator in the caller's module.
+	 * @param context Address of the caller's `std::ostream`.
+	 * @param manip Manipulator, for example `std::endl`.
+	 */
+	inline void OStreamManip(void* context, std::ostream& (*manip)(std::ostream&)) {
+		if (context == nullptr || manip == nullptr)
+			return;
+		*static_cast<std::ostream*>(context) << manip;
+	}
+
+	/**
 	 * @class Log
 	 * @brief Public streaming facade for the StormByte logger.
 	 *
@@ -97,11 +122,15 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Construct a Log writing to out.
-			 * @param out Output stream (e.g. std::cout).
+			 * @param out Output stream (e.g. std::cout). Must outlive this logger.
 			 * @param level Minimum Level that will be emitted.
 			 * @param format Header format: %L level, %T timestamp, %i thread id, %c component, %g group, %% literal %.
+			 *
+			 * The stream is not touched from inside the DLL. Writes jump back to
+			 * @ref OStreamWrite and @ref OStreamManip in the module that constructs this logger.
 			 */
-			Log(std::ostream& out, const Level& level = Level::Info, std::string_view format = "[%L] %T");
+			Log(std::ostream& out, const Level& level = Level::Info, std::string_view format = "[%L] %T")
+				: Log(&OStreamWrite, &OStreamManip, &out, level, format) {}
 
 			/**
 			 * @brief Copy constructor.
@@ -627,6 +656,16 @@ namespace StormByte::Logger {
 			//@}
 
 		protected:
+			/**
+			 * @brief Construct a logger that emits through caller callbacks.
+			 * @param write Receives raw bytes. May be null.
+			 * @param manip Applies an ostream manipulator in the caller. May be null.
+			 * @param context Passed back to the callbacks. Not owned. Must outlive this logger.
+			 * @param level Minimum Level that will be emitted.
+			 * @param format Header format string.
+			 */
+			Log(SinkWrite write, SinkManip manip, void* context, const Level& level, std::string_view format);
+
 			std::shared_ptr<Engine> m_engine;			///< Shared backend
 			StormByte::String::String m_scope_path;			///< Sticky component path; empty = root facade
 

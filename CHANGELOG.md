@@ -42,6 +42,7 @@ If you landed here from a release link and have not read the tree:
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
 - `LevelToString` returns `const char*` (a string literal) instead of `std::string`. Call sites that store it in a `std::string` are unchanged.
 - The private backend is `Engine` (`m_engine`), in `engine.hxx` / `engine.cxx`. It was `Implementation`.
+- **Breaking (boundary):** `Log` and `ThreadedLog` no longer write an `std::ostream` from inside the DLL. Construction from an `std::ostream` still works and still requires the stream to outlive the logger. Bytes and manipulators (`std::endl`) are applied by `OStreamWrite` / `OStreamManip` in the module that constructed the logger. A protected constructor takes those callbacks directly.
 - **Breaking:** `ThrottleSpec::Component` and `ThrottleSpec::Group` are `std::optional<StormByte::String::String>`.
 - **Breaking:** ill-formed wide text is written as U+FFFD (`EF BF BD`). Logger does not throw `StormByte::UTF8Error` on that path.
 - `Log::m_scope_path` is `StormByte::String::String` so a copied or derived `Log` does not carry `std::string` across a DLL boundary.

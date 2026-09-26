@@ -106,8 +106,8 @@ void Log::WriteValue(const T& v) {
 	m_engine << v;
 }
 
-Log::Log(std::ostream& out, const Level& level, std::string_view format) {
-	m_engine = std::make_shared<Engine>(out, level, std::string{format});
+Log::Log(SinkWrite write, SinkManip manip, void* context, const Level& level, std::string_view format) {
+	m_engine = std::make_shared<Engine>(write, manip, context, level, std::string{format});
 }
 
 Log::PointerType Log::Clone() const {

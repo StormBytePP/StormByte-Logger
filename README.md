@@ -179,7 +179,7 @@ StormByte::Shared<ThreadedLog> log = StormByte::Shared<ThreadedLog>::MakePointer
 log << Level::Info << "Hola" << std::endl;
 ```
 
-`Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
+`Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream). The stream must outlive the logger. The DLL never calls into that stream: each write and each manipulator (`std::endl`, `std::flush`, …) jumps back to `OStreamWrite` / `OStreamManip`, which are compiled into the module that constructed the logger.
 
 Streamed payload types: `bool`, the standard integer and floating types, `char` / `unsigned char` / `wchar_t`, `const char*`, `const wchar_t*`, `std::string_view`, `std::wstring_view`, `std::span<const std::byte>`, `StormByte::BinaryData`, `StormByte::String::String`, `StormByte::String::WString`, `StormByte::CString`, `StormByte::WCString`, `StormByte::Size`, `StormByte::ByteSize`. `std::string` and `std::wstring` convert to those views. `std::vector<std::byte>` converts to the span. There is no separate `operator<<(const std::string&)`. There is no `std::format` overload on the logger itself; format first, then stream the view or an owned String type.
 
