@@ -38,7 +38,7 @@
  * SPDX-License-Identifier: LGPL-3.0-or-later OR LicenseRef-StormByte-Commercial
  */
 
-#include <StormByte/logger/implementation.hxx>
+#include <StormByte/logger/engine.hxx>
 #include <StormByte/logger/log.hxx>
 #include <StormByte/string/string.hxx>
 
@@ -103,11 +103,11 @@ template <typename T>
 void Log::WriteValue(const T& v) {
 	if (!BeginPayload())
 		return;
-	m_impl << v;
+	m_engine << v;
 }
 
 Log::Log(std::ostream& out, const Level& level, std::string_view format) {
-	m_impl = std::make_shared<Implementation>(out, level, std::string{format});
+	m_engine = std::make_shared<Engine>(out, level, std::string{format});
 }
 
 Log::PointerType Log::Clone() const {
@@ -125,7 +125,7 @@ Log::PointerType Log::Scope(std::string_view path) {
 }
 
 bool Log::Enabled(const Level& level) const noexcept {
-	return AlwaysVisible(level) || level >= m_impl->PrintLevel();
+	return AlwaysVisible(level) || level >= m_engine->PrintLevel();
 }
 
 bool Log::BeginPayload() {
@@ -135,28 +135,28 @@ bool Log::BeginPayload() {
 void Log::Write(std::wstring_view v) {
 	if (!BeginPayload())
 		return;
-	m_impl << v;
+	m_engine << v;
 }
 
 void Log::Write(const wchar_t* v) {
 	if (!BeginPayload())
 		return;
-	m_impl << v;
+	m_engine << v;
 }
 
 void Log::Write(std::span<const std::byte> v) {
 	if (!BeginPayload())
 		return;
-	m_impl << v;
+	m_engine << v;
 }
 
 void Log::Write(const Level& level) {
-	m_impl->SetFacadePath(Native(m_scope_path));
-	m_impl << level;
+	m_engine->SetFacadePath(Native(m_scope_path));
+	m_engine << level;
 }
 
 void Log::Write(std::ostream& (*manip)(std::ostream&)) {
-	m_impl << manip;
+	m_engine << manip;
 }
 
 void Log::Write(Log& (*manip)(Log&) noexcept) {
@@ -164,74 +164,74 @@ void Log::Write(Log& (*manip)(Log&) noexcept) {
 }
 
 void Log::Write(RedactManip m) {
-	m_impl->SetRedact(true, m.count, m.keep_first);
+	m_engine->SetRedact(true, m.count, m.keep_first);
 }
 
 void Log::Write(HexManip m) {
-	m_impl->SetHex(true, m.columns);
+	m_engine->SetHex(true, m.columns);
 }
 
 void Log::Write(NoHexManip) {
-	m_impl->SetHex(false, 0);
+	m_engine->SetHex(false, 0);
 }
 
 Log& Log::Color(const Level& level, const StormByte::Logger::Color& color) {
 	if (static_cast<std::string_view>(m_scope_path).empty())
-		m_impl->Color(level, color);
+		m_engine->Color(level, color);
 	else
-		m_impl->Color(Native(m_scope_path), level, color);
+		m_engine->Color(Native(m_scope_path), level, color);
 	return *this;
 }
 
 StormByte::Logger::Color Log::Color(const Level& level) const {
 	if (static_cast<std::string_view>(m_scope_path).empty())
-		return m_impl->Color(level);
-	return m_impl->Color(Native(m_scope_path), level);
+		return m_engine->Color(level);
+	return m_engine->Color(Native(m_scope_path), level);
 }
 
 Log& Log::Color(std::string_view component, const Level& level, const StormByte::Logger::Color& color) {
-	m_impl->Color(std::string{component}, level, color);
+	m_engine->Color(std::string{component}, level, color);
 	return *this;
 }
 
 StormByte::Logger::Color Log::Color(std::string_view component, const Level& level) const {
-	return m_impl->Color(std::string{component}, level);
+	return m_engine->Color(std::string{component}, level);
 }
 
 Log& Log::Format(std::string_view format) {
 	if (static_cast<std::string_view>(m_scope_path).empty())
-		m_impl->Format(std::string{format});
+		m_engine->Format(std::string{format});
 	else
-		m_impl->Format(Native(m_scope_path), std::string{format});
+		m_engine->Format(Native(m_scope_path), std::string{format});
 	return *this;
 }
 
 StormByte::String::String Log::Format() const {
 	if (static_cast<std::string_view>(m_scope_path).empty())
-		return CopyFormat(m_impl->Format());
-	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(Native(m_scope_path)));
+		return CopyFormat(m_engine->Format());
+	return CopyFormat(static_cast<const Engine&>(*m_engine).Format(Native(m_scope_path)));
 }
 
 Log& Log::Format(std::string_view component, std::string_view format) {
-	m_impl->Format(std::string{component}, std::string{format});
+	m_engine->Format(std::string{component}, std::string{format});
 	return *this;
 }
 
 StormByte::String::String Log::Format(std::string_view component) const {
-	return CopyFormat(static_cast<const Implementation&>(*m_impl).Format(std::string{component}));
+	return CopyFormat(static_cast<const Engine&>(*m_engine).Format(std::string{component}));
 }
 
 Log& Log::Throttle(const ThrottleSpec& spec) {
 	ThrottleSpec bound = spec;
 	BindStickyComponent(bound, m_scope_path);
-	m_impl->Throttle(bound);
+	m_engine->Throttle(bound);
 	return *this;
 }
 
 Log& Log::NoThrottle(const ThrottleSpec& spec) {
 	ThrottleSpec bound = spec;
 	BindStickyComponent(bound, m_scope_path);
-	m_impl->NoThrottle(bound);
+	m_engine->NoThrottle(bound);
 	return *this;
 }
 
@@ -270,7 +270,7 @@ Log& Log::Throttle(ComponentManip component, const Level& level, GroupManip grou
 }
 
 Log& Log::NoThrottle() {
-	m_impl->NoThrottleAll();
+	m_engine->NoThrottleAll();
 	return *this;
 }
 
@@ -301,65 +301,65 @@ Log& Log::NoThrottle(ComponentManip component, const Level& level, GroupManip gr
 }
 
 Log& Log::FlushThrottle() {
-	m_impl->FlushThrottle();
+	m_engine->FlushThrottle();
 	return *this;
 }
 
 Log& Log::FlushThrottle(const ThrottleSpec& spec) {
-	m_impl->FlushThrottle(spec);
+	m_engine->FlushThrottle(spec);
 	return *this;
 }
 
 void Log::Write(ColorManip manip) {
-	*m_impl << manip;
+	*m_engine << manip;
 }
 
 void Log::Write(NoColorManip manip) {
-	*m_impl << manip;
+	*m_engine << manip;
 }
 
 void Log::Write(FormatManip manip) {
-	*m_impl << std::move(manip);
+	*m_engine << std::move(manip);
 }
 
 void Log::Write(PopFormatManip manip) {
-	*m_impl << manip;
+	*m_engine << manip;
 }
 
 void Log::Write(GroupManip manip) {
-	*m_impl << std::move(manip);
+	*m_engine << std::move(manip);
 }
 
 void Log::Write(ComponentManip manip) {
-	*m_impl << std::move(manip);
+	*m_engine << std::move(manip);
 }
 
 void Log::Write(PopComponentManip manip) {
-	*m_impl << manip;
+	*m_engine << manip;
 }
 
 void Log::Write(ResetComponentManip manip) {
-	*m_impl << manip;
+	*m_engine << manip;
 }
 
 bool Log::WillWrite() const noexcept {
-	return m_impl->Enabled();
+	return m_engine->Enabled();
 }
 
 bool Log::PrepareLine() {
-	return m_impl->PrepareLine();
+	return m_engine->PrepareLine();
 }
 
 bool Log::HasOpenOutputLine() const noexcept {
-	return m_impl->HasOpenOutputLine();
+	return m_engine->HasOpenOutputLine();
 }
 
 bool Log::LineDecided() const noexcept {
-	return m_impl->LineDecided();
+	return m_engine->LineDecided();
 }
 
 bool Log::LineAdmitted() const noexcept {
-	return m_impl->LineAdmitted();
+	return m_engine->LineAdmitted();
 }
 
 template STORMBYTE_LOGGER_INSTANTIATE void Log::WriteValue<bool>(const bool& v);

@@ -65,7 +65,7 @@ namespace StormByte::Logger {
 	 * overrides BeginPayload plus the Writes that must run work before the lock
 	 * or that drop the lock on newline.
 	 *
-	 * Scope clones this type and shares both the Implementation and the line lock.
+	 * Scope clones this type and shares both the Engine and the line lock.
 	 */
 	class STORMBYTE_LOGGER_PUBLIC ThreadedLog : public Log {
 		public:
@@ -79,7 +79,7 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Copy constructor.
-			 * @note Shares the Implementation and the line lock. Copies the sticky path.
+			 * @note Shares the Engine and the line lock. Copies the sticky path.
 			 */
 			ThreadedLog(const ThreadedLog&) = default;
 
@@ -96,7 +96,7 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Copy assignment.
 			 * @return Reference to this logger.
-			 * @note Shares the Implementation and the line lock.
+			 * @note Shares the Engine and the line lock.
 			 */
 			ThreadedLog& operator=(const ThreadedLog&) = default;
 
@@ -292,13 +292,13 @@ namespace StormByte::Logger {
 		protected:
 			/**
 			 * @brief Deep-copy this facade into a @ref StormByte::Shared.
-			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
+			 * @return Pointer to a ThreadedLog that shares Engine and line lock.
 			 */
 			PointerType Clone() const override;
 
 			/**
 			 * @brief Move this facade into a @ref StormByte::Shared.
-			 * @return Pointer to a ThreadedLog that shares Implementation and line lock.
+			 * @return Pointer to a ThreadedLog that shares Engine and line lock.
 			 */
 			PointerType Move() override;
 

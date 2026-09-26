@@ -64,13 +64,13 @@
  * @brief Logger module of the StormByte suite.
  */
 namespace StormByte::Logger {
-	class Implementation;
+	class Engine;
 
 	/**
 	 * @class Log
 	 * @brief Public streaming facade for the StormByte logger.
 	 *
-	 * Owns a shared_ptr to the internal Implementation and exposes operator<<
+	 * Owns a shared_ptr to the internal Engine and exposes operator<<
 	 * overloads similar to std::ostream. Filtered levels early-out without I/O.
 	 * The configured print level does not suppress Warning, Error or Fatal.
 	 *
@@ -105,7 +105,7 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Copy constructor.
-			 * @note Shares the Implementation. Copies the sticky component path.
+			 * @note Shares the Engine. Copies the sticky component path.
 			 */
 			Log(const Log&) = default;
 
@@ -122,7 +122,7 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Copy assignment.
 			 * @return Reference to this logger.
-			 * @note Shares the Implementation. Copies the sticky component path.
+			 * @note Shares the Engine. Copies the sticky component path.
 			 */
 			Log& operator=(const Log&) = default;
 
@@ -627,7 +627,7 @@ namespace StormByte::Logger {
 			//@}
 
 		protected:
-			std::shared_ptr<Implementation> m_impl;			///< Shared backend
+			std::shared_ptr<Engine> m_engine;			///< Shared backend
 			StormByte::String::String m_scope_path;			///< Sticky component path; empty = root facade
 
 			/**
@@ -668,7 +668,7 @@ namespace StormByte::Logger {
 
 			/**
 			 * @brief Forward a payload after BeginPayload.
-			 * @tparam T Type accepted by Implementation::operator<<.
+			 * @tparam T Type accepted by Engine::operator<<.
 			 * @param v Value to write.
 			 */
 			template <typename T>
