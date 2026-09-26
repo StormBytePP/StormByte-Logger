@@ -19,7 +19,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network, 
 - **Levels** — ordered from least to most severe: `LowLevel`, `Debug`, `Warning`, `Notice`, `Info`, `Error`, `Fatal`. `Warning`, `Error` and `Fatal` are always emitted.
 - **Headers** — `%L` level, `%T` timestamp, `%i` thread id, `%c` component path, `%g` group, `%%` literal `%`.
 - **Components** — thread-local stack. `component("A")` pushes a segment; nested calls join with `/` (`Multimedia/Decoder`). `pop_component` pops one segment. `reset_component` clears the stack. `component("")` does not push.
-- **Scope** — `log.Scope("Multimedia/Decoder")` returns a `std::shared_ptr<Log>` facade with a sticky path. Nested `Scope("Encoder")` joins relative to the parent. Config methods without a component argument bind to that sticky path (root facade = global). The facade shares the backend and, on `ThreadedLog`, the line lock.
+- **Scope** — `log.Scope("Multimedia/Decoder")` returns a `StormByte::Shared<Log>` facade with a sticky path. Nested `Scope("Encoder")` joins relative to the parent. Config methods without a component argument bind to that sticky path (root facade = global). The facade shares the backend and, on `ThreadedLog`, the line lock. `Shared` converts to `std::shared_ptr<Log>` and keeps Base's deleter.
 - **Groups** — line-scoped `group("name")` labels, cleared by a newline.
 - **Colors** — ANSI colors configured by level or component path (longest prefix wins). `color`, `color(Color::X)` and `nocolor` content manipulators. Disabled by default.
 - **Formats** — persistent general / component-path formats (longest prefix wins) plus nested temporary `push_format("...")` / `pop_format`.
@@ -76,7 +76,7 @@ The suite is split on purpose. Base, Buffer, Config, Crypto, Database, Network, 
 - This README: how to build, levels, headers, streaming contract, examples.
 - Doxygen class reference (headers under `StormByte/logger/`): [https://dev.stormbyte.org/StormByte-Logger/](https://dev.stormbyte.org/StormByte-Logger/).
 
-Other modules that take a `std::shared_ptr<StormByte::Logger::Log>` should point here rather than re-document the logger. The print floor is chosen by the **application**, not by the library that logs.
+Other modules that take a `std::shared_ptr<StormByte::Logger::Log>` still compile: `Scope` returns `StormByte::Shared<Log>`, which converts to that `shared_ptr` and still frees on Base's heap. The print floor is chosen by the **application**, not by the library that logs.
 
 ## Levels
 
@@ -172,7 +172,7 @@ tlog << Level::Notice << "opened source /tmp/in.mkv" << std::endl;
 tlog << Level::Debug  << "mapped Video 0 -> order 0" << std::endl;
 ```
 
-`operator<<` unpacks `std::shared_ptr` / `std::unique_ptr` whose element type derives from `Log` (`Log` and `ThreadedLog`). `*tlog <<` still works.
+`operator<<` unpacks `std::shared_ptr` / `std::unique_ptr` and `StormByte::Shared` / `StormByte::Unique` whose element type derives from `Log` (`Log` and `ThreadedLog`). `*tlog <<` still works.
 
 `Log` and `ThreadedLog` accept any `std::ostream` (`std::cout`, a file stream, a string stream).
 
@@ -204,7 +204,7 @@ Demuxer demux(log);
 Muxer   mux(log, container);
 ```
 
-The objects store `std::shared_ptr<Log>`. `ThreadedLog` *is-a* `Log`, so the same pointer type works. `Scope` facades also share that backend.
+The objects store `StormByte::Shared<Log>` (or a `std::shared_ptr<Log>` converted from it). `ThreadedLog` *is-a* `Log`, so the same pointer type works. `Scope` facades also share that backend.
 
 ### Owned text and Size
 

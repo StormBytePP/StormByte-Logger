@@ -83,7 +83,7 @@ namespace StormByte::Logger {
 	 * and StormByte::BinaryData. Default formatting is Base64. With hex(N)
 	 * they use BinaryData::HexDump(N). Text still uses the 0xAA dump.
 	 */
-	class STORMBYTE_LOGGER_PUBLIC Log : protected StormByte::Clonable<Log, std::shared_ptr<Log>> {
+	class STORMBYTE_LOGGER_PUBLIC Log : protected StormByte::Clonable<Log> {
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_number(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& humanreadable_bytes(Log& log) noexcept;
 		friend STORMBYTE_LOGGER_PUBLIC Log& nohumanreadable(Log& log) noexcept;
@@ -91,9 +91,9 @@ namespace StormByte::Logger {
 
 		public:
 			/**
-			 * @brief Smart pointer returned by Clone, Move and Scope.
+			 * @brief Owner returned by Clone, Move and Scope. Base's heap.
 			 */
-			using PointerType = StormByte::Clonable<Log, std::shared_ptr<Log>>::PointerType;
+			using PointerType = StormByte::Clonable<Log>::PointerType;
 
 			/**
 			 * @brief Construct a Log writing to out.
@@ -135,7 +135,7 @@ namespace StormByte::Logger {
 			/**
 			 * @brief Another facade on the same backend, with a sticky component path.
 			 * @param path Segment relative to this facade, or a /-separated path.
-			 * @return Shared pointer to a Log (ThreadedLog if *this is one). Never null.
+			 * @return @ref StormByte::Shared of a Log (ThreadedLog if *this is one). Never null.
 			 * @note Does not register the component and does not preconfigure Format, Color or Throttle.
 			 *       An empty path returns a clone of this facade.
 			 */
@@ -675,13 +675,13 @@ namespace StormByte::Logger {
 			void WriteValue(const T& v);
 
 			/**
-			 * @brief Deep-copy this facade into a shared_ptr.
+			 * @brief Deep-copy this facade into a @ref StormByte::Shared.
 			 * @return Pointer to the clone.
 			 */
 			PointerType Clone() const override;
 
 			/**
-			 * @brief Move this facade into a shared_ptr.
+			 * @brief Move this facade into a @ref StormByte::Shared.
 			 * @return Pointer to the new facade.
 			 */
 			PointerType Move() override;
@@ -811,7 +811,7 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Stream a value into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr shared_ptr or unique_ptr whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
 	 * @tparam T Value type.
 	 * @param logger Smart pointer to the logger.
 	 * @param value Value to stream.
@@ -827,7 +827,7 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Stream a Level into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr shared_ptr or unique_ptr whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
 	 * @param logger Smart pointer to the logger.
 	 * @param level Level to set.
 	 * @return Reference to the smart pointer.
@@ -842,7 +842,7 @@ namespace StormByte::Logger {
 
 	/**
 	 * @brief Stream a stream manipulator into a smart pointer to Log or a derived logger.
-	 * @tparam Ptr shared_ptr or unique_ptr whose element type derives from Log.
+	 * @tparam Ptr `std::shared_ptr`, `std::unique_ptr`, @ref StormByte::Shared or @ref StormByte::Unique whose element type derives from Log.
 	 * @param logger Smart pointer to the logger.
 	 * @param manip Stream manipulator.
 	 * @return Reference to the smart pointer.

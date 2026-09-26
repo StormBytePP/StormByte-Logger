@@ -109,11 +109,11 @@ Log::Log(std::ostream& out, const Level& level, std::string_view format) {
 }
 
 Log::PointerType Log::Clone() const {
-	return std::make_shared<Log>(*this);
+	return PointerType::MakePointer<Log>(*this);
 }
 
 Log::PointerType Log::Move() {
-	return std::make_shared<Log>(*this);
+	return PointerType::MakePointer<Log>(*this);
 }
 
 Log::PointerType Log::Scope(std::string_view path) {
