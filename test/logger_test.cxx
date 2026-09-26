@@ -53,6 +53,7 @@
 
 #include <clocale>
 #include <iostream>
+#include <memory>
 #include <span>
 #include <sstream>
 #include <string>
@@ -805,6 +806,88 @@ int test_wstring_payload() {
 	RETURN_TEST("test_wstring_payload", result);
 }
 
+int test_every_accepted_payload() {
+	int result = 0;
+	std::ostringstream output;
+	Log log(output, Level::Info, "%L:");
+	IsolateLine(log);
+	const char ch = 'A';
+	const signed char sch = -2;
+	const unsigned char uch = 7;
+	const short sh = -3;
+	const unsigned short ush = 4;
+	const unsigned int ui = 5;
+	const long lg = -6;
+	const unsigned long ul = 8;
+	const long long ll = -9;
+	const unsigned long long ull = 10;
+	const float fl = 1.5f;
+	const long double ld = 2.5L;
+	char mutable_text[] = "buf";
+	const char* null_narrow = nullptr;
+	const wchar_t* null_wide = nullptr;
+	const std::string std_text = "std";
+	const std::wstring std_wide = L"wstd";
+	log << Level::Info
+		<< false << " "
+		<< ch << " " << sch << " " << uch << " "
+		<< sh << " " << ush << " " << ui << " "
+		<< lg << " " << ul << " " << ll << " " << ull << " "
+		<< fl << " " << ld << " "
+		<< std_text << " " << std_wide << " "
+		<< mutable_text << " "
+		<< null_narrow << null_wide
+		<< std::endl;
+	const std::string body =
+		std::string("false ")
+		+ std::to_string(ch) + ' '
+		+ std::to_string(sch) + ' '
+		+ std::to_string(uch) + ' '
+		+ std::to_string(sh) + ' '
+		+ std::to_string(ush) + ' '
+		+ std::to_string(ui) + ' '
+		+ std::to_string(lg) + ' '
+		+ std::to_string(ul) + ' '
+		+ std::to_string(ll) + ' '
+		+ std::to_string(ull) + ' '
+		+ std::to_string(fl) + ' '
+		+ std::to_string(ld)
+		+ " std wstd buf ";
+	ASSERT_EQUAL("test_every_accepted_payload", std::string("Info    : ") + body + "\n", output.str());
+	RETURN_TEST("test_every_accepted_payload", result);
+}
+
+int test_pointer_owners_stream() {
+	int result = 0;
+	std::ostringstream output;
+	StormByte::Shared<Log> empty_shared;
+	StormByte::Unique<Log> empty_unique;
+	std::shared_ptr<Log> empty_std_shared;
+	std::unique_ptr<Log> empty_std_unique;
+	empty_shared << Level::Info << "skip" << std::endl;
+	empty_unique << Level::Info << "skip" << std::endl;
+	empty_std_shared << Level::Info << "skip" << std::endl;
+	empty_std_unique << Level::Info << "skip" << std::endl;
+
+	auto shared = StormByte::Shared<Log>::MakePointer<Log>(output, Level::Info, "%L:");
+	IsolateLine(*shared);
+	shared << Level::Info << "shared" << std::endl;
+	auto unique = StormByte::Unique<Log>::MakePointer<Log>(output, Level::Info, "%L:");
+	IsolateLine(*unique);
+	unique << Level::Info << "unique" << std::endl;
+	ASSERT_EQUAL("test_pointer_owners_stream", "Info    : shared\nInfo    : unique\n", output.str());
+	RETURN_TEST("test_pointer_owners_stream", result);
+}
+
+int test_logger_exception_path() {
+	int result = 0;
+	const Exception formatted("failed {}", 3);
+	const ThrottleError plain("nope");
+	ASSERT_EQUAL("test_logger_exception_path", std::string("StormByte.Logger: failed 3"), std::string(formatted.what()));
+	ASSERT_EQUAL("test_logger_exception_path (leaf)", std::string("StormByte.Logger: nope"), std::string(plain.what()));
+	RETURN_TEST("test_logger_exception_path", result);
+}
+
 // -------------------
 // Scope
 // -------------------
@@ -1324,6 +1407,9 @@ int main() {
 	result += test_string_view_and_wstring_view_payloads();
 	result += test_wcstring_payload();
 	result += test_wstring_payload();
+	result += test_every_accepted_payload();
+	result += test_pointer_owners_stream();
+	result += test_logger_exception_path();
 
 	// -------------------
 	// Scope

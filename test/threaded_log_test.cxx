@@ -40,6 +40,10 @@
 
 #include <StormByte/base64.hxx>
 #include <StormByte/binary_data.hxx>
+#include <StormByte/byte_size.hxx>
+#include <StormByte/cstring.hxx>
+#include <StormByte/size.hxx>
+#include <StormByte/string/string.hxx>
 #include <StormByte/logger/threaded_log.hxx>
 #include <StormByte/test_handlers.h>
 
@@ -137,6 +141,36 @@ int test_threadedlog_span_vector_converts() {
 	ASSERT_EQUAL("test_threadedlog_span_vector_converts",
 		std::string("Info    : ") + static_cast<std::string>(StormByte::Base64Encode(raw)) + "\n", output.str());
 	RETURN_TEST("test_threadedlog_span_vector_converts", result);
+}
+
+int test_threadedlog_every_accepted_payload() {
+	int result = 0;
+	std::ostringstream output;
+	ThreadedLog log(output, Level::Info, "%L:");
+	const StormByte::String::String owned{"owned"};
+	const StormByte::CString bytes{"c"};
+	const StormByte::Size count{3};
+	const StormByte::ByteSize octets{4};
+	const StormByte::BinaryData raw{std::byte{'Z'}};
+	const char* null_narrow = nullptr;
+	log << Level::Info
+		<< false << " "
+		<< std::string{"std"} << " "
+		<< std::wstring{L"wide"} << " "
+		<< owned << " "
+		<< bytes << " "
+		<< count << " "
+		<< octets << " "
+		<< raw
+		<< null_narrow
+		<< std::endl;
+	const std::string body =
+		std::string("false std wide owned c ")
+		+ static_cast<std::string>(count) + ' '
+		+ static_cast<std::string>(octets) + ' '
+		+ static_cast<std::string>(StormByte::Base64Encode(raw));
+	ASSERT_EQUAL("test_threadedlog_every_accepted_payload", std::string("Info    : ") + body + "\n", output.str());
+	RETURN_TEST("test_threadedlog_every_accepted_payload", result);
 }
 
 // -------------------
@@ -943,6 +977,7 @@ int main() {
 	result += test_threadedlog_span_filtered();
 	result += test_threadedlog_span_hex();
 	result += test_threadedlog_span_vector_converts();
+	result += test_threadedlog_every_accepted_payload();
 
 	// -------------------
 	// Color
