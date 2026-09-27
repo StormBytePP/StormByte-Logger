@@ -38,7 +38,7 @@ If you landed here from a release link and have not read the tree:
 
 ### Changed
 
-- Shared vs static follows CMake `BUILD_SHARED_LIBS`. There is no `STORMBYTE_LOGGER_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_LOGGER_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
+- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in `lib/`, default ON). There is no `STORMBYTE_LOGGER_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_LOGGER_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
 - **Breaking:** the bundled dependency is [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0), which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). Logger no longer submodules Base directly.
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
 - `LevelToString` returns `const char*` (a string literal) instead of `std::string`. Call sites that store it in a `std::string` are unchanged.
