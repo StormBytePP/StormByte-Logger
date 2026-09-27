@@ -147,6 +147,10 @@ cmake -S . -B build
 cmake --build build
 ```
 
+Shared vs static follows CMake `BUILD_SHARED_LIBS`. Leave it on (or pass `-DBUILD_SHARED_LIBS=ON`) for a shared library. `-DBUILD_SHARED_LIBS=OFF` builds a static archive; on Windows the headers then do not use `dllimport`. Vendored StormByte-String (and Base through String) follows the same mode.
+
+A shared build keeps this library as its own `.so` / `.dll`. Under the LGPL that is usually the simpler way to ship: the user can replace that file. A static archive is folded into your binary. The LGPL still applies to this code; you must give the recipient a way to relink your product with a different build of this library. If that does not fit how you distribute the final product, a commercial license is available from the copyright holder (see [License](#license)).
+
 Link `StormByte-Logger` (and String / Base). Include path: the public install prefix, headers as `#include <StormByte/logger/….hxx>`.
 
 ## Usage
@@ -521,6 +525,8 @@ From 2.0.0, original StormByte-Logger source is dual-licensed:
 2. A commercial license from the copyright holder (David C. Manuelda, StormBytePP).
 
 Neither license covers other StormByte modules or third-party material shipped under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors). Those keep their own licenses. Neither license grants patent rights.
+
+Static linking under the LGPL is described under [Installation](#installation).
 
 ## Support
 

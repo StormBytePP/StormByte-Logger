@@ -1,10 +1,8 @@
 include(GNUInstallDirs)
 
-option(STORMBYTE_LOGGER_SHARED "Build StormByte-Logger as a shared library" ON)
-
 file(GLOB_RECURSE STORMBYTE_LOGGER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
 
-if(STORMBYTE_LOGGER_SHARED)
+if(BUILD_SHARED_LIBS)
 	add_library(StormByte-Logger SHARED ${STORMBYTE_LOGGER_SOURCES})
 	target_compile_definitions(StormByte-Logger PUBLIC STORMBYTE_LOGGER_SHARED)
 else()
