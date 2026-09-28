@@ -18,8 +18,8 @@ include(cmake/asan.cmake)
 cmake_policy(SET CMP0079 NEW)
 
 add_subdirectory(doc)
-add_subdirectory(thirdparty)
 add_subdirectory(lib)
+add_subdirectory(thirdparty)
 add_subdirectory(test)
 
 include(cmake/install.cmake)
