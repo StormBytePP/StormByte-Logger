@@ -1,16 +1,26 @@
 include(GNUInstallDirs)
 
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-
 file(GLOB_RECURSE STORMBYTE_LOGGER_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/*.cxx")
 
 if(BUILD_SHARED_LIBS)
-	add_library(StormByte-Logger SHARED ${STORMBYTE_LOGGER_SOURCES})
-	target_compile_definitions(StormByte-Logger PUBLIC STORMBYTE_LOGGER_SHARED)
+	set(_mode shared)
 else()
-	add_library(StormByte-Logger STATIC ${STORMBYTE_LOGGER_SOURCES})
+	set(_mode static)
 endif()
-add_library(StormByte::Logger ALIAS StormByte-Logger)
+
+buildmaster_component(
+	StormByte-Logger
+	"StormByte Suite - Logger"
+	"${STORMBYTE_LOGGER_SOURCES}"
+	""
+	${_mode}
+	"StormByte-Logger"
+	"BACKEND=host;ALIAS=StormByte::Logger"
+)
+
+if(BUILD_SHARED_LIBS)
+	target_compile_definitions(StormByte-Logger PUBLIC STORMBYTE_LOGGER_SHARED)
+endif()
 
 set_target_properties(StormByte-Logger PROPERTIES
 	LINKER_LANGUAGE CXX
