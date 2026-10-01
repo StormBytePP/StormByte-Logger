@@ -10,7 +10,7 @@ string(STRIP "${_sb_ver}" _sb_ver)
 project("StormByte C++ Library: Logger module"
 	VERSION ${_sb_ver}
 	DESCRIPTION "StormByte-Logger is the logging module of the StormByte C++ suite."
-	HOMEPAGE_URL "https://dev.stormbyte.org/StormByte-Logger"
+	HOMEPAGE_URL "https://suite.stormbyte.org/StormByte-Logger"
 )
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)

@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 StormByte Logger is the stream-logging module of the StormByte C++ suite.
 
-It depends on [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0) or newer, which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network, String or System.
+It depends directly on [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) or newer. This repository is not Base, Buffer, Config, Crypto, Database, Multimedia, Network or System.
 
 Public headers under `StormByte/logger/` cover `Log`, `ThreadedLog`, header formats (`%L` `%T` `%i` `%c` `%g`), hierarchical components and `Scope` facades, groups, ANSI colors, temporary formats, human-readable numbers and bytes, redaction of text and numbers, hex dumps (`hex` / `nohex`), and binary payloads (`std::span<const std::byte>`, default Base64). Owned text that crosses the logger DLL boundary uses `StormByte::String::String` / `WString` and `StormByte::CString` / `WCString`; `StormByte::Size`, `StormByte::ByteSize` and `StormByte::BinaryData` are accepted as payloads. Views and `std::string` stay on the caller side.
 
-From 2.0.0, original Logger sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte-String and the Base tree it vendors).
+From 2.0.0, original Logger sources are dual-licensed: GNU Lesser General Public License v3.0 or later, or a commercial license from the copyright holder. That change does not cover other StormByte modules or third-party material under `thirdparty/` (including bundled StormByte Base).
 
 If you landed here from a release link and have not read the tree:
 
@@ -38,8 +38,9 @@ If you landed here from a release link and have not read the tree:
 
 ### Changed
 
-- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in the project root, default ON). There is no `STORMBYTE_LOGGER_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_LOGGER_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte-String uses the same `shared` / `static` BuildMaster mode and is configured with `ENABLE_TEST=OFF`.
-- **Breaking:** the bundled dependency is [StormByte-String 1.0.0](https://github.com/StormBytePP/StormByte-String/releases/tag/1.0.0), which vendors [StormByte Base 2.0.0](https://github.com/StormBytePP/StormByte/releases/tag/2.0.0). Logger no longer submodules Base directly.
+- Build metadata now vendors StormByte Base directly instead of StormByte-String; the Logger text API migration is deferred to a follow-up change.
+- Shared vs static follows CMake `BUILD_SHARED_LIBS` (declared in the project root, default ON). There is no `STORMBYTE_LOGGER_SHARED` CMake option. When the library is shared, the compile definition `STORMBYTE_LOGGER_SHARED` is still set so `visibility.h` can distinguish `dllexport` / `dllimport` / static. CI passes `-DBUILD_SHARED_LIBS=ON`. Vendored StormByte Base follows the same `BUILD_SHARED_LIBS` mode.
+- **Breaking:** Logger vendors [StormByte Base 2.0.0](https://github.com/StormByte-Suite/StormByte/releases/tag/2.0.0) directly. Migration of Logger's existing text API from StormByte-String is deferred to a follow-up change.
 - **Breaking:** public streaming no longer treats `std::string` as an owned cross-module type. Use `String` / `CString` when the buffer is owned by another module; `string_view` remains valid for caller-owned data.
 - `LevelToString` returns `const char*` (a string literal) instead of `std::string`. Call sites that store it in a `std::string` are unchanged.
 - The private backend is `Engine` (`m_engine`), in `engine.hxx` / `engine.cxx`. It was `Implementation`.
